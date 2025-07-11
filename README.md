@@ -16,7 +16,7 @@ Create cron jobs
 
 /admin/cron_charge.php
 
-2.Update node stats every 5 minutes
+2. Update node stats every 5 minutes
 
 /admin/update_node_stats.php
 
