@@ -1,0 +1,43 @@
+Charging completed successfully
+[2025-04-13 11:44:45] Starting cron_charge.php
+Getting resource prices...
+Fetching active VMs...
+Found 0 active VMs to process
+[2025-04-13 11:44:45] cron_charge.php completed
+Charging completed successfully
+[2025-04-13 11:48:11] Starting cron_charge.php
+Getting resource prices...
+Fetching active VMs...
+Found 6 active VMs to process
+Processing VM #1001 for user #1
+Regular VM - daily cost: 33.333333
+Charging 33.333333 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #1001
+Processing VM #125 for user #1
+Regular VM - daily cost: 16.666667
+Charging 16.666667 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #125
+Processing VM #128 for user #1
+Regular VM - daily cost: 16.666667
+Charging 16.666667 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #128
+Processing VM #129 for user #1
+Regular VM - daily cost: 33.333333
+Charging 33.333333 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #129
+Processing VM #131 for user #1
+Regular VM - daily cost: 16.666667
+Charging 16.666667 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #131
+Processing VM #132 for user #1
+Regular VM - daily cost: 16.666667
+Charging 16.666667 from bonus balance
+Created bonus balance transaction
+Successfully processed VM #132
+[2025-04-13 11:48:11] cron_charge.php completed
+Charging completed successfully

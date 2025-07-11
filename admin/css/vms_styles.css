@@ -1,0 +1,162 @@
+.action-buttons {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    
+    .action-form {
+        margin: 0;
+    }
+    
+    .action-btn {
+        padding: 5px 8px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.2s;
+    }
+    
+    .action-btn:hover {
+        opacity: 0.8;
+    }
+    
+    .action-btn-edit {
+        background-color: #17a2b8;
+    }
+    
+    .action-btn-delete {
+        background-color: #dc3545;
+    }
+    
+    .action-btn-start {
+        background-color: #28a745;
+    }
+    
+    .action-btn-stop {
+        background-color: #dc3545;
+    }
+    
+    .action-btn-reboot {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .action-btn-console {
+        background-color: #6c757d;
+        text-decoration: none;
+    }
+    
+    .action-btn-stats {
+        background-color: #6610f2;
+        text-decoration: none;
+    }
+
+    /* Стили для модального окна */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.7);
+    }
+    
+    .modal-content {
+        background-color: var(--card-bg);
+        margin: 5% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 1200px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-color);
+    }
+    
+    .close {
+        color: var(--text-secondary);
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .close:hover {
+        color: var(--text-color);
+    }
+    
+    .modal-body {
+        padding-top: 15px;
+    }
+    
+    .timeframe-filter {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .timeframe-filter label {
+        font-weight: bold;
+        color: var(--text-color);
+    }
+    
+    .timeframe-filter select {
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        background-color: var(--card-bg);
+        color: var(--text-color);
+    }
+    
+    .progress-container {
+        width: 100%;
+        height: 4px;
+        background-color: var(--hover-color);
+        margin-bottom: 15px;
+        display: none;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background-color: var(--primary-color);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .metric-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .metric-chart {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }

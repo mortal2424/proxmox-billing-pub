@@ -1,0 +1,137 @@
+.quotas-container {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.quotas-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: var(--text-color);
+}
+
+.quotas-table th, .quotas-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.quotas-table th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
+.quotas-table tr:hover {
+    background-color: var(--table-hover);
+}
+
+.quota-input {
+    width: 80px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    text-align: center;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+.quota-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.2);
+}
+
+.save-btn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.save-btn:hover {
+    background-color: var(--primary-light);
+}
+
+.usage-bar {
+    height: 10px;
+    background-color: var(--hover-color);
+    border-radius: 5px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.usage-bar-fill {
+    height: 100%;
+    background: var(--avatar-gradient);
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+.quota-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.quota-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.quota-warning {
+    color: #ff9800;
+    font-size: 0.85rem;
+    margin-top: 3px;
+}
+
+.quota-danger {
+    color: #f44336;
+    font-size: 0.85rem;
+    margin-top: 3px;
+}
+
+/* Специфичные стили для темной темы */
+[data-theme="dark"] {
+    .quotas-container {
+        box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+    }
+    
+    .usage-bar {
+        background-color: rgba(255,255,255,0.1);
+    }
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    .quotas-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .quota-input {
+        width: 70px;
+    }
+    
+    .quota-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .save-btn {
+        width: 100%;
+    }
+}

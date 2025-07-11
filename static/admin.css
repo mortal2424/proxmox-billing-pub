@@ -1,0 +1,19 @@
+.dashboard {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    flex: 1;
+    text-align: center;
+}
+
+.card h3 {
+    margin-top: 0;
+    color: #333;
+}

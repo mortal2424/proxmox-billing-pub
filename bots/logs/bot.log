@@ -1,0 +1,74 @@
+[2025-04-20 23:38:51] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:38:51] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:38:56] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:38:56] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:06] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:06] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:17] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:17] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:27] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:27] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:37] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:37] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:47] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:47] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:58] Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:39:58] Database initialization ERROR: SQLSTATE[HY000] [1045] Access denied for user 'your_username'@'localhost' (using password: YES)
+[2025-04-20 23:40:08] Database connection established
+[2025-04-20 23:40:08] === BOT STARTED ===
+[2025-04-20 23:40:08] Database connection established
+[2025-04-20 23:40:08] Proxmox API initialized successfully
+[2025-04-20 23:40:10] Database connection established
+[2025-04-20 23:40:10] === BOT STARTED ===
+[2025-04-20 23:40:10] Database connection established
+[2025-04-20 23:40:10] Proxmox API initialized successfully
+[2025-04-21 08:12:55] Database connection established
+[2025-04-21 08:12:55] === BOT STARTED ===
+[2025-04-21 08:12:55] Database connection established
+[2025-04-21 08:12:55] Proxmox API initialized successfully
+[2025-04-21 08:20:49] Database connection established
+[2025-04-21 08:20:49] === BOT STARTED ===
+[2025-04-21 08:20:49] Database connection established
+[2025-04-21 08:20:49] Proxmox API initialized successfully
+[2025-04-21 08:21:10] VM Metrics ERROR: Не удалось получить метрики: Неизвестная ошибка
+[2025-04-21 08:24:21] VM Metrics ERROR: Не удалось получить метрики: Неизвестная ошибка
+[2025-04-21 08:44:00] Database connection established
+[2025-04-21 08:44:00] === BOT STARTED ===
+[2025-04-21 08:44:00] Database connection established
+[2025-04-21 08:44:00] Proxmox API initialized successfully
+[2025-04-21 09:19:27] Database connection established
+[2025-04-21 09:19:27] === BOT STARTED ===
+[2025-04-21 09:19:27] Database connection established
+[2025-04-21 09:19:27] Proxmox API initialized successfully
+[2025-04-22 05:46:17] Database ERROR in showMainMenu: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-22 05:46:17] Attempting to reconnect to database...
+[2025-04-22 05:46:17] Database connection lost, reconnecting...
+[2025-04-22 05:46:17] Database connection established
+[2025-04-22 20:35:49] Database ERROR in showMainMenu: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-22 20:35:49] Attempting to reconnect to database...
+[2025-04-22 20:35:49] Database connection lost, reconnecting...
+[2025-04-22 20:35:49] Database connection established
+[2025-04-23 01:34:37] Database connection established
+[2025-04-23 01:34:37] === BOT STARTED ===
+[2025-04-23 01:34:37] Database connection established
+[2025-04-23 01:34:38] Proxmox API initialized successfully
+[2025-04-23 20:08:25] Database ERROR in showMainMenu: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-23 20:08:25] Attempting to reconnect to database...
+[2025-04-23 20:08:25] Database connection lost, reconnecting...
+[2025-04-23 20:08:25] Database connection established
+[2025-04-24 04:25:52] Database ERROR in handleBalanceCommand: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-24 04:25:52] Attempting to reconnect to database...
+[2025-04-24 04:25:52] Database connection lost, reconnecting...
+[2025-04-24 04:25:52] Database connection established
+[2025-04-25 04:17:33] Database ERROR in showMainMenu: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-25 04:17:33] Attempting to reconnect to database...
+[2025-04-25 04:17:33] Database connection lost, reconnecting...
+[2025-04-25 04:17:33] Database connection established
+[2025-04-26 04:18:08] Database ERROR in handleVmsCommand: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-04-26 04:18:08] Attempting to reconnect to database...
+[2025-04-26 04:18:08] Database connection lost, reconnecting...
+[2025-04-26 04:18:08] Database connection established
+[2025-04-30 10:44:14] Database connection established
+[2025-04-30 10:44:14] === BOT STARTED ===
+[2025-04-30 10:44:14] Database connection established
+[2025-04-30 10:44:14] Proxmox API initialized successfully

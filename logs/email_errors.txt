@@ -1,0 +1,1 @@
+Error sending to mortal24@yandex.ru: SMTP Error: Could not connect to SMTP host. Failed to connect to server
