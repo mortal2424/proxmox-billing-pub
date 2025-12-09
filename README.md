@@ -82,3 +82,21 @@ The code is under development and may contain errors. If you want to help with t
 /api/collect_vm_metrics.php
 
 Код находится в стадии разработки и может содержать ошибки. Если вы хотите помочь с разработкой, пожалуйста, свяжитесь со мной по адресу mortal24@yandex.ru или через Telegram по номеру 331473849. Я добавлю вас в качестве разработчика, и вместе мы сможем быстрее создать панель.
+
+
+
+<img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
+<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
+<img width="1903" height="926" alt="image" src="https://github.com/user-attachments/assets/d35d88f9-a019-420e-800e-16cb743540cc" />
+<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/a7582b5d-1a78-47da-a2f6-eab43d0e1d0f" />
+<img width="1904" height="928" alt="image" src="https://github.com/user-attachments/assets/2b380ce0-4e94-4ff1-9744-59177942fc9f" />
+<img width="1906" height="927" alt="image" src="https://github.com/user-attachments/assets/2428518c-b594-4e25-8f88-0d94a045b90c" />
+<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/60e92779-545d-4e80-b297-95f5f2071c56" />
+<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/3da10ace-3a81-456c-b871-e6cc31645ff6" />
+
+
+
+
+
+
+
