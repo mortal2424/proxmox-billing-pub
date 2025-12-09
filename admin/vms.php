@@ -20,7 +20,7 @@ try {
         $sql .= ", created_at";
     }
     $sql .= " FROM vms_admin ORDER BY id DESC";
-    
+
     $stmt = safeQuery($pdo, $sql);
     $adminVms = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 } catch (Exception $e) {
@@ -38,15 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: vms.php");
             exit;
         }
-        
+
         // Обработка управления ВМ (старт, стоп, перезагрузка)
         if (isset($_POST['vm_action']) && isset($_POST['vm_id']) && isset($_POST['node_id'])) {
             $vmId = (int)$_POST['vm_id'];
             $nodeId = (int)$_POST['node_id'];
             $action = $_POST['vm_action'];
-            
+
             $nodeInfo = safeQuery($pdo, "SELECT * FROM proxmox_nodes WHERE id = ?", [$nodeId])->fetch();
-            
+
             if ($nodeInfo) {
                 $proxmox = new ProxmoxAPI(
                     $nodeInfo['hostname'],
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $nodeId,
                     $pdo
                 );
-                
+
                 switch ($action) {
                     case 'start':
                         $proxmox->startVM($vmId);
@@ -69,12 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $proxmox->rebootVM($vmId);
                         break;
                 }
-                
+
                 // Обновляем статус в базе данных
                 $newStatus = $action === 'stop' ? 'stopped' : 'running';
-                safeQuery($pdo, "UPDATE vms_admin SET status = ? WHERE vm_id = ? AND node_id = ?", 
+                safeQuery($pdo, "UPDATE vms_admin SET status = ? WHERE vm_id = ? AND node_id = ?",
                          [$newStatus, $vmId, $nodeId]);
-                
+
                 $_SESSION['success'] = "Команда '$action' выполнена для VM $vmId";
                 header("Location: vms.php");
                 exit;
@@ -86,14 +86,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$title = "Управление административными ВМ | HomeVlad Cloud";
+$title = "Управление административными ВМ | ITSP Cloud";
 require 'admin_header.php';
 ?>
 
 <div class="container">
     <div class="admin-content">
         <?php require 'admin_sidebar.php'; ?>
-        
+
         <main class="admin-main">
             <h1 class="admin-title">
                 <i class="fas fa-server"></i> Административные виртуальные машины
@@ -140,7 +140,7 @@ require 'admin_header.php';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($adminVms as $vm): 
+                                <?php foreach ($adminVms as $vm):
                                     $nodeName = safeQuery($pdo, "SELECT node_name FROM proxmox_nodes WHERE id = ?", [$vm['node_id']])->fetchColumn();
                                 ?>
                                 <tr>
@@ -160,51 +160,57 @@ require 'admin_header.php';
                                         <div class="action-buttons">
                                             <?php if ($vm['status'] === 'running'): ?>
                                                 <form method="POST" class="action-form">
-                                                    <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
-                                                    <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
+                                                    <input type="hidden" name="vm_id" value="<?= (int)$vm['vm_id'] ?>">
+                                                    <input type="hidden" name="node_id" value="<?= (int)$vm['node_id'] ?>">
                                                     <input type="hidden" name="vm_action" value="stop">
                                                     <button type="submit" class="action-btn action-btn-stop" title="Остановить">
                                                         <i class="fas fa-stop"></i>
                                                     </button>
                                                 </form>
                                                 <form method="POST" class="action-form">
-                                                    <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
-                                                    <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
+                                                    <input type="hidden" name="vm_id" value="<?= (int)$vm['vm_id'] ?>">
+                                                    <input type="hidden" name="node_id" value="<?= (int)$vm['node_id'] ?>">
                                                     <input type="hidden" name="vm_action" value="reboot">
                                                     <button type="submit" class="action-btn action-btn-reboot" title="Перезагрузить">
                                                         <i class="fas fa-redo"></i>
                                                     </button>
                                                 </form>
-                                                <a href="vnc_console.php?node_id=<?= $vm['node_id'] ?>&vmid=<?= $vm['vm_id'] ?>" 
-                                                   class="action-btn action-btn-console" title="VNC консоль" target="_blank">
-                                                    <i class="fas fa-terminal"></i>
+
+                                                <!-- ЕДИНАЯ корректная кнопка VNC (JS-обработчик), БЕЗ прямого перехода на vnc_console.php -->
+                                                <a href="#"
+                                                   class="action-btn action-btn-console btn-vnc"
+                                                   data-node="<?= (int)$vm['node_id'] ?>"
+                                                   data-vmid="<?= (int)$vm['vm_id'] ?>"
+                                                   onclick="openVNC(<?= (int)$vm['node_id'] ?>, <?= (int)$vm['vm_id'] ?>); return false;"
+                                                   title="Консоль VNC">
+                                                    <i class="fas fa-desktop"></i>
                                                 </a>
                                             <?php else: ?>
                                                 <form method="POST" class="action-form">
-                                                    <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
-                                                    <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
+                                                    <input type="hidden" name="vm_id" value="<?= (int)$vm['vm_id'] ?>">
+                                                    <input type="hidden" name="node_id" value="<?= (int)$vm['node_id'] ?>">
                                                     <input type="hidden" name="vm_action" value="start">
                                                     <button type="submit" class="action-btn action-btn-start" title="Запустить">
                                                         <i class="fas fa-play"></i>
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
-                                            
-                                            <a href="vm_admin_edit.php?id=<?= $vm['id'] ?>" 
+
+                                            <a href="vm_admin_edit.php?id=<?= (int)$vm['id'] ?>"
                                                class="action-btn action-btn-edit" title="Редактировать">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            
+
                                             <form method="POST" onsubmit="return confirm('Вы уверены?')" class="action-form">
-                                                <input type="hidden" name="vm_id" value="<?= $vm['id'] ?>">
+                                                <input type="hidden" name="vm_id" value="<?= (int)$vm['id'] ?>">
                                                 <button type="submit" name="delete_vm" class="action-btn action-btn-delete" title="Удалить">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
-                                            
-                                            <button class="action-btn action-btn-stats" 
+
+                                            <button class="action-btn action-btn-stats"
                                                     title="Графики"
-                                                    onclick="showVmStats(<?= $vm['vm_id'] ?>, <?= $vm['node_id'] ?>, '<?= htmlspecialchars($vm['hostname']) ?>')">
+                                                    onclick="showVmStats(<?= (int)$vm['vm_id'] ?>, <?= (int)$vm['node_id'] ?>, '<?= htmlspecialchars($vm['hostname'], ENT_QUOTES) ?>')">
                                                 <i class="fas fa-chart-line"></i>
                                             </button>
                                         </div>
@@ -242,11 +248,11 @@ require 'admin_header.php';
                     <option value="year">1 год</option>
                 </select>
             </div>
-            
+
             <div class="progress-container">
                 <div class="progress-bar" id="loading-progress"></div>
             </div>
-            
+
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-chart">
@@ -280,29 +286,20 @@ require 'admin_header.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Текущие данные для графиков
-let currentCharts = {
-    cpu: null,
-    memory: null,
-    network: null,
-    disk: null
-};
+let currentCharts = { cpu: null, memory: null, network: null, disk: null };
 
 // Текущие параметры ВМ
-let currentVm = {
-    id: null,
-    nodeId: null,
-    name: null
-};
+let currentVm = { id: null, nodeId: null, name: null };
 
 // Показать модальное окно с графиками
 function showVmStats(vmId, nodeId, vmName) {
     currentVm.id = vmId;
     currentVm.nodeId = nodeId;
     currentVm.name = vmName;
-    
+
     document.getElementById('modalTitle').textContent = `Статистика ВМ ${vmId} (${vmName})`;
     document.getElementById('statsModal').style.display = 'block';
-    
+
     // Загружаем данные
     updateStats();
 }
@@ -310,18 +307,8 @@ function showVmStats(vmId, nodeId, vmName) {
 // Закрыть модальное окно
 function closeModal() {
     document.getElementById('statsModal').style.display = 'none';
-    
-    // Уничтожаем все графики
-    Object.values(currentCharts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-    
-    currentCharts = {
-        cpu: null,
-        memory: null,
-        network: null,
-        disk: null
-    };
+    Object.values(currentCharts).forEach(chart => { if (chart) chart.destroy(); });
+    currentCharts = { cpu: null, memory: null, network: null, disk: null };
 }
 
 // Обновить данные статистики
@@ -329,364 +316,173 @@ async function updateStats() {
     const timeframe = document.getElementById('timeframe').value;
     const loadingProgress = document.getElementById('loading-progress');
     const progressContainer = document.querySelector('.progress-container');
-    
+
     progressContainer.style.display = 'block';
     loadingProgress.style.width = '0%';
-    
+
     try {
-        // Показываем прогресс
         updateProgress(loadingProgress, 10);
-        
-        // Загружаем данные
         const response = await fetch(`get_vm_stats.php?vm_id=${currentVm.id}&node_id=${currentVm.nodeId}&timeframe=${timeframe}`);
         if (!response.ok) throw new Error('Ошибка сервера');
-        
+
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Ошибка загрузки данных');
-        
+
         updateProgress(loadingProgress, 30);
-        
-        // Обновляем графики
         updateCharts(data);
-        
         updateProgress(loadingProgress, 100);
-        
-        // Скрываем прогресс-бар через 1 секунду
+
         setTimeout(() => {
             progressContainer.style.opacity = '0';
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-            }, 500);
+            setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
         }, 1000);
-        
+
     } catch (error) {
         console.error('Ошибка загрузки статистики:', error);
         updateProgress(loadingProgress, 100);
-        
-        // Показываем ошибку
         const metricsGrid = document.querySelector('.metrics-grid');
         metricsGrid.innerHTML = `
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle"></i>
                 ${error.message}
-            </div>
-        `;
-        
+            </div>`;
         setTimeout(() => {
             progressContainer.style.opacity = '0';
-            setTimeout(() => {
-                progressContainer.style.display = 'none';
-            }, 500);
+            setTimeout(() => { progressContainer.style.display = 'none'; }, 500);
         }, 1000);
     }
 }
 
-// Обновить прогресс-бар
-function updateProgress(element, percent) {
-    element.style.width = percent + '%';
-}
+function updateProgress(element, percent) { element.style.width = percent + '%'; }
 
-// Обновить графики
 function updateCharts(data) {
-    // Уничтожаем старые графики, если они есть
-    Object.values(currentCharts).forEach(chart => {
-        if (chart) chart.destroy();
-    });
-    
-    // Создаем новые графики
-    currentCharts.cpu = createCpuChart(data);
+    Object.values(currentCharts).forEach(chart => { if (chart) chart.destroy(); });
+    currentCharts.cpu    = createCpuChart(data);
     currentCharts.memory = createMemoryChart(data);
-    currentCharts.network = createNetworkChart(data);
-    currentCharts.disk = createDiskChart(data);
+    currentCharts.network= createNetworkChart(data);
+    currentCharts.disk   = createDiskChart(data);
 }
 
-// Создать график CPU
 function createCpuChart(data) {
-    return new Chart(
-        document.getElementById('cpuChart'),
-        {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    label: 'Использование CPU',
-                    data: data.cpuData,
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' %';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: {
-                            display: true,
-                            text: 'Использование CPU (%)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value.toFixed(0) + ' %';
-                            }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Время'
-                        }
-                    }
-                }
+    return new Chart(document.getElementById('cpuChart'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Использование CPU',
+                data: data.cpuData,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderWidth: 2, fill: true, tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' },
+                       tooltip: { mode: 'index', intersect: false,
+                         callbacks:{ label: (c)=> c.dataset.label+': '+c.parsed.y.toFixed(1)+' %' } } },
+            scales: {
+                y: { beginAtZero: true, max: 100,
+                     title: { display: true, text: 'Использование CPU (%)' },
+                     ticks: { callback: v => v.toFixed(0)+' %' } },
+                x: { title: { display: true, text: 'Время' } }
             }
         }
-    );
+    });
 }
 
-// Создать график памяти
 function createMemoryChart(data) {
-    return new Chart(
-        document.getElementById('memoryChart'),
-        {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [
-                    {
-                        label: 'Используемая память',
-                        data: data.memData,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Всего памяти',
-                        data: data.memTotalData,
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0)',
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            filter: function(item) {
-                                return item.text !== 'Всего памяти';
-                            }
-                        }
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' ГБ';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Память (ГБ)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value.toFixed(1) + ' ГБ';
-                            }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Время'
-                        }
-                    }
-                }
+    return new Chart(document.getElementById('memoryChart'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label:'Используемая память', data:data.memData,
+                  borderColor:'rgba(54, 162, 235, 1)', backgroundColor:'rgba(54, 162, 235, 0.2)',
+                  borderWidth:2, fill:true, tension:0.1 },
+                { label:'Всего памяти', data:data.memTotalData,
+                  borderColor:'rgba(75, 192, 192, 1)', borderWidth:0, backgroundColor:'rgba(0,0,0,0)',
+                  pointRadius:0, pointHoverRadius:0, fill:false }
+            ]
+        },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ position:'top', labels:{ filter: i => i.text!=='Всего памяти' } },
+                      tooltip:{ mode:'index', intersect:false,
+                        callbacks:{ label:(c)=> c.dataset.label+': '+c.parsed.y.toFixed(1)+' ГБ' } } },
+            scales:{
+                y:{ beginAtZero:true, title:{ display:true, text:'Память (ГБ)' },
+                    ticks:{ callback:v=> v.toFixed(1)+' ГБ' } },
+                x:{ title:{ display:true, text:'Время' } }
             }
         }
-    );
+    });
 }
 
-// Создать график сети
 function createNetworkChart(data) {
-    return new Chart(
-        document.getElementById('networkChart'),
-        {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [
-                    {
-                        label: 'Входящий трафик',
-                        data: data.netInData,
-                        borderColor: 'rgba(153, 102, 255, 1)',
-                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Исходящий трафик',
-                        data: data.netOutData,
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        backgroundColor: 'rgba(255, 159, 64, 0.2)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' Mbit/s';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Скорость передачи (Mbit/s)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value.toFixed(2) + ' Mbit/s';
-                            }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Время'
-                        }
-                    }
-                }
+    return new Chart(document.getElementById('networkChart'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label:'Входящий трафик', data:data.netInData,
+                  borderColor:'rgba(153, 102, 255, 1)', backgroundColor:'rgba(153,102,255,0.2)',
+                  borderWidth:2, fill:true, tension:0.1 },
+                { label:'Исходящий трафик', data:data.netOutData,
+                  borderColor:'rgba(255, 159, 64, 1)', backgroundColor:'rgba(255,159,64,0.2)',
+                  borderWidth:2, fill:true, tension:0.1 }
+            ]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ position:'top' },
+                      tooltip:{ mode:'index', intersect:false,
+                        callbacks:{ label:(c)=> c.dataset.label+': '+c.parsed.y.toFixed(2)+' Mbit/s' } } },
+            scales:{
+                y:{ beginAtZero:true, title:{ display:true, text:'Скорость передачи (Mbit/s)' },
+                    ticks:{ callback:v=> v.toFixed(2)+' Mbit/s' } },
+                x:{ title:{ display:true, text:'Время' } }
             }
         }
-    );
+    });
 }
 
-// Создать график диска
 function createDiskChart(data) {
-    return new Chart(
-        document.getElementById('diskChart'),
-        {
-            type: 'line',
-            data: {
-                labels: data.labels,
-                datasets: [
-                    {
-                        label: 'Чтение с диска',
-                        data: data.diskReadData,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Запись на диск',
-                        data: data.diskWriteData,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' МБ';
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Дисковые операции (МБ)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return value.toFixed(2) + ' МБ';
-                            }
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Время'
-                        }
-                    }
-                }
+    return new Chart(document.getElementById('diskChart'), {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label:'Чтение с диска', data:data.diskReadData,
+                  borderColor:'rgba(255, 99, 132, 1)', backgroundColor:'rgba(255,99,132,0.2)',
+                  borderWidth:2, fill:true, tension:0.1 },
+                { label:'Запись на диск', data:data.diskWriteData,
+                  borderColor:'rgba(54, 162, 235, 1)', backgroundColor:'rgba(54,162,235,0.2)',
+                  borderWidth:2, fill:true, tension:0.1 }
+            ]
+        },
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ position:'top' },
+                      tooltip:{ mode:'index', intersect:false,
+                        callbacks:{ label:(c)=> c.dataset.label+': '+c.parsed.y.toFixed(2)+' МБ' } } },
+            scales:{
+                y:{ beginAtZero:true, title:{ display:true, text:'Дисковые операции (МБ)' },
+                    ticks:{ callback:v=> v.toFixed(2)+' МБ' } },
+                x:{ title:{ display:true, text:'Время' } }
             }
         }
-    );
+    });
 }
 
 // Закрыть модальное окно при клике вне его
 window.onclick = function(event) {
     const modal = document.getElementById('statsModal');
-    if (event.target == modal) {
-        closeModal();
-    }
+    if (event.target == modal) closeModal();
 }
 </script>
+
+<!-- Гарантируем подключение обработчика VNC -->
+<script src="/admin/js/proxmox.js?v=20251026"></script>
 
 <?php require 'admin_footer.php'; ?>

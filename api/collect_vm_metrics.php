@@ -3,7 +3,7 @@
 putenv('PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin');
 
 // Логирование
-$logFile = '/var/www/homevlad_ru_usr/data/www/homevlad.ru/logs/proxmox_metrics.log';
+$logFile = '/home/mortal/web/homevlad.ru /public_html/logs/proxmox_metrics.log';
 file_put_contents($logFile, "\n[".date('Y-m-d H:i:s')."] CRON JOB STARTED\n", FILE_APPEND);
 
 function log_message($message) {
@@ -25,7 +25,7 @@ try {
     foreach ($vms as $index => $vm) {
         try {
             log_message("Processing VM {$vm['vm_id']}");
-            
+
             $nodeStmt = $pdo->prepare("SELECT * FROM proxmox_nodes WHERE id = ?");
             $nodeStmt->execute([$vm['node_id']]);
             $node = $nodeStmt->fetch(PDO::FETCH_ASSOC);
@@ -53,7 +53,7 @@ try {
 
             $vmInfo = $proxmoxApi->getVMStatus($vm['vm_id']);
             $rrdData = $proxmoxApi->getRRDData($vm['vm_id'], 'hour');
-            
+
             log_message("VM {$vm['vm_id']} raw data: ".json_encode(end($rrdData)));
 
             if (empty($rrdData)) {
@@ -62,7 +62,7 @@ try {
             }
 
             $lastPoint = end($rrdData);
-            
+
             // Проверка данных перед записью
             if ($lastPoint['cpu'] == 0 && $lastPoint['mem'] == 0) {
                 log_message("Suspicious zero values for VM {$vm['vm_id']}, retrying...");
@@ -72,7 +72,7 @@ try {
             }
 
             $insertStmt = $pdo->prepare("
-                INSERT INTO vm_metrics 
+                INSERT INTO vm_metrics
                 (vm_id, timestamp, cpu_usage, mem_usage, mem_total, net_in, net_out, disk_read, disk_write)
                 VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
@@ -83,7 +83,7 @@ try {
                 disk_read = VALUES(disk_read),
                 disk_write = VALUES(disk_write)
             ");
-            
+
             $insertStmt->execute([
                 $vm['vm_id'],
                 round($lastPoint['cpu'] * 100, 2),

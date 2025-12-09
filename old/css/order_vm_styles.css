@@ -1,0 +1,679 @@
+/* Стили для формы заказа */
+        .admin-header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .order-form {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .form-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .form-control {
+            width: 97%;
+            padding: 12px 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+        }
+        
+        /* Тарифы */
+        .tariffs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .tariff-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+            border: 2px solid var(--border-color);
+        }
+        
+        .tariff-card input[type="radio"] {
+            display: none;
+        }
+        
+        .tariff-card input[type="radio"]:checked + label {
+            border-color: var(--primary-color);
+            background: var(--hover-color);
+            box-shadow: 0 5px 15px rgba(108, 99, 255, 0.1);
+        }
+        
+        .tariff-card label {
+            display: block;
+            cursor: pointer;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        
+        .tariff-name {
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .tariff-specs {
+            margin: 15px 0;
+        }
+        
+        .tariff-specs p {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .tariff-price {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            margin-top: 20px;
+        }
+        
+        /* Оповещения */
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+        
+        .alert-danger {
+            background: rgba(198, 40, 40, 0.1);
+            color: #ff6b6b;
+            border-left: 4px solid #ff6b6b;
+        }
+        
+        /* Индикатор загрузки */
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--hover-color);
+            border-radius: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--avatar-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .logout-btn {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logout-btn:hover {
+            color: var(--primary-color);
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .tariffs-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-section {
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+        }
+        
+        /* Стили для статуса создания */
+        .creation-status-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .vnc-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .vnc-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #3182ce, #4299e1);
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(66, 153, 225, 0.3);
+        }
+        
+        .vnc-button:hover {
+            background: linear-gradient(135deg, #2c5282, #2b6cb0);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
+        }
+        
+        .timer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        
+        .status-ready {
+            background: linear-gradient(135deg, #38a169, #48bb78);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(72, 187, 120, 0.3);
+        }
+        
+        .timer-card {
+            background: linear-gradient(135deg, #2b5876, #4e4376);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .timer-icon {
+            font-size: 1.5rem;
+            color: #4fd1c5;
+        }
+        
+        .timer-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        /* Прогресс бар */
+        #creation-progress {
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .progress-bar {
+            height: 5px;
+            background: linear-gradient(90deg, #4e54c8, #8f94fb);
+            border-radius: 3px;
+            margin-top: 10px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .progress-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #8f94fb, #4e54c8);
+            animation: progressAnimation 2s ease-in-out infinite;
+        }
+        
+        @keyframes progressAnimation {
+            0% { width: 0%; margin-left: 0%; }
+            50% { width: 100%; margin-left: 0%; }
+            100% { width: 0%; margin-left: 100%; }
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .creation-status-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .timer-section {
+                align-items: flex-start;
+                margin-top: 15px;
+            }
+        }
+
+        .creation-status-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            background-color: var(--text-secondary);
+            border-color: var(--text-secondary);
+        }
+        
+        .quota-alert {
+            animation: fadeIn 0.3s ease-out;
+            margin-top: 15px;
+        }
+        
+        /* Стили для предупреждения о превышении квот */
+        .quota-warning {
+            background: linear-gradient(135deg, rgba(246, 224, 94, 0.2), rgba(236, 201, 75, 0.2));
+            border-left: 4px solid #d69e2e;
+            color: var(--text-color);
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .quota-warning i {
+            font-size: 1.5rem;
+            color: #d69e2e;
+            flex-shrink: 0;
+        }
+        
+        .quota-warning-content {
+            flex-grow: 1;
+        }
+        
+        .quota-warning h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+        
+        .quota-warning ul {
+            margin: 8px 0;
+            padding-left: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .quota-warning a {
+            color: var(--primary-color);
+            text-decoration: underline;
+            font-weight: 600;
+        }
+        
+        .quota-warning a:hover {
+            color: var(--primary-light);
+        }
+        
+        /* Стили для кастомных тарифов */
+        .tariff-type-selector {
+            display: flex;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        
+        .tariff-type-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: var(--hover-color);
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .tariff-type-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .tariff-type-btn:first-child {
+            border-right: 1px solid var(--border-color);
+        }
+        
+        .tariff-type-btn:hover:not(.active) {
+            background: var(--hover-color);
+            opacity: 0.8;
+        }
+        
+        .tariff-section {
+            display: none;
+        }
+        
+        .tariff-section.active {
+            display: block;
+        }
+        
+        /* Стили для кастомного конфигуратора */
+        .custom-configurator {
+            background: var(--hover-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .custom-config-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .custom-config-group {
+            flex: 1;
+        }
+        
+        .custom-config-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .custom-config-group input[type="range"] {
+            width: 100%;
+        }
+        
+        .custom-config-value {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .custom-price-summary {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .custom-price-summary h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+        
+        .custom-price-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+        
+        .custom-price-total {
+            font-weight: bold;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+        
+        /* Адаптивные стили */
+        @media (max-width: 768px) {
+            .custom-config-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        .tariff-card {
+            position: relative;
+        }
+
+        .tariff-date {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        /* Ограничиваем количество карточек в ряду */
+        .tariffs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        /* Для мобильных устройств - 1 карточка в ряд */
+        @media (max-width: 768px) {
+            .tariffs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Стили для прогресс-бара загрузки ноды */
+        .node-loading-container {
+            margin: 15px 0;
+            background-color: var(--hover-color);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .node-loading-progress {
+            height: 4px;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .node-loading-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 8px 0;
+        }
+        
+        /* Анимация загрузки */
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 0.3; }
+            100% { opacity: 0.6; }
+        }
+        
+        /* Стили для успешного создания VM */
+        .creation-status-wrapper {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .vnc-section, .timer-section {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .vnc-button {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        
+        .vnc-button:hover {
+            background-color: var(--primary-light);
+        }
+        
+        /*.status-ready {
+            display: flex;
+            align-items: center;
+            color: #48bb78;
+            margin-bottom: 10px;
+        }*/
+        
+        .status-ready i {
+            margin-right: 8px;
+        }
+        
+        /*.timer-card {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--hover-color);
+            padding: 8px 15px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            color: var(--ligh);
+        }*/
+        
+        /*.timer-icon {
+            margin-right: 8px;
+            color: var(--text-secondary);
+        }*/
+        
+        /* Адаптивные стили */
+        @media (max-width: 768px) {
+            .creation-status-wrapper {
+                flex-direction: column;
+            }
+            
+            .vnc-section, .timer-section {
+                margin-bottom: 15px;
+            }
+        }
+
+        /* Стили для кнопок выбора типа VM */
+        .vm-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .vm-type-btn {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .vm-type-btn:hover {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.1);
+        }
+        
+        .vm-type-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+        
+        .vm-type-btn i {
+            margin-right: 8px;
+        }
+        
+        /* Стили для автоматического имени хоста */
+        .hostname-generator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .hostname-generator button {
+            padding: 5px 10px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }

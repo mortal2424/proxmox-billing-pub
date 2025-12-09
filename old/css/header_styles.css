@@ -1,0 +1,179 @@
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--avatar-gradient, linear-gradient(135deg, #4e73df 0%, #224abe 100%));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.user-name {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.logout-btn {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.logout-btn:hover {
+    color: var(--primary);
+}
+
+.individual-badge {
+    background: var(--badge-individual-bg);
+    color: var(--badge-individual-text);
+}
+
+.account-type-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+/* Стили для бонусной плитки */
+.bonus-badge {
+    position: relative;
+    background: var(--badge-bonus-bg);
+    color: var(--badge-bonus-text);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bonus-badge i {
+    font-size: 0.9rem;
+}
+
+.stat-card.bonus {
+    background: var(--card-bonus-bg);
+    color: var(--card-bonus-text);
+}
+
+.stat-card.bonus .stat-value {
+    color: var(--card-bonus-text);
+}
+
+.stat-card.bonus .stat-details {
+    color: var(--card-bonus-text-secondary);
+}
+
+.stat-card.admin {
+    background: var(--card-admin-bg);
+    color: var(--card-admin-text);
+}
+
+.stat-card.admin .stat-value {
+    color: var(--card-admin-text);
+}
+
+.stat-card.admin .stat-details {
+    color: var(--card-admin-text-secondary);
+}
+
+.stat-card.admin .btn-small {
+    background: var(--card-admin-btn-bg);
+    color: var(--card-admin-btn-text);
+    border: none;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.stat-card.admin .btn-small:hover {
+    background: var(--card-admin-btn-hover);
+}
+
+/* Стили для баланса плитки */
+.bonus-balance {
+    position: relative;
+    background: var(--badge-balance-bg);
+    color: var(--badge-balance-text);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bonus-balance i {
+    font-size: 0.9rem;
+}
+
+/* Стили для переключателя темы */
+.theme-switcher {
+    position: relative;
+    margin: 0 15px;
+}
+
+.theme-toggle {
+    display: none;
+}
+
+.theme-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 50px;
+    height: 26px;
+    background: var(--theme-toggle-bg);
+    border-radius: 50px;
+    padding: 5px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.theme-toggle-label i {
+    font-size: 14px;
+    color: var(--theme-toggle-icon);
+    z-index: 1;
+}
+
+.theme-toggle-label .fa-moon {
+    margin-right: 5px;
+}
+
+.theme-toggle-label .fa-sun {
+    margin-left: 5px;
+}
+
+.theme-toggle-ball {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: var(--theme-toggle-ball);
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    z-index: 0;
+}
+
+.theme-toggle:checked + .theme-toggle-label .theme-toggle-ball {
+    transform: translateX(24px);
+}

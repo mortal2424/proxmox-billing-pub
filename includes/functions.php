@@ -13,14 +13,14 @@ function sendEmail($to, $subject, $body) {
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = ''; // Замените на ваш email
-        $mail->Password = ''; // Замените на пароль от почты
+        $mail->Username = 'cloud@homevlad.ru'; // Замените на ваш email
+        $mail->Password = 'gpQSp2af3kKDabqQELDn'; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';
         
         // Отправитель и получатель
-        $mail->setFrom('Замените на ваш email', 'Имя отправителя');
+        $mail->setFrom('cloud@homevlad.ru', 'HomeVlad');
         $mail->addAddress($to);
         
         // Контент письма
@@ -46,19 +46,19 @@ function sendVerificationEmail($email, $code) {
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = ''; // Замените на ваш email
-        $mail->Password = ''; // Замените на пароль от почты
+        $mail->Username = 'cloud@homevlad.ru'; // Замените на ваш email
+        $mail->Password = 'gpQSp2af3kKDabqQELDn'; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';
 
         // Отправитель и получатель
-        $mail->setFrom('Замените на ваш email', 'Имя отправителя');
+        $mail->setFrom('cloud@homevlad.ru', 'HomeVlad Cloud');
         $mail->addAddress($email);
 
         // Содержание письма
         $mail->isHTML(true);
-        $mail->Subject = 'Тема';
+        $mail->Subject = 'Подтверждение email для HomeVlad Cloud';
         
         $mail->Body = "
             <html>

@@ -1,0 +1,337 @@
+/* Стили для модальных окон */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-container {
+    background: var(--card-bg);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--text-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--primary-color);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Таблицы */
+.table-responsive {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text-color);
+}
+
+.admin-table th, .admin-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.admin-table th {
+    background: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
+.admin-table tr:hover {
+    background: var(--table-hover);
+}
+
+/* Бейджи статусов */
+.status-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-active {
+    background: rgba(46, 125, 50, 0.2);
+    color: #2e7d32;
+}
+
+.status-inactive {
+    background: rgba(198, 40, 40, 0.2);
+    color: #c62828;
+}
+
+/* Кнопки действий */
+.action-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 5px;
+    font-size: 1rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.action-btn-edit {
+    color: var(--primary-color);
+}
+
+.action-btn-edit:hover {
+    background: rgba(30, 136, 229, 0.1);
+}
+
+.action-btn-delete {
+    color: #d32f2f;
+}
+
+.action-btn-delete:hover {
+    background: rgba(211, 47, 47, 0.1);
+}
+
+/* Сообщение об отсутствии данных */
+.no-data {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
+    background: var(--hover-color);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+/* Секции форм */
+.form-section {
+    margin-bottom: 40px;
+    padding: 20px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.form-section-title {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-section-title i {
+    font-size: 1.1em;
+}
+
+/* Подсказки с ценами */
+.price-tooltip {
+    position: relative;
+    cursor: pointer;
+}
+
+.price-summary {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+    display: inline-block;
+    color: var(--text-color);
+}
+
+.tooltip-content {
+    display: none;
+    position: absolute;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 100;
+    min-width: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 100%;
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+.price-tooltip:hover .tooltip-content {
+    display: block;
+}
+
+/* Кнопки */
+/*.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}*/
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-light);
+}
+
+.btn-secondary {
+    background: var(--text-secondary);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: var(--text-color);
+}
+
+/* Специфичные стили для темной темы */
+[data-theme="dark"] {
+    .modal-container {
+        box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+    }
+    
+    .tooltip-content {
+        box-shadow: 0 2px 15px rgba(0,0,0,0.3);
+    }
+    
+    .status-active {
+        background: rgba(46, 125, 50, 0.3);
+    }
+    
+    .status-inactive {
+        background: rgba(198, 40, 40, 0.3);
+    }
+}
+
+/* Адаптивные стили */
+@media (max-width: 768px) {
+    .modal-container {
+        width: 95%;
+    }
+    
+    .price-summary {
+        max-width: 100px;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+
+.custom-price-edit-group {
+    display: none;
+    background: var(--hover-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    border: 1px solid var(--border-color);
+}
+
+.price-edit-group {
+    display: block;
+    background: var(--hover-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    border: 1px solid var(--border-color);
+}
+/* Стили для переключателей */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--hover-color);
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--primary-color);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}

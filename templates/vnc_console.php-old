@@ -1,0 +1,157 @@
+<?php
+/**
+ * VNC console opener for Proxmox (noVNC).
+ * См. комментарии в коде ниже.
+ */
+declare(strict_types=1);
+@ini_set('display_errors', '0');
+error_reporting(E_ALL);
+header_remove('X-Powered-By');
+
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/db.php';
+
+function json_fail(int $code, string $msg): void {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+function normalize_api_user(string $user): string {
+    $user = trim($user);
+    if ($user === '') return $user;
+    if (strpos($user, '@') !== false) return $user;
+    $defaultRealm = defined('PROXMOX_DEFAULT_REALM') && PROXMOX_DEFAULT_REALM !== ''
+        ? PROXMOX_DEFAULT_REALM : 'pam';
+    return $user . '@' . $defaultRealm;
+}
+
+try {
+    $nodeId = (int)($_GET['node_id'] ?? 0);
+    $vmId   = (int)($_GET['vm_id'] ?? $_GET['vmid'] ?? 0);
+    if ($nodeId <= 0 || $vmId <= 0) json_fail(400, 'Не указан node_id или vm_id');
+
+    $db  = new Database();
+    /** @var PDO $pdo */
+    $pdo = $db->getConnection();
+
+    $stmt = $pdo->prepare("
+        SELECT id, node_name, hostname, ip, api_port, username, password, is_active
+          FROM proxmox_nodes WHERE id = :id LIMIT 1
+    ");
+    $stmt->execute([':id' => $nodeId]);
+    $node = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$node || (int)$node['is_active'] !== 1) json_fail(404, 'Нода не найдена или отключена');
+
+    $hostname = trim($node['hostname'] ?? '');
+    $ip       = trim($node['ip'] ?? '');
+    $port     = (int)($node['api_port'] ?? 8006);
+    $userRaw  = trim($node['username'] ?? '');
+    $pass     = (string)($node['password'] ?? '');
+    $nodeName = trim($node['node_name'] ?? '');
+    if ($hostname === '') json_fail(500, 'У ноды не задан hostname');
+    if ($userRaw  === '') json_fail(500, 'У ноды не задан username');
+    if ($nodeName === '') $nodeName = strstr($hostname, '.', true) ?: $hostname;
+
+    $apiUser = normalize_api_user($userRaw);
+
+    $baseUrl   = "https://{$hostname}:{$port}";
+    $ticketUrl = "{$baseUrl}/api2/json/access/ticket";
+    $postFields = ['username' => $apiUser, 'password' => $pass];
+
+    $requestTicket = function (bool $verify) use ($ticketUrl, $postFields, $hostname, $port, $ip): array {
+        $ch = curl_init($ticketUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST            => true,
+            CURLOPT_POSTFIELDS      => http_build_query($postFields, '', '&'),
+            CURLOPT_RETURNTRANSFER  => true,
+            CURLOPT_HEADER          => false,
+            CURLOPT_TIMEOUT         => 15,
+            CURLOPT_SSL_VERIFYPEER  => $verify,
+            CURLOPT_SSL_VERIFYHOST  => $verify ? 2 : 0,
+        ]);
+        if ($hostname && $ip) curl_setopt($ch, CURLOPT_RESOLVE, ["{$hostname}:{$port}:{$ip}"]);
+        $raw  = curl_exec($ch);
+        $err  = curl_error($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$raw, $err, $http];
+    };
+
+    [$raw, $err, $http] = $requestTicket(true);
+    if ($raw === false && stripos((string)$err, 'unable to get local issuer certificate') !== false) {
+        error_log('vnc_console.php: TLS fallback to no-verify due to incomplete chain on Proxmox');
+        [$raw, $err, $http] = $requestTicket(false);
+    }
+    if ($raw === false) json_fail(502, "CURL error: {$err}");
+    if ($http === 401)  json_fail(502, "Proxmox API HTTP 401 (user={$apiUser})");
+    if ($http >= 400)   json_fail(502, "Proxmox API HTTP {$http}");
+
+    $resp = json_decode($raw, true);
+    if (!is_array($resp) || !isset($resp['data']['ticket'])) {
+        json_fail(502, 'Некорректный ответ от Proxmox API при получении тикета');
+    }
+
+    $ticket = (string)$resp['data']['ticket'];
+    $csrf   = (string)($resp['data']['CSRFPreventionToken'] ?? '');
+
+    // домен для куки: .itsupport.host
+    $hostHeader = $_SERVER['HTTP_HOST'] ?? '';
+    $domain = null;
+    if ($hostHeader !== '') {
+        $parts = explode('.', $hostHeader);
+        if (count($parts) >= 2) $domain = '.' . $parts[count($parts) - 2] . '.' . $parts[count($parts) - 1];
+    }
+    if ($domain === null) $domain = '.itsupport.host';
+
+    // ставим куку (и дублируем заголовком)
+    setcookie('PVEAuthCookie', $ticket, [
+        'expires'  => time() + 60 * 15,
+        'path'     => '/',
+        'domain'   => $domain,
+        'secure'   => true,
+        'httponly' => true,
+        'samesite' => 'None',
+    ]);
+    header("Set-Cookie: PVEAuthCookie=" . rawurlencode($ticket) . "; Path=/; Domain={$domain}; Secure; HttpOnly; SameSite=None");
+
+    // noVNC URL
+    $novncUrl = "{$baseUrl}/?console=kvm&novnc=1&vmid=" . rawurlencode((string)$vmId)
+              . "&node=" . rawurlencode($nodeName)
+              . "&resize=scale";
+
+    // HTML redirect?
+    if ((int)($_GET['redirect'] ?? 0) === 1) {
+        header('Content-Type: text/html; charset=utf-8'); ?>
+<!doctype html><meta charset="utf-8">
+<title>VNC Redirect</title>
+<noscript><a href="<?= htmlspecialchars($novncUrl, ENT_QUOTES) ?>">Открыть консоль</a></noscript>
+<script>location.replace(<?= json_encode($novncUrl) ?>);</script><?php
+        exit;
+    }
+
+    // JSON (обратная совместимость: всегда отдаем data.cookie.*)
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'url'    => $novncUrl,
+            'cookie' => [
+                'name'     => 'PVEAuthCookie',
+                'value'    => $ticket,   // пусть будет — некоторые старые скрипты читают отсюда
+                'domain'   => $domain,
+                'path'     => '/',
+                'secure'   => true,
+                'httponly' => true,
+            ],
+            'vmid' => $vmId,
+            'node' => $nodeName,
+            'csrf' => $csrf ? true : false,
+        ],
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+
+} catch (Throwable $e) {
+    error_log('vnc_console.php error: ' . $e->getMessage());
+    json_fail(500, 'Internal error: ' . $e->getMessage());
+}

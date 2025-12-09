@@ -1,0 +1,176 @@
+/* index_styles.css - адаптированная версия с темной темой */
+
+/* Стили для виджета тикетов */
+.admin-widget {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px var(--shadow-color);
+    transition: all 0.3s ease;
+}
+
+.widget-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.widget-link {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.widget-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.widget-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.widget-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.widget-list li:hover {
+    background-color: var(--hover-color);
+}
+
+.widget-list li:last-child {
+    border-bottom: none;
+}
+
+.widget-list a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.widget-list a:hover {
+    color: var(--primary);
+}
+
+.ticket-id {
+    font-weight: bold;
+    color: var(--primary);
+    margin-right: 10px;
+    min-width: 40px;
+}
+
+.ticket-subject {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 15px;
+}
+
+.ticket-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 120px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.ticket-meta .status {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.ticket-meta .status.open {
+    background: rgba(46, 125, 50, 0.1);
+    color: var(--success);
+}
+
+.ticket-meta .status.answered {
+    background: rgba(21, 101, 192, 0.1);
+    color: var(--info);
+}
+
+.ticket-meta .status.pending {
+    background: rgba(255, 143, 0, 0.1);
+    color: var(--warning);
+}
+
+.ticket-meta .status.closed {
+    background: rgba(97, 97, 97, 0.1);
+    color: var(--text-secondary);
+}
+
+.ticket-meta .date {
+    white-space: nowrap;
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .ticket-meta {
+        flex-direction: column;
+        gap: 5px;
+        min-width: auto;
+        align-items: flex-end;
+    }
+    
+    .ticket-subject {
+        margin-right: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .widget-list a {
+        flex-wrap: wrap;
+    }
+    
+    .ticket-meta {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .admin-widget {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .widget-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .widget-link {
+        align-self: flex-end;
+    }
+    
+    .ticket-meta .status {
+        padding: 2px 5px;
+    }
+    
+    .ticket-id {
+        min-width: 30px;
+    }
+}

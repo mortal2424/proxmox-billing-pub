@@ -52,6 +52,9 @@ switch ($payments_timeframe) {
     case 'year':
         $payments_where .= " AND created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
         break;
+    case 'all':
+        // Без фильтра по времени
+        break;
 }
 
 // Получаем общее количество платежей для пагинации
@@ -63,9 +66,9 @@ $payments_total_pages = ceil($payments_total / $payments_per_page);
 // Получаем платежи с пагинацией
 $payments_offset = ($payments_page - 1) * $payments_per_page;
 $stmt = $pdo->prepare("
-    SELECT * FROM payments 
-    $payments_where 
-    ORDER BY created_at DESC 
+    SELECT * FROM payments
+    $payments_where
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?
 ");
 $payments_params[] = $payments_per_page;
@@ -91,6 +94,9 @@ switch ($debits_timeframe) {
     case 'year':
         $debits_where .= " AND created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
         break;
+    case 'all':
+        // Без фильтра по времени
+        break;
 }
 
 // Получаем общее количество списаний для пагинации
@@ -102,9 +108,9 @@ $debits_total_pages = ceil($debits_total / $debits_per_page);
 // Получаем списания с пагинацией
 $debits_offset = ($debits_page - 1) * $debits_per_page;
 $stmt = $pdo->prepare("
-    SELECT * FROM transactions 
-    $debits_where 
-    ORDER BY created_at DESC 
+    SELECT * FROM transactions
+    $debits_where
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?
 ");
 $debits_params[] = $debits_per_page;
@@ -116,6 +122,36 @@ $debits = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $pdo->prepare("SELECT * FROM legal_entity_info LIMIT 1");
 $stmt->execute();
 $legal_entity = $stmt->fetch();
+
+// Получаем статистику по платежам
+$stmt = $pdo->prepare("
+    SELECT 
+        SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as total_paid,
+        SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as total_pending,
+        COUNT(*) as total_payments
+    FROM payments 
+    WHERE user_id = ?
+");
+$stmt->execute([$user_id]);
+$payments_stats = $stmt->fetch();
+
+// Получаем среднемесячные расходы
+$stmt = $pdo->prepare("
+    SELECT 
+        AVG(daily_cost) as avg_monthly_cost 
+    FROM (
+        SELECT 
+            DATE(created_at) as day,
+            SUM(amount) as daily_cost
+        FROM transactions 
+        WHERE user_id = ? 
+            AND type = 'debit' 
+            AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+        GROUP BY DATE(created_at)
+    ) daily_costs
+");
+$stmt->execute([$user_id]);
+$avg_monthly_cost = $stmt->fetchColumn() * 30;
 
 $errors = [];
 $success = false;
@@ -135,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['amount'])) {
     try {
         $amount = (float)$_POST['amount'];
         $payment_method = $_POST['payment_method'] ?? '';
-        
+
         // Валидация суммы
         if ($amount < 50) {
             throw new Exception('Минимальная сумма пополнения - 50 рублей');
@@ -146,31 +182,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['amount'])) {
 
         // Генерируем контрольное слово
         $control_word = generateControlWord();
-        
+
         // Генерируем номер счета, если выбран этот метод
         if ($payment_method === 'invoice') {
             $invoice_number = 'INV-' . date('Ymd') . '-' . str_pad($user_id, 5, '0', STR_PAD_LEFT) . '-' . rand(100, 999);
         }
-        
+
         // Создаем запись о платеже
         $stmt = $pdo->prepare("
-            INSERT INTO payments 
-            (user_id, amount, description, status, control_word, payment_method, invoice_number, created_at) 
+            INSERT INTO payments
+            (user_id, amount, description, status, control_word, payment_method, invoice_number, created_at)
             VALUES (?, ?, ?, 'pending', ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $user_id,
             $amount,
-            $payment_method === 'card' ? "Пополнение баланса (перевод на карту)" : 
+            $payment_method === 'card' ? "Пополнение баланса (перевод на карту)" :
             ($payment_method === 'invoice' ? "Пополнение баланса (счет №$invoice_number)" : "Пополнение баланса через СБП"),
             $control_word,
             $payment_method,
             $payment_method === 'invoice' ? $invoice_number : null
         ]);
-        
+
         $payment_id = $pdo->lastInsertId();
         $success = true;
-        
+
     } catch (Exception $e) {
         $errors[] = $e->getMessage();
     }
@@ -181,11 +217,11 @@ function generateControlWord() {
     $adjectives = ['быстрый', 'надежный', 'безопасный', 'удобный', 'современный', 'умный', 'цифровой'];
     $nouns = ['платеж', 'перевод', 'взнос', 'депозит', 'баланс', 'счет', 'кошелек'];
     $animals = ['тигр', 'медведь', 'волк', 'орел', 'дельфин', 'ястреб', 'сокол'];
-    
+
     $adj = $adjectives[array_rand($adjectives)];
     $noun = $nouns[array_rand($nouns)];
     $animal = $animals[array_rand($animals)];
-    
+
     return ucfirst($adj) . ucfirst($noun) . ucfirst($animal) . rand(100, 999);
 }
 
@@ -194,15 +230,15 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
-    
+
     $options = new Options();
     $options->set('isRemoteEnabled', true);
     $options->set('defaultFont', 'DejaVu Sans');
     $options->set('isPhpEnabled', true);
     $options->set('isFontSubsettingEnabled', true);
-    
+
     $dompdf = new Dompdf($options);
-    
+
     $html = '
     <!DOCTYPE html>
     <html>
@@ -240,7 +276,6 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                 text-align: center;
                 position: relative;
                 border-radius: 5px 5px 0 0;
-                /* Убрана рамка border: 1px solid #e2e8f0; */
             }
             .logo {
                 font-size: 16px;
@@ -388,7 +423,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                 <div class="invoice-number">№ ' . htmlspecialchars($invoice_number) . '</div>
                 <div class="invoice-date">от ' . date('d.m.Y') . '</div>
             </div>
-            
+
             <div class="company-info">
                 <div class="company-name">' . htmlspecialchars($legal_entity['company_name']) . '</div>
                 <div>ИНН ' . htmlspecialchars($legal_entity['tax_number']) . ', КПП ' . htmlspecialchars($legal_entity['registration_number']) . '</div>
@@ -396,7 +431,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                 <div>Банк: ' . htmlspecialchars($legal_entity['bank_name']) . '</div>
                 <div>Р/с: ' . htmlspecialchars($legal_entity['bank_account']) . ', БИК: ' . htmlspecialchars($legal_entity['bic']) . '</div>
             </div>
-            
+
             <div class="invoice-details">
                 <div class="details-block">
                     <div class="details-title">Поставщик</div>
@@ -409,7 +444,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                     <div>Email: ' . htmlspecialchars($user['email']) . '</div>
                 </div>
             </div>
-            
+
             <table class="invoice-table">
                 <thead>
                     <tr>
@@ -430,12 +465,12 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                     </tr>
                 </tbody>
             </table>
-            
+
             <div class="total">
                 <div>Итого к оплате: <span class="total-amount">' . number_format($amount, 2) . ' ₽</span></div>
                 <div><span class="badge">Без НДС</span></div>
             </div>
-            
+
             <div class="signature">
                 <div class="signature-block">
                     <div class="signature-line"></div>
@@ -448,7 +483,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                     <div>Подпись</div>
                 </div>
             </div>
-            
+
             <div class="footer">
                 <div>Счет действителен в течение 5 банковских дней с даты выставления</div>
                 <div>Контактная информация: ' . htmlspecialchars($legal_entity['contact_phone']) . ', ' . htmlspecialchars($legal_entity['contact_email']) . '</div>
@@ -457,11 +492,11 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
     </body>
     </html>
     ';
-    
+
     $dompdf->loadHtml($html, 'UTF-8');
     $dompdf->setPaper('A4', 'portrait');
     $dompdf->render();
-    
+
     $dompdf->stream("Счет_$invoice_number.pdf", array("Attachment" => true));
 }
 
@@ -474,225 +509,1088 @@ $title = "Биллинг | HomeVlad Cloud";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/css/themes.css">
     <style>
-        <?php include '../admin/css/admin_style.css'; ?>
-        <?php include '../css/billing_styles.css'; ?>
-        <?php include '../css/header_styles.css'; ?>   
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --success-gradient: linear-gradient(135deg, #10b981, #059669);
+            --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+            --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
+            --info-gradient: linear-gradient(135deg, #3b82f6, #2563eb);
+            --purple-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-theme {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #cbd5e1;
+        }
+
+        /* Основной контейнер */
+        .main-container {
+            display: flex;
+            flex: 1;
+            min-height: calc(100vh - 70px);
+            margin-top: 70px;
+        }
+
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            margin-left: 280px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-collapsed .main-content {
+            margin-left: 80px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+        }
+
+        /* Заголовок страницы */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            font-size: 32px;
+        }
+
+        /* Статистика */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        body.dark-theme .stat-card {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--secondary-gradient);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .stat-card.balance::before {
+            background: var(--success-gradient);
+        }
+
+        .stat-card.bonus::before {
+            background: var(--purple-gradient);
+        }
+
+        .stat-card.payments::before {
+            background: var(--info-gradient);
+        }
+
+        .stat-card.spending::before {
+            background: var(--warning-gradient);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            background: var(--secondary-gradient);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+        }
+
+        .stat-icon.balance {
+            background: var(--success-gradient);
+        }
+
+        .stat-icon.bonus {
+            background: var(--purple-gradient);
+        }
+
+        .stat-icon.payments {
+            background: var(--info-gradient);
+        }
+
+        .stat-icon.spending {
+            background: var(--warning-gradient);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+            color: #1e293b;
+        }
+
+        body.dark-theme .stat-value {
+            color: #f1f5f9;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        body.dark-theme .stat-label {
+            color: #94a3b8;
+        }
+
+        .stat-details {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Форма пополнения */
+        .payment-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.dark-theme .payment-section {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        body.dark-theme .section-title {
+            color: #f1f5f9;
+        }
+
+        /* Методы оплаты */
+        .payment-methods-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .payment-method-card {
+            background: rgba(248, 250, 252, 0.5);
+            border: 2px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.dark-theme .payment-method-card {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .payment-method-card:hover {
+            transform: translateY(-4px);
+            border-color: #00bcd4;
+            box-shadow: 0 8px 24px rgba(0, 188, 212, 0.15);
+        }
+
+        .payment-method-card.active {
+            border-color: #00bcd4;
+            background: rgba(0, 188, 212, 0.05);
+        }
+
+        .payment-method-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--secondary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            color: white;
+            font-size: 20px;
+        }
+
+        .payment-method-card.bonus .payment-method-icon {
+            background: var(--purple-gradient);
+        }
+
+        .payment-method-card.invoice .payment-method-icon {
+            background: var(--warning-gradient);
+        }
+
+        .payment-method-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        body.dark-theme .payment-method-title {
+            color: #f1f5f9;
+        }
+
+        .payment-method-description {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        body.dark-theme .payment-method-description {
+            color: #94a3b8;
+        }
+
+        /* Детали оплаты */
+        .payment-details-container {
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            display: none;
+        }
+
+        body.dark-theme .payment-details-container {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .payment-details-container.active {
+            display: block;
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-code {
+            display: inline-block;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .bank-details {
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        body.dark-theme .bank-details {
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        /* История */
+        .history-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-theme .history-tabs {
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .history-tab {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.3s ease;
+        }
+
+        .history-tab:hover {
+            background: rgba(0, 188, 212, 0.1);
+            color: #00bcd4;
+        }
+
+        .history-tab.active {
+            background: var(--secondary-gradient);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+        }
+
+        .history-content {
+            display: none;
+        }
+
+        .history-content.active {
+            display: block;
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .history-filters {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            background: white;
+            color: #1e293b;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-theme .filter-group select {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #cbd5e1;
+        }
+
+        .filter-group select:hover {
+            border-color: #00bcd4;
+        }
+
+        /* Платежи и списания */
+        .payment-item, .debit-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-theme .payment-item,
+        body.dark-theme .debit-item {
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .payment-item:hover, .debit-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 188, 212, 0.3);
+        }
+
+        .payment-description, .debit-description {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        body.dark-theme .payment-description,
+        body.dark-theme .debit-description {
+            color: #f1f5f9;
+        }
+
+        .payment-date, .debit-date {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .payment-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: #10b981;
+            text-align: right;
+        }
+
+        .debit-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ef4444;
+            text-align: right;
+        }
+
+        .payment-status, .debit-balance-type {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .status-failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .debit-balance-type.main {
+            background: rgba(0, 188, 212, 0.1);
+            color: #00bcd4;
+        }
+
+        .debit-balance-type.bonus {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+        }
+
+        /* Пагинация */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .page-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: rgba(0, 188, 212, 0.1);
+            color: #00bcd4;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-link:hover {
+            background: rgba(0, 188, 212, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .page-info {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        /* Форма */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        body.dark-theme .form-label {
+            color: #cbd5e1;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            background: white;
+            color: #1e293b;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-theme .form-control {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #cbd5e1;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #00bcd4;
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: var(--secondary-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success-gradient);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Уведомления */
+        .alert {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .alert i {
+            font-size: 20px;
+        }
+
+        /* Детали списания */
+        .debit-tooltip {
+            position: absolute;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            z-index: 1000;
+            max-width: 300px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+        }
+
+        .debit-item:hover .debit-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .tooltip-header {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .tooltip-icon {
+            margin-right: 6px;
+            color: #00bcd4;
+            width: 16px;
+        }
+
+        .tooltip-value {
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .payment-section {
+                padding: 20px;
+            }
+
+            .history-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .payment-item, .debit-item {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .payment-amount, .debit-amount {
+                text-align: left;
+            }
+
+            .payment-methods-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Анимации */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-card {
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card:nth-child(4) { animation-delay: 0.3s; }
+
+        /* Кнопка вверх */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--secondary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 999;
+        }
+
+        .scroll-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-to-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+        }
     </style>
-    <script src="/js/theme.js" defer></script>
 </head>
 <body>
-    <?php include '../templates/headers/user_header.php'; ?>
+    <?php
+    // Подключаем обновленную шапку
+    include '../templates/headers/user_header.php';
+    ?>
 
-    <div class="container">
-        <div class="admin-content">
-            <?php include '../templates/headers/user_sidebar.php'; ?>
+    <!-- Кнопка вверх -->
+    <a href="#" class="scroll-to-top" id="scrollToTop">
+        <i class="fas fa-chevron-up"></i>
+    </a>
 
-            <main class="admin-main">
-                <!-- Заголовок страницы -->
-                <div class="admin-header-container">
-                    <h1 class="admin-title">
-                        <i class="fas fa-credit-card"></i> Биллинг и платежи
-                    </h1>
+    <div class="main-container">
+        <?php
+        // Подключаем обновленный сайдбар
+        include '../templates/headers/user_sidebar.php';
+        ?>
+
+        <div class="main-content">
+            <!-- Заголовок страницы -->
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-credit-card"></i> Биллинг и платежи
+                </h1>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="window.location.reload()">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
                 </div>
-                
-                <!-- Карточки баланса -->
-                <div class="balance-cards">
-                    <!-- Текущий баланс -->
-                    <div class="balance-card">
-                        <div class="balance-icon">
+            </div>
+
+            <!-- Статистика -->
+            <div class="stats-grid">
+                <!-- Текущий баланс -->
+                <div class="stat-card balance">
+                    <div class="stat-header">
+                        <div class="stat-icon balance">
                             <i class="fas fa-wallet"></i>
                         </div>
-                        <h2>Текущий баланс</h2>
-                        <div class="balance-amount"><?= number_format($user['balance'], 2) ?> ₽</div>
-                        <p>Основной баланс для оплаты услуг</p>
+                        <div class="stat-label">Текущий баланс</div>
                     </div>
-                    
-                    <!-- Бонусный баланс -->
-                    <div class="balance-card bonus">
-                        <div class="balance-icon">
+                    <div class="stat-value"><?= number_format($user['balance'], 2) ?> ₽</div>
+                    <div class="stat-details"><?= $user['balance'] >= 0 ? 'Доступно' : 'Задолженность' ?></div>
+                </div>
+
+                <!-- Бонусный баланс -->
+                <div class="stat-card bonus">
+                    <div class="stat-header">
+                        <div class="stat-icon bonus">
                             <i class="fas fa-gift"></i>
                         </div>
-                        <h2>Бонусный баланс</h2>
-                        <div class="balance-amount"><?= number_format($user['bonus_balance'], 2) ?> ₽</div>
-                        <p>Приветственные и бонусные средства</p>
+                        <div class="stat-label">Бонусный баланс</div>
                     </div>
+                    <div class="stat-value"><?= number_format($user['bonus_balance'], 2) ?> ₽</div>
+                    <div class="stat-details"><?= $user['bonus_balance'] > 0 ? 'Доступно' : 'Нет бонусов' ?></div>
                 </div>
-                
-                <?php if (!empty($errors)): ?>
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <?php foreach ($errors as $error): ?>
-                            <p><?= htmlspecialchars($error) ?></p>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($success): ?>
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i>
-                        <p>Платеж успешно создан! Используйте инструкции ниже для пополнения баланса.</p>
-                    </div>
-                <?php endif; ?>
-                
-                <!-- Форма пополнения баланса -->
-                <div class="payment-form">
-                    <h2><i class="fas fa-plus-circle"></i> Пополнение баланса</h2>
-                    
-                    <form method="POST" id="payment-form">
-                        <div class="form-group">
-                            <label class="form-label" for="amount">Сумма пополнения (₽)</label>
-                            <input type="number" id="amount" name="amount" class="form-control" 
-                                   min="50" max="50000" step="1" required
-                                   placeholder="Введите сумму от 50 до 50,000 рублей">
+
+                <!-- Общая сумма платежей -->
+                <div class="stat-card payments">
+                    <div class="stat-header">
+                        <div class="stat-icon payments">
+                            <i class="fas fa-money-bill-wave"></i>
                         </div>
-                        
-                        <div class="payment-methods">
-                            <div class="payment-method" data-method="sbp">
+                        <div class="stat-label">Всего пополнено</div>
+                    </div>
+                    <div class="stat-value"><?= number_format($payments_stats['total_paid'] ?? 0, 2) ?> ₽</div>
+                    <div class="stat-details"><?= $payments_stats['total_payments'] ?? 0 ?> платежей</div>
+                </div>
+
+                <!-- Среднемесячные расходы -->
+                <div class="stat-card spending">
+                    <div class="stat-header">
+                        <div class="stat-icon spending">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-label">Средний расход</div>
+                    </div>
+                    <div class="stat-value"><?= number_format($avg_monthly_cost, 2) ?> ₽</div>
+                    <div class="stat-details">в месяц</div>
+                </div>
+            </div>
+
+            <?php if (!empty($errors)): ?>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?php foreach ($errors as $error): ?>
+                        <p><?= htmlspecialchars($error) ?></p>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($success): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <p>Платеж успешно создан! Используйте инструкции ниже для пополнения баланса.</p>
+                </div>
+            <?php endif; ?>
+
+            <!-- Форма пополнения баланса -->
+            <div class="payment-section">
+                <h2 class="section-title">
+                    <i class="fas fa-plus-circle"></i> Пополнение баланса
+                </h2>
+
+                <form method="POST" id="payment-form">
+                    <div class="form-group">
+                        <label class="form-label" for="amount">Сумма пополнения (₽)</label>
+                        <input type="number" id="amount" name="amount" class="form-control"
+                               min="50" max="50000" step="1" required
+                               placeholder="Введите сумму от 50 до 50,000 рублей">
+                    </div>
+
+                    <div class="payment-methods-grid">
+                        <!-- СБП -->
+                        <div class="payment-method-card" data-method="sbp">
+                            <div class="payment-method-icon">
                                 <i class="fas fa-qrcode"></i>
-                                <h3>СБП</h3>
-                                <p>Оплата через Систему Быстрых Платежей</p>
                             </div>
-                            
-                            <div class="payment-method" data-method="card">
+                            <h3 class="payment-method-title">СБП</h3>
+                            <p class="payment-method-description">Оплата через QR-код</p>
+                        </div>
+
+                        <!-- Перевод на карту -->
+                        <div class="payment-method-card" data-method="card">
+                            <div class="payment-method-icon">
                                 <i class="fas fa-credit-card"></i>
-                                <h3>Перевод на карту</h3>
-                                <p>Ручной перевод по реквизитам карты</p>
                             </div>
-                            
-                            <div class="payment-method" data-method="invoice">
+                            <h3 class="payment-method-title">Перевод на карту</h3>
+                            <p class="payment-method-description">Ручной перевод по реквизитам</p>
+                        </div>
+
+                        <!-- Выставить счет -->
+                        <div class="payment-method-card invoice" data-method="invoice">
+                            <div class="payment-method-icon">
                                 <i class="fas fa-file-invoice"></i>
-                                <h3>Выставить счет</h3>
-                                <p>Для юридических лиц и ИП</p>
                             </div>
+                            <h3 class="payment-method-title">Выставить счет</h3>
+                            <p class="payment-method-description">Для юридических лиц</p>
                         </div>
-                        
-                        <input type="hidden" name="payment_method" id="payment_method" value="">
-                        
-                        <!-- Детали оплаты по СБП -->
-                        <div class="payment-details" id="sbp-details">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-qrcode"></i> Продолжить с СБП
-                            </button>
-                        </div>
-                        
-                        <!-- Детали оплаты переводом на карту -->
-                        <div class="payment-details" id="card-details">
-                            <div class="bank-card">
-                                <h3><i class="fas fa-credit-card"></i> Реквизиты для перевода</h3>
-                                <p>Используйте эти реквизиты для перевода с карты на карту</p>
-                                
-                                <div class="bank-details">
-                                    <p><strong>Номер карты:</strong> 2200 1514 4839 6171</p>
-                                    <p><strong>Получатель:</strong> Вадим К.</p>
-                                    <p><strong>Банк:</strong> Альфа-Банк</p>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="card_control_word">Контрольное слово</label>
-                                <input type="text" id="card_control_word" name="control_word" class="form-control" 
-                                       value="<?= $success && $payment_method === 'card' ? $control_word : '' ?>" readonly>
-                                <small>Укажите это слово в комментарии к переводу</small>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check"></i> Подтвердить платеж
-                            </button>
-                        </div>
-                        
-                        <!-- Детали оплаты по счету -->
-                        <div class="payment-details" id="invoice-details">
-                            <?php if ($success && $payment_method === 'invoice'): ?>
-                                <div class="invoice-preview">
-                                    <h3><i class="fas fa-file-invoice-dollar"></i> Счет № <?= $invoice_number ?></h3>
-                                    <p><strong>Дата:</strong> <?= date('d.m.Y') ?></p>
-                                    <p><strong>Сумма:</strong> <?= number_format($amount, 2) ?> ₽</p>
-                                    <p><strong>Статус:</strong> Ожидает оплаты</p>
-                                    
-                                    <a href="billing.php?download_invoice=1&invoice_number=<?= $invoice_number ?>&amount=<?= $amount ?>" class="btn btn-primary">
-                                        <i class="fas fa-download"></i> Скачать счет в PDF
-                                    </a>
-                                </div>
-                                
-                                <div class="company-info">
-                                    <h4>Реквизиты для оплаты:</h4>
-                                    <p><strong>Получатель:</strong> <?= htmlspecialchars($legal_entity['company_name']) ?></p>
-                                    <p><strong>ИНН:</strong> <?= htmlspecialchars($legal_entity['tax_number']) ?></p>
-                                    <p><strong>Банк:</strong> <?= htmlspecialchars($legal_entity['bank_name']) ?></p>
-                                    <p><strong>Р/с:</strong> <?= htmlspecialchars($legal_entity['bank_account']) ?></p>
-                                    <p><strong>БИК:</strong> <?= htmlspecialchars($legal_entity['bic']) ?></p>
-                                </div>
-                                
-                                <div class="payment-instructions">
-                                    <p><i class="fas fa-info-circle"></i> <strong>Инструкция по оплате:</strong></p>
-                                    <ol>
-                                        <li>Скачайте счет в PDF</li>
-                                        <li>Оплатите счет по указанным реквизитам</li>
-                                        <li>После оплаты создайте тикет с темой "Биллинг и оплата"</li>
-                                        <li>Приложите копию платежного поручения или чека</li>
-                                    </ol>
-                                    <p>После проверки платежа администратором, сумма будет зачислена на ваш баланс.</p>
-                                </div>
-                            <?php else: ?>
-                                <div class="form-group">
-                                    <label class="form-label" for="invoice_control_word">Контрольное слово</label>
-                                    <input type="text" id="invoice_control_word" name="control_word" class="form-control" readonly>
-                                    <small>Это слово будет указано в счете</small>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-file-invoice"></i> Создать счет
-                                </button>
-                            <?php endif; ?>
-                        </div>
-                    </form>
-                    
-                    <?php if ($success && $payment_method === 'sbp'): ?>
-                        <div class="qr-code-container" id="qr-code-container">
-                            <h3><i class="fas fa-mobile-alt"></i> Оплата через СБП</h3>
+                    </div>
+
+                    <input type="hidden" name="payment_method" id="payment_method" value="sbp">
+
+                    <!-- Детали оплаты по СБП -->
+                    <div class="payment-details-container active" id="sbp-details">
+                        <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
+                            <i class="fas fa-qrcode"></i> Оплата через СБП
+                        </h3>
+                        <div class="qr-container">
                             <div class="qr-code">
-                                <a href="http://www.stqr.ru/qrcodes/QR-code_yamoney_7_Apr_2025_10480_5409.svg" alt="QR-код для оплаты"><img src="http://www.stqr.ru/qrcodes/QR-code_yamoney_7_Apr_2025_10480_5409.svg" width=300 height=300></a>
-                            </div>
-                            
-                            <div class="payment-details">
-                                <p><strong>Контрольное слово:</strong> <?= $control_word ?></p>
-                                <p><strong>Сумма к оплате:</strong> <?= number_format($amount, 2) ?> ₽</p>
-                                <p><strong>Реквизиты:</strong> СБП (Система быстрых платежей)</p>
-                                <p><strong>Получатель:</strong> HomeVlad Cloud</p>
-                                <p><strong>Телефон:</strong> +7 (964) 438-46-46</p>
-                            </div>
-                            
-                            <div class="payment-instructions">
-                                <p><i class="fas fa-info-circle"></i> <strong>Инструкция по оплате:</strong></p>
-                                <ol>
-                                    <li>Откройте приложение вашего банка</li>
-                                    <li>Выберите оплату по QR-коду или СБП</li>
-                                    <li>Отсканируйте QR-код или введите реквизиты вручную</li>
-                                    <li>Укажите контрольное слово в комментарии к платежу</li>
-                                    <li>Подтвердите платеж</li>
-                                    <li>Создайте тикет выберите тему Билинг и оплата и приложите чек об оплате</li>
-                                </ol>
-                                <p>После проверки платежа администратором, сумма будет зачислена на ваш баланс.</p>
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?= urlencode("tel:+79644384646&sum=$amount") ?>" 
+                                     alt="QR-код для оплаты" width="200" height="200">
                             </div>
                         </div>
-                    <?php endif; ?>
-                </div>
-                
-                <!-- Табы истории -->
-                <div class="history-tabs">
-                    <div class="history-tab active" data-tab="payments">История платежей</div>
-                    <div class="history-tab" data-tab="debits">История списаний</div>
-                </div>
-                
-                <!-- Фильтры для истории платежей -->
-                <div class="history-filters active" id="payments-filters">
+                        
+                        <div class="bank-details">
+                            <p><strong>Контрольное слово:</strong> <span id="sbp-control-word"><?= $control_word ?></span></p>
+                            <p><strong>Телефон для оплаты:</strong> +7 (964) 438-46-46</p>
+                            <p><strong>Получатель:</strong> HomeVlad Cloud</p>
+                        </div>
+
+                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(0, 188, 212, 0.05); border-radius: 8px;">
+                            <h4><i class="fas fa-info-circle"></i> Инструкция по оплате:</h4>
+                            <ol style="margin-top: 8px; padding-left: 20px;">
+                                <li>Откройте приложение вашего банка</li>
+                                <li>Выберите оплату по QR-коду или СБП</li>
+                                <li>Отсканируйте QR-код или введите номер телефона</li>
+                                <li>Укажите контрольное слово в комментарии</li>
+                                <li>Подтвердите платеж</li>
+                            </ol>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="margin-top: 20px; width: 100%;">
+                            <i class="fas fa-check"></i> Подтвердить платеж
+                        </button>
+                    </div>
+
+                    <!-- Детали оплаты переводом на карту -->
+                    <div class="payment-details-container" id="card-details">
+                        <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
+                            <i class="fas fa-credit-card"></i> Перевод на карту
+                        </h3>
+                        
+                        <div class="bank-details">
+                            <h4><i class="fas fa-university"></i> Реквизиты для перевода:</h4>
+                            <p><strong>Номер карты:</strong> 2200 1514 4839 6171</p>
+                            <p><strong>Получатель:</strong> Вадим К.</p>
+                            <p><strong>Банк:</strong> Альфа-Банк</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="card_control_word">Контрольное слово</label>
+                            <input type="text" id="card_control_word" name="control_word" class="form-control"
+                                   value="<?= $success && $payment_method === 'card' ? $control_word : '' ?>" readonly>
+                            <small style="color: #64748b; font-size: 12px;">Укажите это слово в комментарии к переводу</small>
+                        </div>
+
+                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(0, 188, 212, 0.05); border-radius: 8px;">
+                            <h4><i class="fas fa-info-circle"></i> Инструкция по оплате:</h4>
+                            <p>Выполните перевод по указанным реквизитам через приложение вашего банка. Обязательно укажите контрольное слово в комментарии.</p>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="margin-top: 20px; width: 100%;">
+                            <i class="fas fa-check"></i> Подтвердить платеж
+                        </button>
+                    </div>
+
+                    <!-- Детали оплаты по счету -->
+                    <div class="payment-details-container" id="invoice-details">
+                        <?php if ($success && $payment_method === 'invoice'): ?>
+                            <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
+                                <i class="fas fa-file-invoice-dollar"></i> Счет № <?= $invoice_number ?>
+                            </h3>
+                            
+                            <div class="bank-details">
+                                <p><strong>Дата:</strong> <?= date('d.m.Y') ?></p>
+                                <p><strong>Сумма:</strong> <?= number_format($amount, 2) ?> ₽</p>
+                                <p><strong>Статус:</strong> <span style="color: #f59e0b;">Ожидает оплаты</span></p>
+                            </div>
+
+                            <a href="billing.php?download_invoice=1&invoice_number=<?= $invoice_number ?>&amount=<?= $amount ?>" 
+                               class="btn btn-success" style="width: 100%; margin-bottom: 16px;">
+                                <i class="fas fa-download"></i> Скачать счет в PDF
+                            </a>
+
+                            <div class="payment-instructions" style="padding: 16px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
+                                <h4><i class="fas fa-info-circle"></i> Инструкция по оплате:</h4>
+                                <ol style="margin-top: 8px; padding-left: 20px;">
+                                    <li>Скачайте счет в PDF</li>
+                                    <li>Оплатите счет по указанным реквизитам</li>
+                                    <li>Создайте тикет с темой "Биллинг и оплата"</li>
+                                    <li>Приложите копию платежного поручения</li>
+                                </ol>
+                            </div>
+                        <?php else: ?>
+                            <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
+                                <i class="fas fa-file-invoice"></i> Выставление счета
+                            </h3>
+
+                            <div class="form-group">
+                                <label class="form-label" for="invoice_control_word">Контрольное слово</label>
+                                <input type="text" id="invoice_control_word" name="control_word" class="form-control" readonly>
+                                <small style="color: #64748b; font-size: 12px;">Это слово будет указано в счете</small>
+                            </div>
+
+                            <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(245, 158, 11, 0.05); border-radius: 8px;">
+                                <h4><i class="fas fa-info-circle"></i> Важно:</h4>
+                                <p>После создания счета, оплатите его по реквизитам, которые появятся на следующем экране. Для юридических лиц и ИП.</p>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" style="margin-top: 20px; width: 100%;">
+                                <i class="fas fa-file-invoice"></i> Создать счет
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Табы истории -->
+            <div class="history-tabs">
+                <div class="history-tab active" data-tab="payments">История платежей</div>
+                <div class="history-tab" data-tab="debits">История списаний</div>
+            </div>
+
+            <!-- История платежей -->
+            <div class="history-content active" id="payments-history">
+                <div class="history-filters">
                     <form method="get" class="filter-form">
                         <input type="hidden" name="payments_page" value="1">
-                        
+
                         <div class="filter-group">
                             <label for="payments_timeframe">Период:</label>
                             <select name="payments_timeframe" id="payments_timeframe" onchange="this.form.submit()">
@@ -703,7 +1601,7 @@ $title = "Биллинг | HomeVlad Cloud";
                                 <option value="all" <?= $payments_timeframe === 'all' ? 'selected' : '' ?>>Все время</option>
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="payments_per_page">Показывать по:</label>
                             <select name="payments_per_page" id="payments_per_page" onchange="this.form.submit()">
@@ -715,64 +1613,69 @@ $title = "Биллинг | HomeVlad Cloud";
                         </div>
                     </form>
                 </div>
-                
-                <!-- История платежей -->
-                <div class="history-content active" id="payments-history">
-                    <?php if (empty($payments)): ?>
+
+                <?php if (empty($payments)): ?>
+                    <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+                        <i class="fas fa-money-bill-wave" style="font-size: 48px; margin-bottom: 16px; color: #cbd5e1;"></i>
                         <p>У вас пока нет платежей</p>
-                    <?php else: ?>
-                        <?php foreach ($payments as $payment): ?>
-                            <div class="payment-item">
-                                <div>
-                                    <div class="payment-description">
-                                        <?= htmlspecialchars($payment['description']) ?>
-                                        <?php if (!empty($payment['control_word'])): ?>
-                                            <small>(<?= htmlspecialchars($payment['control_word']) ?>)</small>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="payment-date">
-                                        <?= date('d.m.Y H:i', strtotime($payment['created_at'])) ?>
-                                    </div>
+                        <button class="btn btn-primary" onclick="document.getElementById('amount').focus()" style="margin-top: 16px;">
+                            <i class="fas fa-plus"></i> Пополнить баланс
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($payments as $payment): ?>
+                        <div class="payment-item">
+                            <div>
+                                <div class="payment-description">
+                                    <?= htmlspecialchars($payment['description']) ?>
+                                    <?php if (!empty($payment['control_word'])): ?>
+                                        <small>(<?= htmlspecialchars($payment['control_word']) ?>)</small>
+                                    <?php endif; ?>
                                 </div>
-                                <div style="text-align: right;">
-                                    <div class="payment-amount">
-                                        +<?= number_format($payment['amount'], 2) ?> ₽
-                                    </div>
-                                    <div class="payment-status 
-                                        <?= $payment['status'] === 'completed' ? 'status-completed' : 
-                                           ($payment['status'] === 'failed' ? 'status-failed' : 'status-pending') ?>">
-                                        <?= $payment['status'] === 'completed' ? 'Завершен' : 
-                                           ($payment['status'] === 'failed' ? 'Ошибка' : 'Ожидание') ?>
-                                    </div>
+                                <div class="payment-date">
+                                    <?= date('d.m.Y H:i', strtotime($payment['created_at'])) ?>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
-                        
-                        <?php if ($payments_total_pages > 1): ?>
-                            <div class="pagination">
-                                <?php if ($payments_page > 1): ?>
-                                    <a href="?payments_page=<?= $payments_page - 1 ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&debits_page=<?= $debits_page ?>" class="page-link">
-                                        <i class="fas fa-chevron-left"></i> Назад
-                                    </a>
-                                <?php endif; ?>
-                                
-                                <span class="page-info">Страница <?= $payments_page ?> из <?= $payments_total_pages ?></span>
-                                
-                                <?php if ($payments_page < $payments_total_pages): ?>
-                                    <a href="?payments_page=<?= $payments_page + 1 ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&debits_page=<?= $debits_page ?>" class="page-link">
-                                        Вперед <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                <?php endif; ?>
+                            <div>
+                                <div class="payment-amount">
+                                    +<?= number_format($payment['amount'], 2) ?> ₽
+                                </div>
+                                <div class="payment-status
+                                    <?= $payment['status'] === 'completed' ? 'status-completed' :
+                                       ($payment['status'] === 'failed' ? 'status-failed' : 'status-pending') ?>">
+                                    <?= $payment['status'] === 'completed' ? 'Завершен' :
+                                       ($payment['status'] === 'failed' ? 'Ошибка' : 'Ожидание') ?>
+                                </div>
                             </div>
-                        <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <?php if ($payments_total_pages > 1): ?>
+                        <div class="pagination">
+                            <?php if ($payments_page > 1): ?>
+                                <a href="?payments_page=<?= $payments_page - 1 ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&debits_page=<?= $debits_page ?>" class="page-link">
+                                    <i class="fas fa-chevron-left"></i> Назад
+                                </a>
+                            <?php endif; ?>
+
+                            <span class="page-info">Страница <?= $payments_page ?> из <?= $payments_total_pages ?></span>
+
+                            <?php if ($payments_page < $payments_total_pages): ?>
+                                <a href="?payments_page=<?= $payments_page + 1 ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&debits_page=<?= $debits_page ?>" class="page-link">
+                                    Вперед <i class="fas fa-chevron-right"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
-                </div>
-                
-                <!-- Фильтры для истории списаний -->
-                <div class="history-filters" id="debits-filters">
+                <?php endif; ?>
+            </div>
+
+            <!-- История списаний -->
+            <div class="history-content" id="debits-history">
+                <div class="history-filters">
                     <form method="get" class="filter-form">
                         <input type="hidden" name="debits_page" value="1">
-                        
+
                         <div class="filter-group">
                             <label for="debits_timeframe">Период:</label>
                             <select name="debits_timeframe" id="debits_timeframe" onchange="this.form.submit()">
@@ -783,7 +1686,7 @@ $title = "Биллинг | HomeVlad Cloud";
                                 <option value="all" <?= $debits_timeframe === 'all' ? 'selected' : '' ?>>Все время</option>
                             </select>
                         </div>
-                        
+
                         <div class="filter-group">
                             <label for="debits_per_page">Показывать по:</label>
                             <select name="debits_per_page" id="debits_per_page" onchange="this.form.submit()">
@@ -795,246 +1698,314 @@ $title = "Биллинг | HomeVlad Cloud";
                         </div>
                     </form>
                 </div>
-                
-                <!-- История списаний -->
-<div class="history-content" id="debits-history">
-    <?php if (empty($debits)): ?>
-        <p class="no-debits">У вас пока нет списаний</p>
-    <?php else: ?>
-        <?php foreach ($debits as $debit): ?>
-            <div class="debit-item">
-                <div class="debit-info">
-                    <div class="debit-description">
-                        <?= htmlspecialchars($debit['description']) ?>
+
+                <?php if (empty($debits)): ?>
+                    <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+                        <i class="fas fa-receipt" style="font-size: 48px; margin-bottom: 16px; color: #cbd5e1;"></i>
+                        <p>У вас пока нет списаний</p>
                     </div>
-                    <div class="debit-date">
-                        <?= date('d.m.Y H:i', strtotime($debit['created_at'])) ?>
-                    </div>
-                </div>
-                <div>
-                    <div class="debit-amount">
-                        -<?= number_format($debit['amount'], 6) ?> ₽
-                    </div>
-                    <div class="debit-balance-type">
-                        <?= $debit['balance_type'] === 'main' ? 'Основной баланс' : 'Бонусный баланс' ?>
-                    </div>
-                </div>
-                
-                <?php if (!empty($debit['metadata'])): 
-                    $metadata = json_decode($debit['metadata'], true);
-                    if ($metadata && (isset($metadata['cpu']) || isset($metadata['tariff_name']) || isset($metadata['disk']))): ?>
-                        <div class="debit-tooltip">
-                            <div class="tooltip-header">Детализация списания</div>
-                            
-                            <?php if (isset($metadata['cpu'])): ?>
-                                <!-- Показываем для кастомных ВМ -->
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-microchip tooltip-icon"></i> vCPU:</span>
-                                    <span class="tooltip-value">
-                                        <?= $metadata['cpu'] ?> × <?= number_format($metadata['cpu_price'], 6) ?> ₽
-                                    </span>
+                <?php else: ?>
+                    <?php foreach ($debits as $debit): ?>
+                        <div class="debit-item" style="position: relative;">
+                            <div>
+                                <div class="debit-description">
+                                    <?= htmlspecialchars($debit['description']) ?>
                                 </div>
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-memory tooltip-icon"></i> RAM:</span>
-                                    <span class="tooltip-value">
-                                        <?= $metadata['memory'] ?>MB × <?= number_format($metadata['memory_price'], 6) ?> ₽
-                                    </span>
+                                <div class="debit-date">
+                                    <?= date('d.m.Y H:i', strtotime($debit['created_at'])) ?>
                                 </div>
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-hdd tooltip-icon"></i> SDD:</span>
-                                    <span class="tooltip-value">
-                                        <?= $metadata['disk'] ?>GB × <?= number_format($metadata['disk_price'], 6) ?> ₽
-                                    </span>
-                                </div>
-                            <?php elseif (isset($metadata['tariff_name'])): ?>
-                                <!-- Показываем для тарифных ВМ -->
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-box tooltip-icon"></i> Тариф:</span>
-                                    <span class="tooltip-value">
-                                        <?= htmlspecialchars($metadata['tariff_name']) ?>
-                                    </span>
-                                </div>
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-money-bill-wave tooltip-icon"></i> Стоимость:</span>
-                                    <span class="tooltip-value">
-                                        <?= number_format($metadata['tariff_price'], 2) ?> ₽/мес
-                                    </span>
-                                </div>
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-clock tooltip-icon"></i> Списание:</span>
-                                    <span class="tooltip-value">
-                                        <?= number_format($debit['amount'], 6) ?> ₽/час
-                                    </span>
-                                </div>
-                            <?php elseif (isset($metadata['disk'])): ?>
-                                <!-- Показываем для остановленных ВМ (только диск) -->
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-hdd tooltip-icon"></i> Диск:</span>
-                                    <span class="tooltip-value">
-                                        <?= $metadata['disk'] ?>GB × <?= number_format($metadata['disk_price'], 6) ?> ₽
-                                    </span>
-                                </div>
-                                <div class="tooltip-row">
-                                    <span><i class="fas fa-info-circle tooltip-icon"></i> Статус:</span>
-                                    <span class="tooltip-value">
-                                        Списание только за диск
-                                    </span>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="tooltip-row" style="margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px;">
-                                <span><i class="fas fa-calculator tooltip-icon"></i> Итого:</span>
-                                <span class="tooltip-value">
-                                    <?= number_format($debit['amount'], 6) ?> ₽
-                                </span>
                             </div>
+                            <div>
+                                <div class="debit-amount">
+                                    -<?= number_format($debit['amount'], 6) ?> ₽
+                                </div>
+                                <div class="debit-balance-type <?= $debit['balance_type'] ?>">
+                                    <?= $debit['balance_type'] === 'main' ? 'Основной баланс' : 'Бонусный баланс' ?>
+                                </div>
+                            </div>
+
+                            <?php if (!empty($debit['metadata'])):
+                                $metadata = json_decode($debit['metadata'], true);
+                                if ($metadata && (isset($metadata['cpu']) || isset($metadata['tariff_name']) || isset($metadata['disk']))): ?>
+                                    <div class="debit-tooltip">
+                                        <div class="tooltip-header">Детализация списания</div>
+
+                                        <?php if (isset($metadata['cpu'])): ?>
+                                            <!-- Показываем для кастомных ВМ -->
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-microchip tooltip-icon"></i> vCPU:</span>
+                                                <span class="tooltip-value">
+                                                    <?= $metadata['cpu'] ?> × <?= number_format($metadata['cpu_price'], 6) ?> ₽
+                                                </span>
+                                            </div>
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-memory tooltip-icon"></i> RAM:</span>
+                                                <span class="tooltip-value">
+                                                    <?= $metadata['memory'] ?>MB × <?= number_format($metadata['memory_price'], 6) ?> ₽
+                                                </span>
+                                            </div>
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-hdd tooltip-icon"></i> SSD:</span>
+                                                <span class="tooltip-value">
+                                                    <?= $metadata['disk'] ?>GB × <?= number_format($metadata['disk_price'], 6) ?> ₽
+                                                </span>
+                                            </div>
+                                        <?php elseif (isset($metadata['tariff_name'])): ?>
+                                            <!-- Показываем для тарифных ВМ -->
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-box tooltip-icon"></i> Тариф:</span>
+                                                <span class="tooltip-value">
+                                                    <?= htmlspecialchars($metadata['tariff_name']) ?>
+                                                </span>
+                                            </div>
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-money-bill-wave tooltip-icon"></i> Стоимость:</span>
+                                                <span class="tooltip-value">
+                                                    <?= number_format($metadata['tariff_price'], 2) ?> ₽/мес
+                                                </span>
+                                            </div>
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-clock tooltip-icon"></i> Списание:</span>
+                                                <span class="tooltip-value">
+                                                    <?= number_format($debit['amount'], 6) ?> ₽/час
+                                                </span>
+                                            </div>
+                                        <?php elseif (isset($metadata['disk'])): ?>
+                                            <!-- Показываем для остановленных ВМ (только диск) -->
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-hdd tooltip-icon"></i> Диск:</span>
+                                                <span class="tooltip-value">
+                                                    <?= $metadata['disk'] ?>GB × <?= number_format($metadata['disk_price'], 6) ?> ₽
+                                                </span>
+                                            </div>
+                                            <div class="tooltip-row">
+                                                <span><i class="fas fa-info-circle tooltip-icon"></i> Статус:</span>
+                                                <span class="tooltip-value">
+                                                    Списание только за диск
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <div class="tooltip-row" style="margin-top: 8px; border-top: 1px solid rgba(148, 163, 184, 0.2); padding-top: 6px;">
+                                            <span><i class="fas fa-calculator tooltip-icon"></i> Итого:</span>
+                                            <span class="tooltip-value">
+                                                <?= number_format($debit['amount'], 6) ?> ₽
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+
+                    <?php if ($debits_total_pages > 1): ?>
+                        <div class="pagination">
+                            <?php if ($debits_page > 1): ?>
+                                <a href="?debits_page=<?= $debits_page - 1 ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&payments_page=<?= $payments_page ?>" class="page-link">
+                                    <i class="fas fa-chevron-left"></i> Назад
+                                </a>
+                            <?php endif; ?>
+
+                            <span class="page-info">Страница <?= $debits_page ?> из <?= $debits_total_pages ?></span>
+
+                            <?php if ($debits_page < $debits_total_pages): ?>
+                                <a href="?debits_page=<?= $debits_page + 1 ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&payments_page=<?= $payments_page ?>" class="page-link">
+                                    Вперед <i class="fas fa-chevron-right"></i>
+                                </a>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
-        <?php endforeach; ?>
-        
-        <?php if ($debits_total_pages > 1): ?>
-            <div class="pagination">
-                <?php if ($debits_page > 1): ?>
-                    <a href="?debits_page=<?= $debits_page - 1 ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&payments_page=<?= $payments_page ?>" class="page-link">
-                        <i class="fas fa-chevron-left"></i> Назад
-                    </a>
-                <?php endif; ?>
-                
-                <span class="page-info">Страница <?= $debits_page ?> из <?= $debits_total_pages ?></span>
-                
-                <?php if ($debits_page < $debits_total_pages): ?>
-                    <a href="?debits_page=<?= $debits_page + 1 ?>&debits_timeframe=<?= $debits_timeframe ?>&debits_per_page=<?= $debits_per_page ?>&payments_timeframe=<?= $payments_timeframe ?>&payments_per_page=<?= $payments_per_page ?>&payments_page=<?= $payments_page ?>" class="page-link">
-                        Вперед <i class="fas fa-chevron-right"></i>
-                    </a>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
-    <?php endif; ?>
-</div>
-
-            </main>
         </div>
     </div>
 
-    <?php include '../templates/headers/user_footer.php'; ?>
-
     <script>
-    // Адаптивное меню для мобильных устройств
-    const menuToggle = document.createElement('div');
-    menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-    menuToggle.style.position = 'fixed';
-    menuToggle.style.top = '15px';
-    menuToggle.style.left = '15px';
-    menuToggle.style.zIndex = '1000';
-    menuToggle.style.fontSize = '1.5rem';
-    menuToggle.style.color = 'var(--primary)';
-    menuToggle.style.cursor = 'pointer';
-    menuToggle.style.display = 'none';
-    document.body.appendChild(menuToggle);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Анимация прогресс-баров при загрузке
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+            });
 
-    function checkScreenSize() {
-        if (window.innerWidth <= 992) {
-            menuToggle.style.display = 'block';
-            document.body.classList.add('sidebar-closed');
-        } else {
-            menuToggle.style.display = 'none';
-            document.body.classList.remove('sidebar-closed');
-        }
-    }
+            // Выбор метода оплаты
+            const paymentMethods = document.querySelectorAll('.payment-method-card');
+            const paymentDetails = document.querySelectorAll('.payment-details-container');
+            const paymentMethodInput = document.getElementById('payment_method');
 
-    menuToggle.addEventListener('click', function() {
-        document.body.classList.toggle('sidebar-open');
-    });
+            paymentMethods.forEach(method => {
+                method.addEventListener('click', function() {
+                    // Убираем активный класс у всех методов
+                    paymentMethods.forEach(m => m.classList.remove('active'));
+                    // Добавляем активный класс текущему методу
+                    this.classList.add('active');
 
-    // Переключение между вкладками истории
-    document.querySelectorAll('.history-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            // Убираем активный класс у всех вкладок
-            document.querySelectorAll('.history-tab').forEach(t => {
-                t.classList.remove('active');
-            });
-            
-            // Добавляем активный класс текущей вкладке
-            this.classList.add('active');
-            
-            // Скрываем все блоки с контентом
-            document.querySelectorAll('.history-content').forEach(c => {
-                c.classList.remove('active');
-            });
-            
-            // Скрываем все фильтры
-            document.querySelectorAll('.history-filters').forEach(f => {
-                f.classList.remove('active');
-            });
-            
-            // Показываем нужный блок
-            const tabId = this.getAttribute('data-tab');
-            document.getElementById(tabId + '-history').classList.add('active');
-            document.getElementById(tabId + '-filters').classList.add('active');
-        });
-    });
+                    // Скрываем все детали оплаты
+                    paymentDetails.forEach(detail => detail.classList.remove('active'));
+                    // Показываем нужные детали
+                    const methodName = this.dataset.method;
+                    document.getElementById(`${methodName}-details`).classList.add('active');
+                    
+                    // Устанавливаем значение скрытого поля
+                    paymentMethodInput.value = methodName;
 
-    // Выбор метода оплаты
-    document.querySelectorAll('.payment-method').forEach(method => {
-        method.addEventListener('click', function() {
-            // Убираем активный класс у всех методов
-            document.querySelectorAll('.payment-method').forEach(m => {
-                m.classList.remove('active');
+                    // Генерируем контрольное слово
+                    generateControlWord();
+                });
             });
-            
-            // Добавляем активный класс текущему методу
-            this.classList.add('active');
-            
-            // Скрываем все детали оплаты
-            document.querySelectorAll('.payment-details').forEach(d => {
-                d.classList.remove('active');
+
+            // Переключение между вкладками истории
+            const historyTabs = document.querySelectorAll('.history-tab');
+            const historyContents = document.querySelectorAll('.history-content');
+
+            historyTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Убираем активный класс у всех вкладок
+                    historyTabs.forEach(t => t.classList.remove('active'));
+                    // Добавляем активный класс текущей вкладке
+                    this.classList.add('active');
+
+                    // Скрываем все контенты
+                    historyContents.forEach(c => c.classList.remove('active'));
+                    // Показываем нужный контент
+                    const tabId = this.dataset.tab;
+                    document.getElementById(`${tabId}-history`).classList.add('active');
+                });
             });
-            
-            // Показываем нужные детали
-            const methodName = this.getAttribute('data-method');
-            document.getElementById(methodName + '-details').classList.add('active');
-            
-            // Устанавливаем значение скрытого поля
-            document.getElementById('payment_method').value = methodName;
-            
-            // Генерируем контрольное слово для карты и счета
-            if (methodName === 'card' || methodName === 'invoice') {
+
+            // Кнопка "Наверх"
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    scrollToTopBtn.classList.add('visible');
+                } else {
+                    scrollToTopBtn.classList.remove('visible');
+                }
+            });
+
+            scrollToTopBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+
+            // Генерация контрольного слова
+            function generateControlWord() {
                 const adjectives = ['быстрый', 'надежный', 'безопасный', 'удобный', 'современный', 'умный', 'цифровой'];
                 const nouns = ['платеж', 'перевод', 'взнос', 'депозит', 'баланс', 'счет', 'кошелек'];
                 const animals = ['тигр', 'медведь', 'волк', 'орел', 'дельфин', 'ястреб', 'сокол'];
-                
+
                 const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
                 const noun = nouns[Math.floor(Math.random() * nouns.length)];
                 const animal = animals[Math.floor(Math.random() * animals.length)];
-                
-                const controlWord = adj.charAt(0).toUpperCase() + adj.slice(1) + 
-                                    noun.charAt(0).toUpperCase() + noun.slice(1) + 
-                                    animal.charAt(0).toUpperCase() + animal.slice(1) + 
-                                    Math.floor(Math.random() * 900) + 100;
-                
-                if (methodName === 'card') {
-                    document.getElementById('card_control_word').value = controlWord;
-                } else {
-                    document.getElementById('invoice_control_word').value = controlWord;
+
+                const controlWord = adj.charAt(0).toUpperCase() + adj.slice(1) +
+                                    noun.charAt(0).toUpperCase() + noun.slice(1) +
+                                    animal.charAt(0).toUpperCase() + animal.slice(1) +
+                                    (Math.floor(Math.random() * 900) + 100);
+
+                // Обновляем во всех местах
+                document.getElementById('sbp-control-word').textContent = controlWord;
+                document.getElementById('card_control_word').value = controlWord;
+                document.getElementById('invoice_control_word').value = controlWord;
+            }
+
+            // Инициализируем контрольное слово
+            generateControlWord();
+
+            // Автоматическое обновление QR-кода при изменении суммы
+            const amountInput = document.getElementById('amount');
+            amountInput.addEventListener('input', function() {
+                const amount = this.value || 0;
+                const qrImg = document.querySelector('.qr-code img');
+                if (qrImg) {
+                    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`tel:+79644384646&sum=${amount}`)}`;
+                }
+            });
+
+            // Обработка уведомлений из сессии
+            <?php if (isset($_SESSION['message'])): ?>
+                showNotification("<?= addslashes($_SESSION['message']) ?>", "<?= $_SESSION['message_type'] ?? 'info' ?>");
+                <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
+            <?php endif; ?>
+        });
+
+        // Функция для показа уведомлений
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                               type === 'error' ? 'fa-exclamation-circle' :
+                               type === 'warning' ? 'fa-exclamation-triangle' :
+                               'fa-info-circle'}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; color: inherit; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            // Стили для уведомления
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 12px;
+                color: white;
+                font-weight: 600;
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                max-width: 400px;
+                background: ${type === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' :
+                           type === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                           type === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                           'linear-gradient(135deg, #00bcd4, #0097a7)'};
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOut 0.3s ease forwards';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // Добавляем стили для анимаций уведомлений
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
                 }
             }
-        });
-    });
 
-    // Если был создан счет, автоматически показываем его
-    <?php if ($success && $payment_method === 'invoice'): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('.payment-method[data-method="invoice"]').click();
-        });
-    <?php endif; ?>
-
-    // По умолчанию выбираем СБП
-    document.querySelector('.payment-method[data-method="sbp"]').click();
-
-    window.addEventListener('resize', checkScreenSize);
-    checkScreenSize();
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>

@@ -1,0 +1,200 @@
+/* Дополнительные стили для дашборда */
+        .quick-actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .vm-specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .vm-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .recent-activity {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+         /* Стили для плитки квот */
+        .stat-card.quota {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .quota-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 100%;
+        }
+        
+        .quota-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4e54c8, #8f94fb);
+            transition: width 0.5s ease;
+        }
+        
+        .quota-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        .quota-limit {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .quota-used {
+            font-size: 0.9rem;
+            margin-top: 3px;
+        }
+        
+        /* Цвета для разных уровней загрузки */
+        .quota-low {
+            color: #48bb78; /* Зеленый */
+        }
+        
+        .quota-medium {
+            color: #ed8936; /* Оранжевый */
+        }
+        
+        .quota-high {
+            color: #f56565; /* Красный */
+        }
+        
+        /* Анимация для прогресс-бара */
+        @keyframes progressAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .quota-progress-bar.animated {
+            background: linear-gradient(90deg, #f56565, #ed8936, #f56565);
+            background-size: 200% 100%;
+            animation: progressAnimation 2s ease infinite;
+        }
+
+        /* Дополнительные стили для дашборда */
+.quick-actions {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.vm-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.vm-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.recent-activity {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid var(--border-color);
+}
+
+/* Стили для плитки квот */
+.stat-card.quota {
+    position: relative;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.quota-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.quota-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #8f94fb);
+    transition: width 0.5s ease;
+}
+
+.quota-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 5px;
+    color: var(--text-color);
+}
+
+.quota-limit {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    color: var(--text-color);
+}
+
+.quota-used {
+    font-size: 0.9rem;
+    margin-top: 3px;
+    color: var(--text-color);
+}
+
+/* Цвета для разных уровней загрузки */
+.quota-low {
+    color: #48bb78 !important; /* Зеленый */
+}
+
+.quota-medium {
+    color: #ed8936 !important; /* Оранжевый */
+}
+
+.quota-high {
+    color: #f56565 !important; /* Красный */
+}
+
+/* Анимация для прогресс-бара */
+@keyframes progressAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.quota-progress-bar.animated {
+    background: linear-gradient(90deg, #f56565, #ed8936, #f56565);
+    background-size: 200% 100%;
+    animation: progressAnimation 2s ease infinite;
+}
+
+/* Адаптация для тёмной темы */
+[data-theme="dark"] {
+    .recent-activity {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .quota-progress {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .quota-progress-bar {
+        background: linear-gradient(90deg, var(--primary-color), #6a5acd);
+    }
+}

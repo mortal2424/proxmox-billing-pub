@@ -419,7 +419,7 @@ function loadChartData(nodeId, hours, interval) {
             // Обновляем время последнего обновления
             const now = new Date();
             document.querySelector('.swal2-title').innerHTML = 
-                `Мониторинг ноды #${nodeId} <small>Последнее обновление: ${now.toLocaleTimeString()}</small>`;
+                `Мониторинг ноды: ${currentNodeName} (Кластер: ${currentClusterName}) <br><small>Последнее обновление: ${now.toLocaleTimeString()}</small>`;
             
             Swal.hideLoading();
         })
@@ -532,10 +532,10 @@ function getChartConfig(type, data) {
             tooltip: {
                 mode: 'index',
                 intersect: false,
-                backgroundColor: 'var(--card-bg)',
-                titleColor: textColor,
-                bodyColor: textColor,
-                borderColor: 'var(--border-color)',
+                backgroundColor: 'rgba(209, 203, 203, 0.9)',
+                titleColor: '#333333',
+                bodyColor: '#333333',
+                borderColor: 'rgba(0, 0, 0, 0.1)',
                 callbacks: {
                     label: function(context) {
                         let label = context.dataset.label || '';

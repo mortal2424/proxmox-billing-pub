@@ -51,7 +51,6 @@ class ProxmoxAPI {
     }
 
     public function createVM($params) {
-    // Начинаем транзакцию
     $this->pdo->beginTransaction();
     
     try {
@@ -59,7 +58,7 @@ class ProxmoxAPI {
         $vmid = $this->getClusterNextID();
         error_log("[VM Creation] Starting creation of VM ID: {$vmid}");
 
-        // 2. Проверяем, не существует ли уже VM с таким ID
+        // 2. Проверка существования VM
         $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE vm_id = ?");
         $checkStmt->execute([$vmid]);
         if ($checkStmt->fetchColumn() > 0) {
@@ -75,27 +74,21 @@ class ProxmoxAPI {
         $sdn = $params['sdn'] ?? null;
         $isCustom = $params['is_custom'] ?? 0;
         $osVersion = $params['os_version'] ?? '';
+        $storageForIso = 'local'; // Для ISO всегда используем хранилище 'local'
         
         // Обработка SDN сети
-        if (!empty($sdn)) {
-            $sdnBridge = strpos($sdn, '/') !== false ? explode('/', $sdn)[1] : $sdn;
-            $networkValue = $sdnBridge;
-        } else {
-            $networkValue = $network;
-            $sdn = null;
-        }
+        $networkValue = !empty($sdn) ? (strpos($sdn, '/') !== false ? explode('/', $sdn)[1] : $sdn) : $network;
+        $sdn = !empty($sdn) ? $sdn : null;
 
         // 4. Создаем базовую VM
-        $createCmd = "qm create {$vmid} " .
-                    "--name " . escapeshellarg($params['hostname'] ?? 'vm-' . $vmid) . " " .
-                    "--cores " . ($params['cpu'] ?? 1) . " " .
-                    "--memory " . ($params['ram'] ?? 1024) . " " .
-                    "--machine q35 " .
-                    "--bios ovmf " .
-                    "--agent 1 " .
-                    "--onboot 1 " .
-                    "--scsihw " . ($params['scsihw'] ?? 'virtio-scsi-pci');
-
+        $createCmd = sprintf(
+            "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s",
+            $vmid,
+            escapeshellarg($params['hostname'] ?? 'vm-' . $vmid),
+            $params['cpu'] ?? 1,
+            $params['ram'] ?? 1024,
+            $params['scsihw'] ?? 'virtio-scsi-pci'
+        );
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
 
@@ -110,21 +103,68 @@ class ProxmoxAPI {
         error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
         $this->execSSHCommand($efiCmd);
 
-        // 6. Настройка CD-ROM (обязательный virtio-win.iso для Windows и дополнительные ISO)
+        // 6. Настройка CD-ROM (исправленная версия)
         $cdroms = $params['cdroms'] ?? [];
         
-        // Для Windows VM добавляем обязательный virtio-win.iso, если его еще нет в списке
-        if ($isWindows && !in_array('virtio-win.iso', $cdroms)) {
-            array_unshift($cdroms, 'virtio-win.iso');
+        // Для Windows VM добавляем обязательный virtio-win.iso
+        if ($isWindows) {
+            $virtioIso = "{$storageForIso}:iso/virtio-win.iso";
+            if (!in_array($virtioIso, $cdroms)) {
+                array_unshift($cdroms, $virtioIso);
+            }
+            
+            // Проверяем существование virtio-win.iso
+            $checkCmd = "test -f /var/lib/vz/template/iso/virtio-win.iso";
+            try {
+                $this->execSSHCommand($checkCmd);
+            } catch (Exception $e) {
+                throw new Exception("Обязательный файл virtio-win.iso не найден в /var/lib/vz/template/iso/");
+            }
         }
-        
+
         // Монтируем все CD-ROM из списка
-        $cdromIndex = 2; // Начинаем с ide2 (ide0 и ide1 могут быть заняты)
+        $cdromIndex = 2; // Начинаем с ide2
+        $mountedCdroms = [];
         foreach ($cdroms as $cdrom) {
+            // Форматируем путь к ISO правильно
+            if (!preg_match('/^[a-z0-9_-]+:iso\//i', $cdrom)) {
+                $cdrom = "{$storageForIso}:iso/" . ltrim($cdrom, '/');
+            }
+            
+            // Извлекаем имя файла для проверки
+            $isoFile = preg_replace('/^[^:]+:iso\//', '', $cdrom);
+            
+            // Проверяем существование ISO
+            $checkCmd = "test -f /var/lib/vz/template/iso/{$isoFile}";
+            try {
+                $this->execSSHCommand($checkCmd);
+            } catch (Exception $e) {
+                if (strpos($cdrom, 'virtio-win.iso') !== false) {
+                    throw new Exception("Файл ISO не найден: {$isoFile}");
+                }
+                error_log("[VM Creation] Warning: ISO file not found - {$isoFile}");
+                continue;
+            }
+            
+            // Монтируем ISO
             $isoCmd = "qm set {$vmid} --ide{$cdromIndex} {$cdrom},media=cdrom";
-            error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$cdrom}");
-            $this->execSSHCommand($isoCmd);
-            $cdromIndex++;
+            error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
+            
+            try {
+                $this->execSSHCommand($isoCmd);
+                $mountedCdroms[] = $cdromIndex;
+                $cdromIndex++;
+                
+                if ($cdromIndex > 5) { // Максимум 4 CD-ROM (ide2-ide5)
+                    error_log("[VM Creation] Warning: Maximum CD-ROM devices reached");
+                    break;
+                }
+            } catch (Exception $e) {
+                if (strpos($cdrom, 'virtio-win.iso') !== false) {
+                    throw new Exception("Не удалось монтировать virtio-win.iso: " . $e->getMessage());
+                }
+                error_log("[VM Creation] Warning: Failed to mount CD-ROM: " . $e->getMessage());
+            }
         }
 
         // 7. Настройка порядка загрузки
@@ -134,23 +174,22 @@ class ProxmoxAPI {
         $this->execSSHCommand($bootCmd);
 
         // 8. Настройка сети
-        $netCmd = "qm set {$vmid} --net0 virtio,bridge=" . (!empty($sdn) ? $sdnBridge : $network);
+        $netCmd = "qm set {$vmid} --net0 virtio,bridge=" . escapeshellarg($networkValue);
         error_log("[VM Creation] Setting network: {$netCmd}");
         $this->execSSHCommand($netCmd);
 
         // 9. Дополнительные параметры для Windows
-        if ($isWindows) {
+        /*if ($isWindows) {
             $winCmd1 = "qm set {$vmid} --cpu kvm64,flags=+aes";
             $winCmd2 = "qm set {$vmid} --tablet usb-tablet";
             error_log("[VM Creation] Setting Windows params: {$winCmd1} && {$winCmd2}");
             $this->execSSHCommand($winCmd1);
             $this->execSSHCommand($winCmd2);
-        }
+        }*/
 
         // 10. Cloud-init для Linux
         if (!$isWindows && !empty($params['password'])) {
             $ciCmd = "qm set {$vmid} --cipassword " . escapeshellarg($params['password']) . " --ciuser root";
-            error_log("[VM Creation] Setting Cloud-init: {$ciCmd}");
             $this->execSSHCommand($ciCmd);
         }
 
@@ -189,11 +228,9 @@ class ProxmoxAPI {
 
         // 13. Запуск VM если не указан ISO
         if (!$hasIso) {
-            error_log("[VM Creation] Starting VM {$vmid}");
             $this->execSSHCommand("qm start {$vmid}");
         }
 
-        // Фиксируем транзакцию
         $this->pdo->commit();
         error_log("[VM Creation] VM {$vmid} created successfully");
         
@@ -205,13 +242,10 @@ class ProxmoxAPI {
         ];
 
     } catch (Exception $e) {
-        // Откатываем транзакцию при ошибке
         $this->pdo->rollBack();
         
-        // Удаляем VM из Proxmox если она была создана
         if (isset($vmid)) {
             try {
-                error_log("[VM Creation] Cleanup failed VM {$vmid}");
                 $this->execSSHCommand("qm destroy {$vmid} --purge");
             } catch (Exception $cleanupError) {
                 error_log("[VM Creation] Cleanup error: " . $cleanupError->getMessage());

@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_node'])) {
         $description = trim($_POST['description'] ?? '');
         $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
 
-        if (empty($cluster_id) {
+        if (empty($cluster_id)) {
             throw new Exception("Кластер должен быть выбран");
         }
 

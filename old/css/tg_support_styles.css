@@ -1,0 +1,166 @@
+/* tg_support_styles.css - адаптированная версия с темной темой */
+
+:root {
+    /* Telegram цвета */
+    --telegram-primary: #0088cc;
+    --telegram-connected: #25D366;
+    --telegram-text: #ffffff;
+    --telegram-btn-text: #0088cc;
+    --telegram-btn-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+    --telegram-primary: #0088cc; /* Сохраняем фирменный цвет Telegram */
+    --telegram-connected: #25D366; /* Сохраняем цвет подключенного состояния */
+    --telegram-text: #ffffff;
+    --telegram-btn-text: #ffffff;
+    --telegram-btn-bg: #0088cc;
+}
+
+/* Блок подключения Telegram */
+.telegram-connect {
+    background: var(--telegram-primary);
+    color: var(--telegram-text);
+    padding: 12px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.telegram-connect.telegram-connected {
+    background: var(--telegram-connected);
+}
+
+.telegram-connect .telegram-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.telegram-connect .telegram-icon {
+    font-size: 24px;
+    color: var(--telegram-text);
+}
+
+.telegram-connect .telegram-text {
+    font-weight: 500;
+}
+
+/* Форма Telegram */
+.telegram-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.telegram-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+.telegram-form input:focus {
+    outline: none;
+    border-color: var(--telegram-primary);
+    box-shadow: 0 0 0 2px rgba(0, 136, 204, 0.2);
+}
+
+.telegram-test-btn {
+    background: var(--telegram-btn-bg);
+    color: var(--telegram-btn-text);
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.telegram-test-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.telegram-test-btn:active {
+    transform: translateY(0);
+}
+
+/* Статус подключения */
+.telegram-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .telegram-connect {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .telegram-form {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .telegram-test-btn {
+        justify-content: center;
+    }
+}
+
+/* Дополнительные элементы */
+.telegram-notification {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.telegram-notification.success {
+    background: rgba(37, 211, 102, 0.1);
+    color: var(--telegram-connected);
+    border-left: 3px solid var(--telegram-connected);
+}
+
+.telegram-notification.error {
+    background: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+    border-left: 3px solid #ff3b30;
+}
+
+.telegram-qr-code {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.telegram-qr-code img {
+    max-width: 200px;
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+}
+
+[data-theme="dark"] .telegram-qr-code img {
+    background: var(--card-bg);
+}

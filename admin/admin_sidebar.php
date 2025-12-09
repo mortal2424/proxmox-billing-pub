@@ -66,6 +66,11 @@ $legal_exists = safeQuery($pdo, "SHOW TABLES LIKE 'legal_entity_info'")->rowCoun
                 <i class="fas fa-question-circle"></i> Тикеты
             </a>
         </li>
+        <li class="admin-menu-item">
+            <a href="/admin/image.php" class="admin-menu-link">
+                <i class="fas fa-compact-disc"></i> Образы ОС
+            </a>
+        </li>
         <?php if ($legal_exists): ?>
         <li class="admin-menu-item">
             <a href="/admin/legal_info.php" class="admin-menu-link">

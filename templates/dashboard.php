@@ -12,15 +12,15 @@ $user_id = $_SESSION['user']['id'];
 $user = $db->getConnection()->query("SELECT * FROM users WHERE id = $user_id")->fetch();
 
 // Получаем статистику по ВМ
-$all_vms = $db->getConnection()->query("SELECT COUNT(*) as total, 
-                                      SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running 
+$all_vms = $db->getConnection()->query("SELECT COUNT(*) as total,
+                                      SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running
                                       FROM vms WHERE user_id = $user_id")->fetch();
 
 // Получаем последние платежи
 $last_payment = $db->getConnection()->query("SELECT amount, created_at FROM payments WHERE user_id = $user_id ORDER BY id DESC LIMIT 1")->fetch();
 
 // Получаем ВМ пользователя
-$vms = $db->getConnection()->query("SELECT * FROM vms WHERE user_id = $user_id")->fetchAll();
+$vms = $db->getConnection()->query("SELECT * FROM vms WHERE user_id = $user_id ORDER BY created_at DESC LIMIT 5")->fetchAll();
 
 // Получаем квоты пользователя
 $quota = $db->getConnection()->query("SELECT * FROM user_quotas WHERE user_id = $user_id")->fetch();
@@ -31,12 +31,12 @@ if (!$quota) {
 
 // Получаем текущее использование ресурсов
 $usage = $db->getConnection()->query("
-    SELECT 
+    SELECT
         COUNT(*) as vm_count,
         SUM(cpu) as total_cpu,
         SUM(ram) as total_ram,
         SUM(disk) as total_disk
-    FROM vms 
+    FROM vms
     WHERE user_id = $user_id AND status != 'deleted'
 ")->fetch();
 
@@ -52,286 +52,1192 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дашборд | HomeVlad Cloud</title>
+    <title>Панель управления | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/css/themes.css">
     <style>
-        <?php include '../admin/css/admin_style.css'; ?>
-        <?php include '../css/dashboard_styles.css'; ?>
-        <?php include '../css/header_styles.css'; ?>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --success-gradient: linear-gradient(135deg, #10b981, #059669);
+            --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+            --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
+            --info-gradient: linear-gradient(135deg, #3b82f6, #2563eb);
+            --purple-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-theme {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #cbd5e1;
+        }
+
+        /* Основной контейнер */
+        .main-container {
+            display: flex;
+            flex: 1;
+            min-height: calc(100vh - 70px);
+            margin-top: 70px;
+        }
+
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            margin-left: 280px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-collapsed .main-content {
+            margin-left: 80px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+        }
+
+        /* Заголовок страницы */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title i {
+            font-size: 32px;
+        }
+
+        /* Статистика */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        body.dark-theme .stat-card {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .stat-card.bonus::before {
+            background: var(--purple-gradient);
+        }
+
+        .stat-card.admin::before {
+            background: var(--danger-gradient);
+        }
+
+        .stat-card.quota::before {
+            background: var(--success-gradient);
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+        }
+
+        .stat-icon.bonus {
+            background: var(--purple-gradient);
+        }
+
+        .stat-icon.admin {
+            background: var(--danger-gradient);
+        }
+
+        .stat-icon.quota {
+            background: var(--success-gradient);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+            color: #1e293b;
+        }
+
+        body.dark-theme .stat-value {
+            color: #f1f5f9;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        body.dark-theme .stat-label {
+            color: #94a3b8;
+        }
+
+        .stat-details {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Прогресс бар для квот */
+        .quota-progress {
+            margin-top: 16px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .progress-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        body.dark-theme .progress-label {
+            color: #94a3b8;
+        }
+
+        .progress-percentage {
+            font-size: 12px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .progress-fill.high {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .progress-fill.medium {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        /* Быстрые действия */
+        .quick-actions-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.dark-theme .quick-actions-section {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        body.dark-theme .section-title {
+            color: #f1f5f9;
+        }
+
+        .quick-actions-gridd {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .quick-action-btnn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 11px;
+            padding: 16px;
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            border-radius: 12px;
+            color: #0ea5e9;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .quick-action-btnn:hover {
+            background: rgba(14, 165, 233, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+        }
+
+        .quick-action-btnn.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .quick-action-btnn.warning:hover {
+            background: rgba(245, 158, 11, 0.2);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .quick-action-btnn.admin {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .quick-action-btnn.admin:hover {
+            background: rgba(239, 68, 68, 0.2);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .quick-action-btnn i {
+            font-size: 20px;
+        }
+
+        /* Список ВМ */
+        .vm-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.dark-theme .vm-section {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .vm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .vm-card {
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        body.dark-theme .vm-card {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .vm-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            border-color: rgba(14, 165, 233, 0.3);
+        }
+
+        .vm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .vm-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        body.dark-theme .vm-name {
+            color: #f1f5f9;
+        }
+
+        .vm-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-running {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-stopped {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .vm-specs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .vm-spec {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        body.dark-theme .vm-spec {
+            color: #94a3b8;
+        }
+
+        .vm-spec i {
+            color: #00bcd4;
+            font-size: 14px;
+        }
+
+        .vm-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .vm-action-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(14, 165, 233, 0.1);
+            color: #0ea5e9;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            flex-direction: column;
+        }
+
+        .vm-action-btn:hover {
+            background: rgba(14, 165, 233, 0.2);
+        }
+
+        .vm-action-btn.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .vm-action-btn.warning:hover {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .vm-action-btn.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .vm-action-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Последние действия */
+        .activity-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.dark-theme .activity-section {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            color: #cbd5e1;
+            margin-bottom: 16px;
+        }
+
+        .empty-text {
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        body.dark-theme .empty-text {
+            color: #94a3b8;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .vm-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                margin-left: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .vm-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .vm-section,
+            .activity-section,
+            .quick-actions-section {
+                padding: 20px;
+            }
+        }
+
+        /* Анимации */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-card {
+            animation: slideIn 0.5s ease forwards;
+        }
+
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card:nth-child(4) { animation-delay: 0.3s; }
+        .stat-card:nth-child(5) { animation-delay: 0.4s; }
+        .stat-card:nth-child(6) { animation-delay: 0.5s; }
+        .stat-card:nth-child(7) { animation-delay: 0.6s; }
+        .stat-card:nth-child(8) { animation-delay: 0.7s; }
+        .stat-card:nth-child(9) { animation-delay: 0.8s; }
+
+        /* Кнопка обновления */
+        .btn-refresh {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-refresh:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+        }
+
+        /* === ОБЩИЙ ФУТЕР === */
+        /* Исправляем футер для правильного отображения */
+        .modern-footer {
+            background: var(--primary-gradient);
+            padding: 80px 0 30px;
+            color: rgba(255, 255, 255, 0.8);
+            position: relative;
+            overflow: hidden;
+            margin-top: auto;
+            width: 100%;
+        }
+
+        .modern-footer .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .modern-footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+        }
+
+        /* Кнопка вверх (адаптированная для dashboard) */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 999;
+        }
+
+        .scroll-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-to-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+        }
+
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+        }
     </style>
-    <script src="/js/theme.js" defer></script>
 </head>
 <body>
-    <?php include '../templates/headers/user_header.php'; ?>
+    <?php
+    // Подключаем обновленную шапку
+    include '../templates/headers/user_header.php';
+    ?>
 
-    <!-- Основное содержимое -->
-    <div class="container">
-        <div class="admin-content">
-            <?php include '../templates/headers/user_sidebar.php'; ?>
+    <!-- Кнопка вверх -->
+    <a href="#" class="scroll-to-top" id="scrollToTop">
+        <i class="fas fa-chevron-up"></i>
+    </a>
 
-            <!-- Основная область -->
-            <main class="admin-main">
-                <h1 class="admin-title">
-                    <i class="fas fa-tachometer-alt"></i> Личный кабинет
+    <div class="main-container">
+        <?php
+        // Подключаем обновленный сайдбар
+        include '../templates/headers/user_sidebar.php';
+        ?>
+
+        <div class="main-content">
+            <!-- Заголовок страницы -->
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="fas fa-tachometer-alt"></i> Панель управления
                 </h1>
-                
-                <!-- Статистика -->
-                <div class="stats-grid">
-                    <div class="stat-card">
+                <div class="header-actions">
+                    <button class="btn-refresh" onclick="window.location.reload()">
+                        <i class="fas fa-sync-alt"></i> Обновить
+                    </button>
+                </div>
+            </div>
+
+            <!-- Статистика -->
+            <div class="stats-grid">
+                <!-- Запущенные ВМ -->
+                <div class="stat-card">
+                    <div class="stat-header">
                         <div class="stat-icon">
                             <i class="fas fa-play-circle"></i>
                         </div>
-                        <h3>Запущенные ВМ</h3>
-                        <p class="stat-value"><?= $all_vms['running'] ?? 0 ?></p>
-                        <p class="stat-details">из <?= $all_vms['total'] ?? 0 ?> всего</p>
+                        <div class="stat-label">Запущенные ВМ</div>
                     </div>
-                    
-                    <div class="stat-card">
+                    <div class="stat-value"><?= $all_vms['running'] ?? 0 ?></div>
+                    <div class="stat-details">из <?= $all_vms['total'] ?? 0 ?> всего</div>
+                </div>
+
+                <!-- Всего ВМ -->
+                <div class="stat-card">
+                    <div class="stat-header">
                         <div class="stat-icon">
                             <i class="fas fa-server"></i>
                         </div>
-                        <h3>Всего ВМ</h3>
-                        <p class="stat-value"><?= $all_vms['total'] ?? 0 ?></p>
-                        <p class="stat-details">на вашем аккаунте</p>
+                        <div class="stat-label">Всего ВМ</div>
                     </div>
-                    
-                    <div class="stat-card">
+                    <div class="stat-value"><?= $all_vms['total'] ?? 0 ?></div>
+                    <div class="stat-details">на вашем аккаунте</div>
+                </div>
+
+                <!-- Баланс -->
+                <div class="stat-card">
+                    <div class="stat-header">
                         <div class="stat-icon">
                             <i class="fas fa-wallet"></i>
                         </div>
-                        <h3>Баланс</h3>
-                        <p class="stat-value"><?= number_format($user['balance'], 2) ?> ₽</p>
-                        <p class="stat-details"><?= $user['balance'] >= 0 ? 'Доступно' : 'Задолженность' ?></p>
+                        <div class="stat-label">Баланс</div>
                     </div>
-                    
-                    <div class="stat-card">
+                    <div class="stat-value"><?= number_format($user['balance'], 2) ?> ₽</div>
+                    <div class="stat-details"><?= $user['balance'] >= 0 ? 'Доступно' : 'Задолженность' ?></div>
+                </div>
+
+                <!-- Последний платёж -->
+                <div class="stat-card">
+                    <div class="stat-header">
                         <div class="stat-icon">
                             <i class="fas fa-ruble-sign"></i>
                         </div>
-                        <h3>Последний платёж</h3>
-                        <p class="stat-value"><?= $last_payment ? number_format($last_payment['amount'], 2) : '0.00' ?> ₽</p>
-                        <p class="stat-details"><?= $last_payment ? date('d.m.Y', strtotime($last_payment['created_at'])) : 'нет данных' ?></p>
+                        <div class="stat-label">Последний платёж</div>
                     </div>
-                    
-                    <!-- Плитка квот CPU -->
-                    <div class="stat-card quota">
-                        <div class="stat-icon">
+                    <div class="stat-value"><?= $last_payment ? number_format($last_payment['amount'], 2) : '0.00' ?> ₽</div>
+                    <div class="stat-details"><?= $last_payment ? date('d.m.Y', strtotime($last_payment['created_at'])) : 'нет данных' ?></div>
+                </div>
+
+                <!-- CPU квота -->
+                <div class="stat-card quota">
+                    <div class="stat-header">
+                        <div class="stat-icon quota">
                             <i class="fas fa-microchip"></i>
                         </div>
-                        <h3>CPU квота</h3>
-                        <p class="quota-value <?= $cpu_percent > 80 ? 'quota-high' : ($cpu_percent > 50 ? 'quota-medium' : 'quota-low') ?>">
-                            <?= $usage['total_cpu'] ?? 0 ?> / <?= $quota['max_cpu'] ?>
-                        </p>
-                        <p class="quota-used">Использовано <?= $cpu_percent ?>%</p>
-                        <div class="quota-progress">
-                            <div class="quota-progress-bar <?= $cpu_percent > 90 ? 'animated' : '' ?>" style="width: <?= $cpu_percent ?>%"></div>
+                        <div class="stat-label">CPU квота</div>
+                    </div>
+                    <div class="stat-value"><?= $usage['total_cpu'] ?? 0 ?> / <?= $quota['max_cpu'] ?></div>
+                    <div class="quota-progress">
+                        <div class="progress-header">
+                            <span class="progress-label">Использовано</span>
+                            <span class="progress-percentage"><?= $cpu_percent ?>%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill <?= $cpu_percent > 80 ? 'high' : ($cpu_percent > 50 ? 'medium' : '') ?>"
+                                 style="width: <?= $cpu_percent ?>%"></div>
                         </div>
                     </div>
-                    
-                    <!-- Плитка квот RAM -->
-                    <div class="stat-card quota">
-                        <div class="stat-icon">
+                </div>
+
+                <!-- RAM квота -->
+                <div class="stat-card quota">
+                    <div class="stat-header">
+                        <div class="stat-icon quota">
                             <i class="fas fa-memory"></i>
                         </div>
-                        <h3>RAM квота</h3>
-                        <p class="quota-value <?= $ram_percent > 80 ? 'quota-high' : ($ram_percent > 50 ? 'quota-medium' : 'quota-low') ?>">
-                            <?= ($usage['total_ram'] /1024 ?? 0) ?>GB / <?= ($quota['max_ram'] / 1024)?>GB
-                        </p>
-                        <p class="quota-used">Использовано <?= $ram_percent ?>%</p>
-                        <div class="quota-progress">
-                            <div class="quota-progress-bar <?= $ram_percent > 90 ? 'animated' : '' ?>" style="width: <?= $ram_percent ?>%"></div>
+                        <div class="stat-label">RAM квота</div>
+                    </div>
+                    <div class="stat-value"><?= ($usage['total_ram'] /1024 ?? 0) ?>GB / <?= ($quota['max_ram'] / 1024)?>GB</div>
+                    <div class="quota-progress">
+                        <div class="progress-header">
+                            <span class="progress-label">Использовано</span>
+                            <span class="progress-percentage"><?= $ram_percent ?>%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill <?= $ram_percent > 80 ? 'high' : ($ram_percent > 50 ? 'medium' : '') ?>"
+                                 style="width: <?= $ram_percent ?>%"></div>
                         </div>
                     </div>
-                    
-                    <!-- Плитка квот диска -->
-                    <div class="stat-card quota">
-                        <div class="stat-icon">
+                </div>
+
+                <!-- Диск квота -->
+                <div class="stat-card quota">
+                    <div class="stat-header">
+                        <div class="stat-icon quota">
                             <i class="fas fa-hdd"></i>
                         </div>
-                        <h3>Диск квота</h3>
-                        <p class="quota-value <?= $disk_percent > 80 ? 'quota-high' : ($disk_percent > 50 ? 'quota-medium' : 'quota-low') ?>">
-                            <?= $usage['total_disk'] ?? 0 ?>GB / <?= $quota['max_disk'] ?>GB
-                        </p>
-                        <p class="quota-used">Использовано <?= $disk_percent ?>%</p>
-                        <div class="quota-progress">
-                            <div class="quota-progress-bar <?= $disk_percent > 90 ? 'animated' : '' ?>" style="width: <?= $disk_percent ?>%"></div>
+                        <div class="stat-label">Диск квота</div>
+                    </div>
+                    <div class="stat-value"><?= $usage['total_disk'] ?? 0 ?>GB / <?= $quota['max_disk'] ?>GB</div>
+                    <div class="quota-progress">
+                        <div class="progress-header">
+                            <span class="progress-label">Использовано</span>
+                            <span class="progress-percentage"><?= $disk_percent ?>%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill <?= $disk_percent > 80 ? 'high' : ($disk_percent > 50 ? 'medium' : '') ?>"
+                                 style="width: <?= $disk_percent ?>%"></div>
                         </div>
                     </div>
-                    
-                    <!-- Плитка квот ВМ -->
-                    <div class="stat-card quota">
-                        <div class="stat-icon">
+                </div>
+
+                <!-- Квота ВМ -->
+                <div class="stat-card quota">
+                    <div class="stat-header">
+                        <div class="stat-icon quota">
                             <i class="fas fa-server"></i>
                         </div>
-                        <h3>Квота ВМ</h3>
-                        <p class="quota-value <?= $vms_percent > 80 ? 'quota-high' : ($vms_percent > 50 ? 'quota-medium' : 'quota-low') ?>">
-                            <?= $usage['vm_count'] ?? 0 ?> / <?= $quota['max_vms'] ?>
-                        </p>
-                        <p class="quota-used">Использовано <?= $vms_percent ?>%</p>
-                        <div class="quota-progress">
-                            <div class="quota-progress-bar <?= $vms_percent > 90 ? 'animated' : '' ?>" style="width: <?= $vms_percent ?>%"></div>
+                        <div class="stat-label">Квота ВМ</div>
+                    </div>
+                    <div class="stat-value"><?= $usage['vm_count'] ?? 0 ?> / <?= $quota['max_vms'] ?></div>
+                    <div class="quota-progress">
+                        <div class="progress-header">
+                            <span class="progress-label">Использовано</span>
+                            <span class="progress-percentage"><?= $vms_percent ?>%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill <?= $vms_percent > 80 ? 'high' : ($vms_percent > 50 ? 'medium' : '') ?>"
+                                 style="width: <?= $vms_percent ?>%"></div>
                         </div>
                     </div>
-                    
-                    <!-- Новая плитка бонусного баланса -->
-                    <div class="stat-card bonus">
-                        <div class="stat-icon">
+                </div>
+
+                <!-- Бонусный баланс -->
+                <div class="stat-card bonus">
+                    <div class="stat-header">
+                        <div class="stat-icon bonus">
                             <i class="fas fa-gift"></i>
                         </div>
-                        <h3>Бонусный баланс</h3>
-                        <p class="stat-value"><?= number_format($user['bonus_balance'], 2) ?> ₽</p>
-                        <p class="stat-details"><?= $user['bonus_balance'] > 0 ? 'Доступно' : 'Нет бонусов' ?></p>
+                        <div class="stat-label">Бонусный баланс</div>
                     </div>
+                    <div class="stat-value"><?= number_format($user['bonus_balance'], 2) ?> ₽</div>
+                    <div class="stat-details"><?= $user['bonus_balance'] > 0 ? 'Доступно' : 'Нет бонусов' ?></div>
+                </div>
 
-                    <!-- Плитка Админ Панели (только для админов) -->
-                    <?php if ($user['is_admin']): ?>
-                    <div class="stat-card admin">
-                        <div class="stat-icon">
+                <!-- Админ Панель -->
+                <?php if ($user['is_admin']): ?>
+                <div class="stat-card admin">
+                    <div class="stat-header">
+                        <div class="stat-icon admin">
                             <i class="fas fa-user-shield"></i>
                         </div>
-                        <h3>Админ Панель</h3>
-                        <p class="stat-value">Доступно</p>
-                        <p class="stat-details">Управление системой</p>
-                        <a href="/admin/" class="btn btn-small" style="margin-top: 10px; display: inline-block;">
-                            <i class="fas fa-cog"></i> Перейти
-                        </a>
+                        <div class="stat-label">Админ Панель</div>
                     </div>
-                    <?php endif; ?>
+                    <div class="stat-value">Доступно</div>
+                    <div class="stat-details">Управление системой</div>
+                    <a href="/admin/" class="quick-action-btnn admin" style="margin-top: 12px;">
+                        <i class="fas fa-cog"></i> Перейти в админку
+                    </a>
                 </div>
-                
-                <!-- Быстрые действия -->
-                <div class="quick-actions">
-                    <a href="/templates/order_vm.php" class="btn btn-primary">
+                <?php endif; ?>
+            </div>
+
+            <!-- Быстрые действия -->
+            <div class="quick-actions-section">
+                <h2 class="section-title">
+                    <i class="fas fa-bolt"></i> Быстрые действия
+                </h2>
+                <div class="quick-actions-gridd">
+                    <a href="/templates/order_vm.php" class="quick-action-btnn">
                         <i class="fas fa-plus"></i> Создать ВМ
                     </a>
-                    <a href="/templates/billing.php" class="btn btn-secondary">
+                    <a href="/templates/billing.php" class="quick-action-btnn">
                         <i class="fas fa-credit-card"></i> Пополнить баланс
                     </a>
                     <?php if ($user['bonus_balance'] > 0): ?>
-                        <a href="/templates/billing.php#bonuses" class="btn btn-warning">
+                        <a href="/templates/billing.php#bonuses" class="quick-action-btnn warning">
                             <i class="fas fa-coins"></i> Использовать бонусы
                         </a>
                     <?php endif; ?>
+                    <a href="/templates/support.php" class="quick-action-btnn">
+                        <i class="fas fa-headset"></i> Поддержка
+                    </a>
                 </div>
-                
-                <!-- Секция виртуальных машин -->
-                <section class="section">
+            </div>
+
+            <!-- Виртуальные машины -->
+            <div class="vm-section">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 class="section-title">
                         <i class="fas fa-server"></i> Ваши виртуальные машины
                     </h2>
-                    
-                    <?php if (count($vms) > 0): ?>
-                        <div class="vm-list">
-                            <?php foreach ($vms as $vm): ?>
-                                <div class="vm-card">
+                    <a href="/templates/my_vms.php" class="quick-action-btnn" style="padding: 8px 16px;">
+                        <i class="fas fa-list"></i> Все ВМ
+                    </a>
+                </div>
+
+                <?php if (count($vms) > 0): ?>
+                    <div class="vm-grid">
+                        <?php foreach ($vms as $vm): ?>
+                            <div class="vm-card">
+                                <div class="vm-header">
                                     <h3 class="vm-name"><?= htmlspecialchars($vm['hostname']) ?></h3>
-                                    <div class="vm-specs-grid">
-                                        <div class="vm-spec">
-                                            <i class="fas fa-microchip"></i>
-                                            <span><?= $vm['cpu'] ?> vCPU</span>
-                                        </div>
-                                        <div class="vm-spec">
-                                            <i class="fas fa-memory"></i>
-                                            <span><?= ($vm['ram'] / 1024)?> GB RAM</span>
-                                        </div>
-                                        <div class="vm-spec">
-                                            <i class="fas fa-hdd"></i>
-                                            <span><?= $vm['disk'] ?> GB SSD</span>
-                                        </div>
-                                        <div class="vm-spec">
-                                            <i class="fas fa-network-wired"></i>
-                                            <span><?= $vm['ip_address'] ?? 'Не назначен' ?></span>
-                                        </div>
-                                    </div>
-                                    <span class="status-badge <?= $vm['status'] === 'running' ? 'status-active' : 'status-inactive' ?>">
+                                    <span class="vm-status <?= $vm['status'] === 'running' ? 'status-running' : 'status-stopped' ?>">
                                         <?= $vm['status'] === 'running' ? 'Запущена' : 'Остановлена' ?>
                                     </span>
-                                    <div class="vm-actions">
-                                        <?php if ($vm['status'] !== 'running'): ?>
-                                            <button class="btn btn-primary btn-icon" title="Запустить">
-                                                <i class="fas fa-play"></i>
-                                            </button>
-                                        <?php else: ?>
-                                            <button class="btn btn-warning btn-icon" title="Перезагрузить">
-                                                <i class="fas fa-sync-alt"></i>
-                                            </button>
-                                            <button class="btn btn-danger btn-icon" title="Остановить">
-                                                <i class="fas fa-stop"></i>
-                                            </button>
-                                        <?php endif; ?>
-                                        <button class="btn btn-info btn-icon" title="Подробнее">
-                                            <i class="fas fa-info-circle"></i>
-                                        </button>
+                                </div>
+
+                                <div class="vm-specs">
+                                    <div class="vm-spec">
+                                        <i class="fas fa-microchip"></i>
+                                        <span><?= $vm['cpu'] ?> vCPU</span>
+                                    </div>
+                                    <div class="vm-spec">
+                                        <i class="fas fa-memory"></i>
+                                        <span><?= ($vm['ram'] / 1024)?> GB RAM</span>
+                                    </div>
+                                    <div class="vm-spec">
+                                        <i class="fas fa-hdd"></i>
+                                        <span><?= $vm['disk'] ?> GB SSD</span>
+                                    </div>
+                                    <div class="vm-spec">
+                                        <i class="fas fa-network-wired"></i>
+                                        <span><?= $vm['ip_address'] ?? 'DHCP' ?></span>
                                     </div>
                                 </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php else: ?>
-                        <div class="no-data">
-                            <i class="fas fa-cloud fa-3x" style="color: #b0bec5; margin-bottom: 15px;"></i>
-                            <p>У вас пока нет виртуальных машин</p>
-                            <a href="/templates/order_vm.php" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> Заказать ВМ
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                </section>
-                
-                <!-- Последние действия -->
-                <section class="section">
-                    <h2 class="section-title">
-                        <i class="fas fa-history"></i> Последние действия
-                    </h2>
-                    <div class="recent-activity">
-                        <p>Здесь будет отображаться история ваших действий...</p>
+
+                                <div class="vm-actions">
+                                    <?php if ($vm['status'] !== 'running'): ?>
+                                        <button class="vm-action-btn" onclick="showNotification('Функция запуска будет реализована в следующих версиях', 'info')">
+                                            <i class="fas fa-play"></i> Запустить
+                                        </button>
+                                    <?php else: ?>
+                                        <button class="vm-action-btn warning" onclick="showNotification('Функция перезагрузки будет реализована в следующих версиях', 'info')">
+                                            <i class="fas fa-sync-alt"></i> Перезагрузить
+                                        </button>
+                                        <button class="vm-action-btn danger" onclick="showNotification('Функция остановки будет реализована в следующих версиях', 'info')">
+                                            <i class="fas fa-stop"></i> Остановить
+                                        </button>
+                                    <?php endif; ?>
+                                    <a href="/templates/vm_details.php?id=<?= $vm['id'] ?>" class="vm-action-btn">
+                                        <i class="fas fa-info-circle"></i> Подробнее
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
-                </section>
-            </main>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-cloud"></i>
+                        </div>
+                        <p class="empty-text">У вас пока нет виртуальных машин</p>
+                        <a href="/templates/order_vm.php" class="quick-action-btnn">
+                            <i class="fas fa-plus"></i> Заказать ВМ
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Последние действия -->
+            <div class="activity-section">
+                <h2 class="section-title">
+                    <i class="fas fa-history"></i> Последние действия
+                </h2>
+
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <p class="empty-text">Здесь будет отображаться история ваших действий</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <?php include '../templates/headers/user_footer.php'; ?>
+    <?php
+    // Подключаем общий футер из файла - ТОЛЬКО если файл существует
+    $footer_file = __DIR__ . '/../templates/headers/user_footer.php';
+    if (file_exists($footer_file)) {
+        include $footer_file;
+    }
+    // Если файл не найден - футер просто не отображается
+    ?>
 
     <script>
-        // Обработка кнопок управления ВМ
-        document.querySelectorAll('.vm-actions button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const action = this.title.toLowerCase();
-                alert(`Функция "${action}" будет реализована в следующих версиях`);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Анимация прогресс-баров при загрузке
+            const progressBars = document.querySelectorAll('.progress-fill');
+            progressBars.forEach(bar => {
+                const width = bar.style.width;
+                bar.style.width = '0';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
             });
-        });
-        
-        // Адаптивное меню для мобильных устройств
-        const menuToggle = document.createElement('button');
-        menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
-        menuToggle.className = 'btn btn-icon';
-        menuToggle.style.position = 'fixed';
-        menuToggle.style.top = '15px';
-        menuToggle.style.left = '15px';
-        menuToggle.style.zIndex = '1000';
-        document.body.appendChild(menuToggle);
-        
-        const sidebar = document.querySelector('.admin-sidebar');
-        
-        function checkScreenSize() {
-            if (window.innerWidth <= 992) {
-                sidebar.style.display = 'none';
-                menuToggle.style.display = 'block';
-            } else {
-                sidebar.style.display = 'block';
-                menuToggle.style.display = 'none';
+
+            // Обработка кнопок управления ВМ
+            document.querySelectorAll('.vm-action-btn').forEach(btn => {
+                if (btn.onclick === null && btn.tagName === 'BUTTON') {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showNotification('Эта функция будет реализована в следующем обновлении', 'info');
+                    });
+                }
+            });
+
+            // Кнопка "Наверх"
+            const scrollToTopBtn = document.getElementById('scrollToTop');
+
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    scrollToTopBtn.classList.add('visible');
+                } else {
+                    scrollToTopBtn.classList.remove('visible');
+                }
+            });
+
+            scrollToTopBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+
+            // Плавная прокрутка для внутренних ссылок
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    if (this.getAttribute('href') === '#') return;
+
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    if (targetId.startsWith('#')) {
+                        const targetElement = document.querySelector(targetId);
+                        if (targetElement) {
+                            window.scrollTo({
+                                top: targetElement.offsetTop - 100,
+                                behavior: 'smooth'
+                            });
+                        }
+                    } else {
+                        window.location.href = this.getAttribute('href');
+                    }
+                });
+            });
+
+            // Адаптивность для сайдбара
+            function handleSidebarCollapse() {
+                const sidebar = document.querySelector('.modern-sidebar');
+                const mainContent = document.querySelector('.main-content');
+
+                if (window.innerWidth <= 992) {
+                    if (sidebar && mainContent) {
+                        sidebar.style.transform = 'translateX(-100%)';
+                        mainContent.style.marginLeft = '0';
+                    }
+                } else {
+                    if (sidebar && mainContent) {
+                        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                        if (isCollapsed) {
+                            sidebar.classList.add('collapsed');
+                            mainContent.style.marginLeft = '80px';
+                        } else {
+                            sidebar.classList.remove('collapsed');
+                            mainContent.style.marginLeft = '280px';
+                        }
+                    }
+                }
             }
-        }
-        
-        menuToggle.addEventListener('click', function() {
-            sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+
+            // Проверяем при загрузке
+            handleSidebarCollapse();
+
+            // И при изменении размера окна
+            window.addEventListener('resize', handleSidebarCollapse);
+
+            // Обработка уведомлений из сессии
+            <?php if (isset($_SESSION['message'])): ?>
+                showNotification("<?= addslashes($_SESSION['message']) ?>", "<?= $_SESSION['message_type'] ?? 'info' ?>");
+                <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
+            <?php endif; ?>
         });
-        
-        window.addEventListener('resize', checkScreenSize);
-        checkScreenSize();
+
+        // Функция для показа уведомлений
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                               type === 'error' ? 'fa-exclamation-circle' :
+                               type === 'warning' ? 'fa-exclamation-triangle' :
+                               'fa-info-circle'}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; color: white; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOut 0.3s ease forwards';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // Добавляем стили для анимаций уведомлений
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Автоматическое обновление статистики каждые 30 секунд
+        setInterval(function() {
+            // Обновляем только элементы, которые должны меняться
+            const refreshBtn = document.querySelector('.btn-refresh');
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Обновление...';
+
+                // Можно добавить AJAX запрос для обновления данных
+                setTimeout(() => {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Обновить';
+                }, 1000);
+            }
+        }, 30000); // 30 секунд
     </script>
 </body>
 </html>

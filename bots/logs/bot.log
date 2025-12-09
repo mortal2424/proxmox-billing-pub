@@ -72,3 +72,112 @@
 [2025-04-30 10:44:14] === BOT STARTED ===
 [2025-04-30 10:44:14] Database connection established
 [2025-04-30 10:44:14] Proxmox API initialized successfully
+[2025-05-01 13:34:20] Database connection established
+[2025-05-01 13:34:20] === BOT STARTED ===
+[2025-05-01 13:34:20] Database connection established
+[2025-05-01 13:34:28] Proxmox API initialized successfully
+[2025-05-06 16:54:51] Database ERROR in showMainMenu: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away
+[2025-05-06 16:54:51] Attempting to reconnect to database...
+[2025-05-06 16:54:51] Database connection lost, reconnecting...
+[2025-05-06 16:54:51] Database connection established
+[2025-05-06 16:55:30] VM Metrics ERROR: Ошибка выполнения команды: Configuration file 'nodes/node3/qemu-server/134.conf' does not exist
+[2025-05-07 10:47:51] Database connection established
+[2025-05-07 10:47:51] === BOT STARTED ===
+[2025-05-07 10:47:51] Database connection established
+[2025-05-07 10:47:51] Proxmox API initialized successfully
+[2025-05-23 22:18:07] Database connection established
+[2025-05-23 22:18:07] === BOT STARTED ===
+[2025-05-23 22:18:07] Database connection established
+[2025-05-23 22:18:08] Proxmox API initialized successfully
+[2025-06-04 11:37:58] Database connection established
+[2025-06-04 11:37:58] === BOT STARTED ===
+[2025-06-04 11:37:58] Database connection established
+[2025-06-04 11:37:58] Proxmox API initialized successfully
+[2025-06-04 22:16:35] Database connection established
+[2025-06-04 22:16:35] === BOT STARTED ===
+[2025-06-04 22:16:35] Database connection established
+[2025-06-04 22:16:35] Proxmox API initialized successfully
+[2025-06-26 16:48:40] Database connection established
+[2025-06-26 16:48:40] === BOT STARTED ===
+[2025-06-26 16:48:40] Database connection established
+[2025-06-26 16:48:40] Proxmox API initialized successfully
+[2025-08-28 14:46:19] Database connection established
+[2025-08-28 14:46:19] === BOT STARTED ===
+[2025-08-28 14:46:19] Database connection established
+[2025-08-28 14:46:19] Proxmox API initialized successfully
+[2025-08-30 13:31:02] Database connection established
+[2025-08-30 13:31:02] === BOT STARTED ===
+[2025-08-30 13:31:02] Database connection established
+[2025-08-30 13:31:03] Proxmox API initialized successfully
+[2025-09-01 18:40:02] Database connection established
+[2025-09-01 18:40:02] === BOT STARTED ===
+[2025-09-01 18:40:02] Database connection established
+[2025-09-01 18:40:11] Proxmox API initialized successfully
+[2025-09-02 18:07:50] Database connection established
+[2025-09-02 18:07:50] === BOT STARTED ===
+[2025-09-02 18:07:50] Database connection established
+[2025-09-02 18:07:51] Proxmox API initialized successfully
+[2025-10-02 22:02:01] Database connection established
+[2025-10-02 22:02:01] === BOT STARTED ===
+[2025-10-02 22:02:01] Database connection established
+[2025-10-02 22:02:10] Proxmox API initialized successfully
+[2025-10-05 08:11:53] Database connection established
+[2025-10-05 08:11:53] === BOT STARTED ===
+[2025-10-05 08:11:53] Database connection established
+[2025-10-05 08:11:54] Proxmox API initialized successfully
+[2025-11-03 15:32:43] Database connection established
+[2025-11-03 15:32:43] === BOT STARTED ===
+[2025-11-03 15:32:43] Database connection established
+[2025-11-03 15:32:44] Proxmox API initialized successfully
+[2025-11-17 09:16:31] Database connection established
+[2025-11-17 09:16:31] === BOT STARTED ===
+[2025-11-17 09:16:31] Database connection established
+[2025-11-17 09:16:32] Proxmox API initialized successfully
+[2025-11-17 21:19:33] Database connection established
+[2025-11-17 21:19:33] === BOT STARTED ===
+[2025-11-17 21:19:33] Database connection established
+[2025-11-17 21:19:33] Proxmox API initialized successfully
+[2025-11-18 16:50:54] Database connection established
+[2025-11-18 16:50:54] === BOT STARTED ===
+[2025-11-18 16:50:54] Database connection established
+[2025-11-18 16:50:54] Proxmox API initialized successfully
+[2025-11-18 17:16:07] Database connection established
+[2025-11-18 17:16:07] === BOT STARTED ===
+[2025-11-18 17:16:07] Database connection established
+[2025-11-18 17:16:07] Proxmox API initialized successfully
+[2025-11-20 10:33:44] Database connection established
+[2025-11-20 10:33:44] === BOT STARTED ===
+[2025-11-20 10:33:44] Database connection established
+[2025-11-20 10:33:44] Proxmox API initialized successfully
+[2025-11-21 08:35:46] Database connection established
+[2025-11-21 08:35:46] === BOT STARTED ===
+[2025-11-21 08:35:46] Database connection established
+[2025-11-21 08:35:49] Proxmox API initialized successfully
+[2025-11-22 12:44:09] Database connection established
+[2025-11-22 12:44:09] === BOT STARTED ===
+[2025-11-22 12:44:09] Database connection established
+[2025-11-22 12:44:09] Proxmox API initialized successfully
+[2025-11-23 10:43:07] Database connection established
+[2025-11-23 10:43:07] === BOT STARTED ===
+[2025-11-23 10:43:07] Database connection established
+[2025-11-23 10:43:07] Proxmox API initialized successfully
+[2025-11-24 13:16:24] Database connection established
+[2025-11-24 13:16:24] === BOT STARTED ===
+[2025-11-24 13:16:24] Database connection established
+[2025-11-24 13:16:24] Proxmox API initialized successfully
+[2025-11-25 09:52:33] Database connection established
+[2025-11-25 09:52:34] === BOT STARTED ===
+[2025-11-25 09:52:34] Database connection established
+[2025-11-25 09:52:34] Proxmox API initialized successfully
+[2025-11-30 11:12:31] Database connection established
+[2025-11-30 11:12:31] === BOT STARTED ===
+[2025-11-30 11:12:31] Database connection established
+[2025-11-30 11:12:32] Proxmox API initialized successfully
+[2025-12-07 20:54:27] Database connection failed: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 20:54:27] Database initialization ERROR: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 20:55:09] Database connection failed: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 20:55:09] Database initialization ERROR: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 20:55:32] Database connection failed: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 20:55:32] Database initialization ERROR: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 21:01:44] Database connection failed: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
+[2025-12-07 21:01:44] Database initialization ERROR: SQLSTATE[HY000] [1698] Access denied for user 'homevlad_ru'@'localhost'
