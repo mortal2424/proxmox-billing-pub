@@ -44,6 +44,8 @@ Create cron jobs
 
 /api/collect_vm_metrics.php
 
+To create the first administrator, run the file /admin/create_admin.php
+
 The code is under development and may contain errors. If you want to help with the development, please contact me at mortal24@yandex.ru or via Telegram at 331473849. I will add you as a developer, and together we can create the panel more quickly.
 
 
@@ -80,6 +82,8 @@ The code is under development and may contain errors. If you want to help with t
 
 7. Собирайте показатели виртуальных машин каждые 5 минут
 /api/collect_vm_metrics.php
+
+Для создания первого администратора запустите файл /admin/create_admin.php
 
 Код находится в стадии разработки и может содержать ошибки. Если вы хотите помочь с разработкой, пожалуйста, свяжитесь со мной по адресу mortal24@yandex.ru или через Telegram по номеру 331473849. Я добавлю вас в качестве разработчика, и вместе мы сможем быстрее создать панель.
 
