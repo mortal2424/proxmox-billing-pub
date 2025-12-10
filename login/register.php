@@ -354,7 +354,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
 
 // Функция для проверки данных Telegram
 function verifyTelegramAuthorization($auth_data) {
-    $bot_token = '7733127948:AAHzUlwbL0Iw0dK-0h4d3KJXZDNA9aa6spo';
+    $bot_token = '';
 
     $check_hash = $auth_data['hash'];
     unset($auth_data['hash']);
@@ -383,7 +383,7 @@ function verifyTelegramAuthorization($auth_data) {
 
 // Функция для отправки сообщения в Telegram
 function sendTelegramMessage($chat_id, $message) {
-    $bot_token = '7733127948:AAHzUlwbL0Iw0dK-0h4d3KJXZDNA9aa6spo';
+    $bot_token = '';
     $api_url = "https://api.telegram.org/bot$bot_token/sendMessage";
 
     $data = [

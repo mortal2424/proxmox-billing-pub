@@ -734,14 +734,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         /* Кнопка обновления */
         .btn-refresh {
-            padding: 8px 16px;
+            padding: 12px 24px;
             background: linear-gradient(135deg, #00bcd4, #0097a7);
             border: none;
             border-radius: 10px;
             color: white;
             font-weight: 500;
             cursor: pointer;
-            display: flex;
+            /*display: flex;*/
             align-items: center;
             gap: 8px;
             transition: all 0.3s ease;

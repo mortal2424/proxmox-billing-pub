@@ -5,30 +5,30 @@ use PHPMailer\PHPMailer\Exception;
 require '../vendor/autoload.php';
 
 function sendEmail($to, $subject, $body) {
-    
+
     $mail = new PHPMailer(true);
-    
+
     try {
         // Настройки SMTP (пример для Mail.RU)
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = 'cloud@homevlad.ru'; // Замените на ваш email
-        $mail->Password = 'gpQSp2af3kKDabqQELDn'; // Замените на пароль от почты
+        $mail->Username = ''; // Замените на ваш email
+        $mail->Password = ''; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';
-        
+
         // Отправитель и получатель
-        $mail->setFrom('cloud@homevlad.ru', 'HomeVlad');
+        $mail->setFrom('vps@homevlad.ru', 'HomeVlad');
         $mail->addAddress($to);
-        
+
         // Контент письма
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $body;
         $mail->AltBody = strip_tags($body);
-        
+
         $mail->send();
         return true;
     } catch (Exception $e) {
@@ -40,26 +40,26 @@ function sendEmail($to, $subject, $body) {
 
 function sendVerificationEmail($email, $code) {
     $mail = new PHPMailer(true);
-    
+
     try {
         // Настройки SMTP (пример для Mail.RU)
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = 'cloud@homevlad.ru'; // Замените на ваш email
-        $mail->Password = 'gpQSp2af3kKDabqQELDn'; // Замените на пароль от почты
+        $mail->Username = ''; // Замените на ваш email
+        $mail->Password = ''; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';
 
         // Отправитель и получатель
-        $mail->setFrom('cloud@homevlad.ru', 'HomeVlad Cloud');
+        $mail->setFrom('vps@homevlad.ru', 'HomeVlad Cloud');
         $mail->addAddress($email);
 
         // Содержание письма
         $mail->isHTML(true);
         $mail->Subject = 'Подтверждение email для HomeVlad Cloud';
-        
+
         $mail->Body = "
             <html>
             <head>
@@ -81,14 +81,14 @@ function sendVerificationEmail($email, $code) {
             </body>
             </html>
         ";
-        
+
         $mail->AltBody = "Ваш код подтверждения: $code\n\nВведите этот код на странице регистрации.";
 
         $mail->send();
-        
+
         // Для логгирования (можно удалить в продакшене)
         file_put_contents(__DIR__ . '/../logs/email_logs.txt', "Email sent to: $email at " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
-        
+
         return true;
     } catch (Exception $e) {
         // Логирование ошибок
@@ -142,25 +142,25 @@ function updateBonusBalance($user_id, $amount, $description = '') {
     global $db;
     try {
         $db->getConnection()->beginTransaction();
-        
+
         // 1. Обновляем баланс
         $stmt = $db->getConnection()->prepare("
-            UPDATE users 
-            SET bonus_balance = bonus_balance + ? 
+            UPDATE users
+            SET bonus_balance = bonus_balance + ?
             WHERE id = ?
         ");
         $stmt->execute([$amount, $user_id]);
-        
+
         // 2. Записываем в историю (если есть таблица)
         if (!empty($description)) {
             $stmt = $db->getConnection()->prepare("
-                INSERT INTO balance_history 
-                (user_id, amount, operation_type, description) 
+                INSERT INTO balance_history
+                (user_id, amount, operation_type, description)
                 VALUES (?, ?, 'bonus', ?)
             ");
             $stmt->execute([$user_id, $amount, $description]);
         }
-        
+
         $db->getConnection()->commit();
         return true;
     } catch (PDOException $e) {
@@ -172,33 +172,33 @@ function updateBonusBalance($user_id, $amount, $description = '') {
 
 function getCurrentUsage($userId) {
     global $pdo;
-    
+
     $usage = [
         'vms' => 0,
         'cpu' => 0,
         'ram' => 0,
         'disk' => 0
     ];
-    
+
     // Получаем количество ВМ
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM vms WHERE user_id = ?");
     $stmt->execute([$userId]);
     $usage['vms'] = $stmt->fetchColumn();
-    
+
     // Получаем суммарные ресурсы
     $stmt = $pdo->prepare("
-        SELECT SUM(cpu) as total_cpu, SUM(ram) as total_ram, SUM(disk) as total_disk 
-        FROM vms 
+        SELECT SUM(cpu) as total_cpu, SUM(ram) as total_ram, SUM(disk) as total_disk
+        FROM vms
         WHERE user_id = ?
     ");
     $stmt->execute([$userId]);
     $resources = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($resources) {
         $usage['cpu'] = $resources['total_cpu'] ?? 0;
         $usage['ram'] = $resources['total_ram'] ?? 0;
         $usage['disk'] = $resources['total_disk'] ?? 0;
     }
-    
+
     return $usage;
 }

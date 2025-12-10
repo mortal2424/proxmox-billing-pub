@@ -6,11 +6,11 @@ define('DB_USER', '');
 define('DB_PASS', '');
 
 // Настройки Telegram бота
-define('TELEGRAM_BOT_TOKEN', ''); // Например: '123456789:AAFm-xxxxxxxxxxxxxxxxxxx'
-define('TELEGRAM_CHAT_ID', ''); // Например: '-123456789' или '123456789'
+define('TELEGRAM_BOT_TOKEN', 'ваш токен бота'); // Например: '123456789:AAFm-xxxxxxxxxxxxxxxxxxx'
+define('TELEGRAM_CHAT_ID', 'id чата или группы'); // Например: '-123456789' или '123456789'
 
 // Настройки SMTP для отправки email
-define('SMTP_HOST', ''); // Например: 'smtp.mail.ru'
+define('SMTP_HOST', 'smtp.mail.ru'); // Например: 'smtp.mail.ru'
 define('SMTP_PORT', 465); // Обычно 587 для TLS или 465 для SSL
 define('SMTP_USER', ''); // Ваш email для отправки
 define('SMTP_PASS', ''); // Пароль от почты

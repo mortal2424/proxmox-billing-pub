@@ -11,7 +11,7 @@
     --warning: #ffab00;
     --success: #4caf50;
     --info: #2196f3;
-    
+
     /* Основные цвета для светлой темы */
     --bg-color: #f8f9fa;
     --card-bg: #ffffff;
@@ -44,7 +44,7 @@
     --modal-bg: #16213e;
     --input-bg: #1e1e3a;
     --widget-bg: #16213e;
-    
+
     --primary: #6c63ff;
     --primary-dark: #5a52e0;
     --accent: #00b4b0;
@@ -183,7 +183,7 @@ body {
     transition: all 0.2s;
 }
 
-.admin-menu-link:hover, 
+.admin-menu-link:hover,
 .admin-menu-link.active {
     background: rgba(108, 92, 231, 0.1);
     color: var(--primary);
@@ -241,12 +241,12 @@ body {
     color: var(--text-secondary);
 }
 
-.stat-card .stat-value {
+/*.stat-card .stat-value {
     font-size: 1.8rem;
     font-weight: 700;
     margin: 0;
     color: var(--text-color);
-}
+}*/
 
 .stat-card .stat-icon {
     font-size: 2rem;
@@ -261,7 +261,7 @@ body {
     margin: 20px 0;
 }
 
-.admin-table th, 
+.admin-table th,
 .admin-table td {
     padding: 12px 15px;
     text-align: left;
@@ -352,9 +352,9 @@ body {
 }
 
 /* Формы */
-.tariff-form-wrapper, 
-.node-form, 
-.cluster-form, 
+.tariff-form-wrapper,
+.node-form,
+.cluster-form,
 .legal-form-container {
     background: var(--card-bg);
     padding: 25px;
@@ -507,11 +507,11 @@ body {
     .admin-content {
         grid-template-columns: 1fr;
     }
-    
+
     .admin-sidebar {
         display: none;
     }
-    
+
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -521,17 +521,17 @@ body {
     .form-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .form-submit, .modal-footer, .form-actions {
         text-align: center;
         flex-direction: column;
     }
-    
+
     .btn {
         width: 100%;
         margin-bottom: 10px;
     }
-    
+
     .modal-container {
         width: 95%;
     }
@@ -541,17 +541,17 @@ body {
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .admin-header .container {
         flex-direction: column;
         gap: 15px;
     }
-    
+
     .admin-nav {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .admin-nav-btn {
         width: 100%;
         text-align: center;
@@ -585,16 +585,16 @@ body {
         flex-direction: column;
         gap: 15px;
     }
-    
+
     .header-left, .header-right {
         width: 100%;
         justify-content: space-between;
     }
-    
+
     .admin-nav {
         gap: 10px;
     }
-    
+
     .admin-nav-btn {
         padding: 8px 15px;
     }
@@ -604,11 +604,11 @@ body {
     .logo-text {
         display: none;
     }
-    
+
     .theme-toggle-btn span {
         display: none;
     }
-    
+
     .theme-toggle-btn i {
         margin-right: 0;
     }

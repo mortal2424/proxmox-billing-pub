@@ -17,13 +17,13 @@
             <div class="header-center">
                 <!-- Быстрые действия -->
                 <div class="quick-actions">
-                    <a href="/admin/dashboard.php" class="quick-action" data-tooltip="Дашборд">
+                    <a href="/templates/dashboard.php" class="quick-action" data-tooltip="Дашборд">
                         <i class="fas fa-chart-line"></i>
                     </a>
-                    <a href="/admin/billing.php" class="quick-action" data-tooltip="Финансы">
+                    <a href="/templates/billing.php" class="quick-action" data-tooltip="Финансы">
                         <i class="fas fa-credit-card"></i>
                     </a>
-                    <a href="/admin/support.php" class="quick-action" data-tooltip="Поддержка">
+                    <a href="/templates/support.php" class="quick-action" data-tooltip="Поддержка">
                         <i class="fas fa-headset"></i>
                     </a>
                 </div>
@@ -39,7 +39,7 @@
                     <div class="notifications-menu" id="notificationsMenu">
                         <div class="notifications-header">
                             <h4>Уведомления</h4>
-                            <a href="/admin/notifications.php" class="view-all">Все</a>
+                            <a href="/templates/notifications.php" class="view-all">Все</a>
                         </div>
                         <div class="notifications-list">
                             <div class="notification-empty">
@@ -124,10 +124,10 @@
                             </div>
                         <?php endif; ?>
                         <div class="balance-actions">
-                            <a href="/admin/billing.php?action=deposit" class="btn-deposit">
+                            <a href="/templates/billing.php?action=deposit" class="btn-deposit">
                                 <i class="fas fa-plus-circle"></i> Пополнить
                             </a>
-                            <a href="/admin/billing.php" class="btn-billing">
+                            <a href="/templates/billing.php" class="btn-billing">
                                 <i class="fas fa-history"></i> История
                             </a>
                         </div>
@@ -136,16 +136,16 @@
                     <div class="menu-divider"></div>
 
                     <div class="profile-links">
-                        <a href="/admin/profile.php" class="menu-link">
+                        <a href="/templates/settings.php" class="menu-link">
                             <i class="fas fa-user-cog"></i> Настройки профиля
                         </a>
-                        <a href="/admin/security.php" class="menu-link">
+                        <a href="/templates/security.php" class="menu-link">
                             <i class="fas fa-shield-alt"></i> Безопасность
                         </a>
-                        <a href="/admin/support.php" class="menu-link">
+                        <a href="/templates/support.php" class="menu-link">
                             <i class="fas fa-headset"></i> Поддержка
                         </a>
-                        <a href="/admin/notifications.php" class="menu-link">
+                        <a href="/templates/notifications.php" class="menu-link">
                             <i class="fas fa-bell"></i> Уведомления
                             <?php if (isset($user['unread_notifications']) && $user['unread_notifications'] > 0): ?>
                                 <span class="menu-badge"><?= $user['unread_notifications'] ?></span>
