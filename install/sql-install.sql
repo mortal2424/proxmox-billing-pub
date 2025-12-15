@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: localhost:3306
--- Время создания: Дек 10 2025 г., 17:06
+-- Время создания: Дек 15 2025 г., 15:45
 -- Версия сервера: 10.11.14-MariaDB-0+deb12u2
 -- Версия PHP: 8.2.29
 
@@ -24,6 +24,44 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Структура таблицы `backup_logs`
+--
+
+CREATE TABLE `backup_logs` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `action` varchar(50) NOT NULL,
+  `filename` varchar(255) DEFAULT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `backup_schedules`
+--
+
+CREATE TABLE `backup_schedules` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `schedule_type` enum('daily','weekly','monthly','hourly') NOT NULL,
+  `schedule_time` time DEFAULT NULL,
+  `schedule_day` int(11) DEFAULT NULL,
+  `backup_type` enum('full','files','db') NOT NULL DEFAULT 'full',
+  `is_active` tinyint(1) DEFAULT 1,
+  `last_run` datetime DEFAULT NULL,
+  `next_run` datetime DEFAULT NULL,
+  `keep_count` int(11) DEFAULT 10,
+  `comment` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Структура таблицы `balance_history`
 --
 
@@ -39,6 +77,20 @@ CREATE TABLE `balance_history` (
 -- --------------------------------------------------------
 
 --
+-- Структура таблицы `cluster_logs`
+--
+
+CREATE TABLE `cluster_logs` (
+  `id` int(11) NOT NULL,
+  `cluster_id` int(11) NOT NULL,
+  `action` varchar(50) NOT NULL,
+  `details` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Структура таблицы `features`
 --
 
@@ -48,7 +100,9 @@ CREATE TABLE `features` (
   `description` text NOT NULL,
   `icon` varchar(50) NOT NULL,
   `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NULL DEFAULT current_timestamp()
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `sort_order` int(11) DEFAULT 0,
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 -- --------------------------------------------------------
@@ -104,6 +158,22 @@ CREATE TABLE `metrics_logs` (
   `type` enum('info','warning','error') NOT NULL DEFAULT 'info',
   `message` text NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `node_checks`
+--
+
+CREATE TABLE `node_checks` (
+  `id` int(11) NOT NULL,
+  `node_id` int(11) NOT NULL,
+  `check_type` enum('full','scheduled','manual') DEFAULT 'scheduled',
+  `status` enum('online','offline','warning') DEFAULT 'online',
+  `response_time` decimal(10,2) DEFAULT 0.00,
+  `details` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 -- --------------------------------------------------------
@@ -205,7 +275,9 @@ CREATE TABLE `promotions` (
   `is_active` tinyint(1) DEFAULT 1,
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp()
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `sort_order` int(11) DEFAULT 0,
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 -- --------------------------------------------------------
@@ -219,6 +291,12 @@ CREATE TABLE `proxmox_clusters` (
   `name` varchar(50) NOT NULL,
   `description` text DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
+  `enable_auto_healing` tinyint(1) DEFAULT 1,
+  `enable_vm_migration` tinyint(1) DEFAULT 1,
+  `max_vms_per_node` int(11) DEFAULT 50,
+  `load_balancing_threshold` int(11) DEFAULT 80,
+  `maintenance_mode` tinyint(1) DEFAULT 0,
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -234,10 +312,13 @@ CREATE TABLE `proxmox_nodes` (
   `node_name` varchar(50) NOT NULL,
   `hostname` varchar(255) NOT NULL,
   `api_port` int(11) DEFAULT 8006,
+  `ssh_port` int(11) DEFAULT 22,
   `username` varchar(100) DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `description` text DEFAULT NULL,
+  `status` enum('online','offline','unknown') DEFAULT 'unknown',
+  `last_check` timestamp NULL DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
   `available_for_users` tinyint(1) DEFAULT 1,
   `is_cluster_master` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Флаг главной ноды кластера',
@@ -275,12 +356,36 @@ CREATE TABLE `resource_prices` (
   `price_per_hour_lxc_disk` decimal(10,6) NOT NULL DEFAULT 0.000030 COMMENT 'Цена за 1 GB Disk/час для LXC'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
+-- --------------------------------------------------------
+
 --
--- Дамп данных таблицы `resource_prices`
+-- Структура таблицы `system_updates`
 --
 
-INSERT INTO `resource_prices` (`id`, `price_per_hour_cpu`, `price_per_hour_ram`, `price_per_hour_disk`, `updated_at`, `price_per_hour_lxc_cpu`, `price_per_hour_lxc_ram`, `price_per_hour_lxc_disk`) VALUES
-(1, 0.900000, 0.000300, 0.013500, '2025-04-22 05:28:55', 0.450800, 0.000158, 0.000030);
+CREATE TABLE `system_updates` (
+  `id` int(11) NOT NULL,
+  `version` varchar(20) NOT NULL,
+  `applied_at` timestamp NULL DEFAULT current_timestamp(),
+  `update_type` enum('upgrade','downgrade','patch') DEFAULT 'upgrade',
+  `description` text DEFAULT NULL,
+  `success` tinyint(1) DEFAULT 1,
+  `error_message` text DEFAULT NULL,
+  `backup_path` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `system_versions`
+--
+
+CREATE TABLE `system_versions` (
+  `id` int(11) NOT NULL,
+  `version` varchar(20) NOT NULL,
+  `release_date` date DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -307,31 +412,33 @@ CREATE TABLE `tariffs` (
   `price_per_hour_ram` decimal(10,4) DEFAULT 0.0000,
   `price_per_hour_disk` decimal(10,4) DEFAULT 0.0000,
   `is_custom` tinyint(1) DEFAULT 0 COMMENT 'Является ли тариф кастомным (с почасовой оплатой)',
-  `vm_type` enum('qemu','lxc') NOT NULL DEFAULT 'qemu' COMMENT 'Для какого типа VM предназначен тариф'
+  `vm_type` enum('qemu','lxc') NOT NULL DEFAULT 'qemu' COMMENT 'Для какого типа VM предназначен тариф',
+  `sort_order` int(11) DEFAULT 0,
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 --
 -- Дамп данных таблицы `tariffs`
 --
 
-INSERT INTO `tariffs` (`id`, `name`, `cpu`, `ram`, `disk`, `price`, `is_active`, `created_at`, `traffic`, `backups`, `support`, `is_popular`, `description`, `os_type`, `price_per_hour_cpu`, `price_per_hour_ram`, `price_per_hour_disk`, `is_custom`, `vm_type`) VALUES
-(4, 'Start', 1, 1024, 20, 1300.00, 1, '2025-04-04 02:16:29', '500 GB', 'Еженедельные бэкапы', 'Только критические запросы', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu'),
-(5, 'Basic', 2, 2048, 40, 2500.00, 1, '2025-04-04 02:16:51', '1 ТБ', 'Еженедельные бэкапы', 'Техническая поддержка', 1, '', 'linux', 0.0000, 0.0001, 0.0000, 0, 'qemu'),
-(6, 'Pro', 4, 4096, 80, 5100.00, 1, '2025-04-04 02:17:11', '2 ТБ', 'Ежедневные бэкапы', 'Техническая поддержка', 0, '', 'windows', 0.0000, 0.0000, 0.0000, 0, 'qemu'),
-(7, 'Business', 8, 16384, 100, 11000.00, 1, '2025-04-04 07:02:29', '3 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu'),
-(8, 'Ultimate', 6, 32768, 250, 16000.00, 1, '2025-04-08 06:12:27', '5 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu'),
-(12, 'Свой', 3, 2048, 17, 3073.82, 1, '2025-04-13 11:18:23', '', '', '', 0, '', 'linux', 0.8100, 0.0080, 0.0400, 1, 'qemu'),
-(13, 'Свой', 1, 2048, 13, 1606.75, 1, '2025-04-15 04:44:20', '', '', '', 0, '', 'linux', 0.9100, 0.0051, 0.0300, 1, 'qemu'),
-(14, 'Свой', 1, 512, 3, 816.91, 1, '2025-04-16 06:34:40', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu'),
-(15, 'Promo', 1, 1024, 10, 150.00, 1, '2025-04-16 06:52:01', '100 ГБ', 'Нет', 'Нет', 0, 'Промо тариф', 'linux', 0.1285, 0.0000, 0.0039, 0, 'qemu'),
-(17, 'test2', 1, 512, 10, 50.00, 1, '2025-04-20 06:00:30', '', '', '', 0, '', '', 0.0001, 0.0000, 0.0000, 1, 'qemu'),
-(20, 'Linux-1-1-10', 1, 1024, 10, 150.00, 1, '2025-04-22 07:06:37', '', '', '', 0, '', '', 0.0300, 0.0005, 0.0200, 1, 'lxc'),
-(22, 'Свой', 1, 1536, 15, 499.64, 1, '2025-04-22 09:05:32', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc'),
-(26, 'Свой', 1, 1024, 20, 441.50, 1, '2025-04-22 09:56:26', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc'),
-(27, 'Свой', 1, 2048, 10, 557.77, 1, '2025-04-27 03:45:03', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc'),
-(28, 'Свой', 2, 2048, 20, 882.56, 1, '2025-04-27 08:50:10', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc'),
-(34, 'Свой', 2, 2048, 30, 2029.97, 1, '2025-05-01 10:11:42', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu'),
-(35, 'Свой', 1, 2048, 15, 557.88, 1, '2025-12-09 04:41:22', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc');
+INSERT INTO `tariffs` (`id`, `name`, `cpu`, `ram`, `disk`, `price`, `is_active`, `created_at`, `traffic`, `backups`, `support`, `is_popular`, `description`, `os_type`, `price_per_hour_cpu`, `price_per_hour_ram`, `price_per_hour_disk`, `is_custom`, `vm_type`, `sort_order`, `updated_at`) VALUES
+(4, 'Start', 1, 1024, 20, 1300.00, 1, '2025-04-03 16:16:29', '500 GB', 'Еженедельные бэкапы', 'Только критические запросы', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(5, 'Basic', 2, 2048, 40, 2500.00, 1, '2025-04-03 16:16:51', '1 ТБ', 'Еженедельные бэкапы', 'Техническая поддержка', 1, '', 'linux', 0.0000, 0.0001, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(6, 'Pro', 4, 4096, 80, 5100.00, 1, '2025-04-03 16:17:11', '2 ТБ', 'Ежедневные бэкапы', 'Техническая поддержка', 0, '', 'windows', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(7, 'Business', 8, 16384, 100, 11000.00, 1, '2025-04-03 21:02:29', '3 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(8, 'Ultimate', 6, 32768, 250, 16000.00, 1, '2025-04-07 20:12:27', '5 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(12, 'Свой', 3, 2048, 17, 3073.82, 1, '2025-04-13 01:18:23', '', '', '', 0, '', 'linux', 0.8100, 0.0080, 0.0400, 1, 'qemu', 0, '2025-12-12 20:23:26'),
+(13, 'Свой', 1, 2048, 13, 1606.75, 1, '2025-04-14 18:44:20', '', '', '', 0, '', 'linux', 0.9100, 0.0051, 0.0300, 1, 'qemu', 0, '2025-12-12 20:23:26'),
+(14, 'Свой', 1, 512, 3, 816.91, 1, '2025-04-15 20:34:40', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
+(15, 'Promo', 1, 1024, 10, 150.00, 1, '2025-04-15 20:52:01', '100 ГБ', 'Нет', 'Нет', 0, 'Промо тариф', 'linux', 0.1285, 0.0000, 0.0039, 0, 'qemu', 0, '2025-12-12 20:23:26'),
+(17, 'test2', 1, 512, 10, 50.00, 1, '2025-04-19 20:00:30', '', '', '', 0, '', '', 0.0001, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
+(20, 'Linux-1-1-10', 1, 1024, 10, 150.00, 1, '2025-04-21 21:06:37', '', '', '', 0, '', '', 0.0300, 0.0005, 0.0200, 1, 'lxc', 0, '2025-12-12 20:23:26'),
+(22, 'Свой', 1, 1536, 15, 499.64, 1, '2025-04-21 23:05:32', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
+(26, 'Свой', 1, 1024, 20, 441.50, 1, '2025-04-21 23:56:26', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
+(27, 'Свой', 1, 2048, 10, 557.77, 1, '2025-04-26 17:45:03', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
+(28, 'Свой', 2, 2048, 20, 882.56, 1, '2025-04-26 22:50:10', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
+(34, 'Свой', 2, 2048, 30, 2029.97, 1, '2025-05-01 00:11:42', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
+(35, 'Свой', 1, 2048, 15, 557.88, 1, '2025-12-08 18:41:22', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26');
 
 -- --------------------------------------------------------
 
@@ -632,11 +739,32 @@ CREATE TABLE `vm_metrics` (
 --
 
 --
+-- Индексы таблицы `backup_logs`
+--
+ALTER TABLE `backup_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Индексы таблицы `backup_schedules`
+--
+ALTER TABLE `backup_schedules`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Индексы таблицы `balance_history`
 --
 ALTER TABLE `balance_history`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- Индексы таблицы `cluster_logs`
+--
+ALTER TABLE `cluster_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_cluster_id` (`cluster_id`),
+  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- Индексы таблицы `features`
@@ -663,6 +791,13 @@ ALTER TABLE `lxc_metrics`
 --
 ALTER TABLE `metrics_logs`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Индексы таблицы `node_checks`
+--
+ALTER TABLE `node_checks`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `node_id` (`node_id`);
 
 --
 -- Индексы таблицы `node_stats`
@@ -717,7 +852,9 @@ ALTER TABLE `proxmox_clusters`
 --
 ALTER TABLE `proxmox_nodes`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `cluster_node` (`cluster_id`,`node_name`);
+  ADD UNIQUE KEY `cluster_node` (`cluster_id`,`node_name`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_last_check` (`last_check`);
 
 --
 -- Индексы таблицы `proxmox_tickets`
@@ -730,6 +867,20 @@ ALTER TABLE `proxmox_tickets`
 --
 ALTER TABLE `resource_prices`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Индексы таблицы `system_updates`
+--
+ALTER TABLE `system_updates`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_version` (`version`);
+
+--
+-- Индексы таблицы `system_versions`
+--
+ALTER TABLE `system_versions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `version` (`version`);
 
 --
 -- Индексы таблицы `tariffs`
@@ -852,9 +1003,27 @@ ALTER TABLE `vm_metrics`
 --
 
 --
+-- AUTO_INCREMENT для таблицы `backup_logs`
+--
+ALTER TABLE `backup_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `backup_schedules`
+--
+ALTER TABLE `backup_schedules`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT для таблицы `balance_history`
 --
 ALTER TABLE `balance_history`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `cluster_logs`
+--
+ALTER TABLE `cluster_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -879,6 +1048,12 @@ ALTER TABLE `lxc_metrics`
 -- AUTO_INCREMENT для таблицы `metrics_logs`
 --
 ALTER TABLE `metrics_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `node_checks`
+--
+ALTER TABLE `node_checks`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -927,7 +1102,19 @@ ALTER TABLE `proxmox_nodes`
 -- AUTO_INCREMENT для таблицы `resource_prices`
 --
 ALTER TABLE `resource_prices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `system_updates`
+--
+ALTER TABLE `system_updates`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `system_versions`
+--
+ALTER TABLE `system_versions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `tariffs`
@@ -1024,10 +1211,28 @@ ALTER TABLE `vm_metrics`
 --
 
 --
+-- Ограничения внешнего ключа таблицы `backup_logs`
+--
+ALTER TABLE `backup_logs`
+  ADD CONSTRAINT `backup_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
 -- Ограничения внешнего ключа таблицы `balance_history`
 --
 ALTER TABLE `balance_history`
   ADD CONSTRAINT `balance_history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
+
+--
+-- Ограничения внешнего ключа таблицы `cluster_logs`
+--
+ALTER TABLE `cluster_logs`
+  ADD CONSTRAINT `cluster_logs_ibfk_1` FOREIGN KEY (`cluster_id`) REFERENCES `proxmox_clusters` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `node_checks`
+--
+ALTER TABLE `node_checks`
+  ADD CONSTRAINT `node_checks_ibfk_1` FOREIGN KEY (`node_id`) REFERENCES `proxmox_nodes` (`id`) ON DELETE CASCADE;
 
 --
 -- Ограничения внешнего ключа таблицы `node_stats`

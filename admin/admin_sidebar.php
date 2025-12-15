@@ -8,6 +8,23 @@ $payments_exists = safeQuery($pdo, "SHOW TABLES LIKE 'payments'")->rowCount() > 
 $nodes_exists = safeQuery($pdo, "SHOW TABLES LIKE 'proxmox_nodes'")->rowCount() > 0;
 $legal_exists = safeQuery($pdo, "SHOW TABLES LIKE 'legal_entity_info'")->rowCount() > 0;
 
+// Получаем текущую версию системы из базы данных
+$current_version = '2.5.1'; // Версия по умолчанию
+try {
+    // Проверяем существование таблицы system_versions
+    $table_exists = safeQuery($pdo, "SHOW TABLES LIKE 'system_versions'")->rowCount() > 0;
+
+    if ($table_exists) {
+        // Получаем последнюю версию из таблицы
+        $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
+        if ($stmt->rowCount() > 0) {
+            $current_version = $stmt->fetchColumn();
+        }
+    }
+} catch (Exception $e) {
+    error_log("Error getting system version: " . $e->getMessage());
+}
+
 // Определяем текущую страницу
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -566,7 +583,19 @@ try {
     background: #10b981;
     border-radius: 50%;
     box-shadow: 0 0 4px rgba(16, 185, 129, 0.8);
-    animation: pulse 2s infinite;
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
 }
 
 .system-status {
@@ -973,6 +1002,15 @@ try {
                         <span class="menu-text">Логи системы</span>
                     </a>
                 </li>
+                <li class="sidebar-menu-item <?= $current_page === 'backup.php' ? 'active' : '' ?>">
+                    <a href="/admin/backup.php" class="sidebar-menu-link">
+                        <div class="menu-icon settings">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <span class="menu-text">Резервное копирование</span>
+                    </a>
+                </li>
+
             </ul>
         </nav>
 
@@ -1007,7 +1045,7 @@ try {
             <div class="footer-info">
                 <div class="version-info">
                     <i class="fas fa-code-branch"></i>
-                    <span>v2.5.1</span>
+                    <span>v<?= htmlspecialchars($current_version) ?></span>
                     <span class="version-status"></span>
                 </div>
                 <div class="system-status">

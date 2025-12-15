@@ -13,8 +13,8 @@ function sendEmail($to, $subject, $body) {
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = ''; // Замените на ваш email
-        $mail->Password = ''; // Замените на пароль от почты
+        $mail->Username = 'vps@homevlad.ru'; // Замените на ваш email
+        $mail->Password = 'MflNqxgxJ2OGKPOc7mop'; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';
@@ -46,8 +46,8 @@ function sendVerificationEmail($email, $code) {
         $mail->isSMTP();
         $mail->Host = 'smtp.mail.ru';
         $mail->SMTPAuth = true;
-        $mail->Username = ''; // Замените на ваш email
-        $mail->Password = ''; // Замените на пароль от почты
+        $mail->Username = 'vps@homevlad.ru'; // Замените на ваш email
+        $mail->Password = 'MflNqxgxJ2OGKPOc7mop'; // Замените на пароль от почты
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
         $mail->CharSet = 'UTF-8';

@@ -35,7 +35,7 @@ try {
 }
 
 // Получаем отзывы
-$reviews = [];
+/*$reviews = [];
 try {
     $stmt = $pdo->query("SELECT r.*, u.username, u.avatar FROM reviews r
                          LEFT JOIN users u ON r.user_id = u.id
@@ -44,16 +44,16 @@ try {
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
-}
+}*/
 
 // Получаем FAQ
-$faqs = [];
+/*$faqs = [];
 try {
     $stmt = $pdo->query("SELECT * FROM faqs WHERE is_active = 1 ORDER BY display_order ASC LIMIT 10");
     $faqs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
-}
+}*/
 
 // Получаем статистику
 $stats = [

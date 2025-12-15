@@ -43,33 +43,33 @@ function getNodeSSHInfo($hostname, $username, $password) {
         }
 
         $result = [];
-        
+
         // 1. Получаем информацию о CPU
         $stream = ssh2_exec($connection, 'lscpu');
         stream_set_blocking($stream, true);
         $lscpu = stream_get_contents($stream);
-        
+
         // Парсим данные CPU
         preg_match('/CPU\(s\):\s+(\d+)/', $lscpu, $matches);
         $logicalCpus = $matches[1] ?? 1;
-        
+
         preg_match('/Thread\(s\) per core:\s+(\d+)/', $lscpu, $matches);
         $threadsPerCore = $matches[1] ?? 1;
-        
+
         preg_match('/Core\(s\) per socket:\s+(\d+)/', $lscpu, $matches);
         $coresPerSocket = $matches[1] ?? 1;
-        
+
         preg_match('/Socket\(s\):\s+(\d+)/', $lscpu, $matches);
         $sockets = $matches[1] ?? 1;
-        
+
         // Рассчитываем физические ядра и потоки
         $physicalCores = $sockets * $coresPerSocket;
         $totalThreads = $physicalCores * $threadsPerCore;
-        
+
         $result['cpu_physical'] = $physicalCores;
         $result['cpu_threads'] = $totalThreads;
         $result['cpu_sockets'] = $sockets;
-        
+
         // Модель процессора
         $stream = ssh2_exec($connection, 'cat /proc/cpuinfo | grep "model name" | head -1 | cut -d":" -f2');
         stream_set_blocking($stream, true);
@@ -81,8 +81,8 @@ function getNodeSSHInfo($hostname, $username, $password) {
         $ram = preg_split('/\s+/', trim(stream_get_contents($stream)));
         $result['ram_total'] = isset($ram[1]) ? round($ram[1] / 1024, 2) . ' GB' : 'N/A';
         $result['ram_used'] = isset($ram[2]) ? round($ram[2] / 1024, 2) . ' GB' : 'N/A';
-        $result['ram_percent'] = (isset($ram[1]) && isset($ram[2]) && $ram[1] > 0) 
-            ? round(($ram[2] / $ram[1]) * 100, 1) . '%' 
+        $result['ram_percent'] = (isset($ram[1]) && isset($ram[2]) && $ram[1] > 0)
+            ? round(($ram[2] / $ram[1]) * 100, 1) . '%'
             : 'N/A';
 
         // 3. Получаем информацию о дисках (только физические)
@@ -90,7 +90,7 @@ function getNodeSSHInfo($hostname, $username, $password) {
         stream_set_blocking($stream, true);
         $disks = explode("\n", trim(stream_get_contents($stream)));
         $result['disks'] = [];
-        
+
         foreach ($disks as $diskLine) {
             if (!empty($diskLine)) {
                 $diskInfo = preg_split('/\s+/', trim($diskLine));
@@ -187,7 +187,7 @@ function sendTelegramNotification($chat_id, $message) {
         'parse_mode' => 'HTML',
         'disable_web_page_preview' => true
     ];
-    
+
     $options = [
         'http' => [
             'method' => 'POST',
@@ -195,7 +195,7 @@ function sendTelegramNotification($chat_id, $message) {
             'content' => http_build_query($data)
         ]
     ];
-    
+
     try {
         $context = stream_context_create($options);
         $result = file_get_contents($url, false, $context);
@@ -231,7 +231,7 @@ function sendEmailNotification($to, $subject, $message) {
         // Recipients
         $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
         $mail->addAddress($to);
-        
+
         // Content
         $mail->isHTML(true);
         $mail->Subject = $subject;
@@ -240,13 +240,13 @@ function sendEmailNotification($to, $subject, $message) {
 
         // Отключаем debug для production
         $mail->SMTPDebug = 0;
-        
+
         $result = $mail->send();
-        
+
         if (!$result) {
             throw new Exception("Failed to send email: " . $mail->ErrorInfo);
         }
-        
+
         return $result;
     } catch (Exception $e) {
         error_log("Email send error to $to: " . $e->getMessage());
@@ -258,12 +258,12 @@ function sendEmailNotification($to, $subject, $message) {
 // Уведомление поддержке о новом тикете
 function sendNotificationToSupport($ticket_id) {
     global $pdo;
-    
+
     try {
         $ticket = $pdo->prepare("SELECT t.*, u.email, u.full_name, u.telegram_id FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?");
         $ticket->execute([$ticket_id]);
         $ticket = $ticket->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$ticket) {
             throw new Exception("Ticket #$ticket_id not found");
         }
@@ -286,10 +286,10 @@ function sendNotificationToSupport($ticket_id) {
             $tg_message .= "│ 📅 <b>Дата:</b> $date\n";
             $tg_message .= "└─────────────────\n";
             $tg_message .= "<a href=\"$ticket_url\">🔗 Перейти к тикету</a>";
-            
+
             sendTelegramNotification(TELEGRAM_CHAT_ID, $tg_message);
         }
-        
+
         // Email уведомление администраторам
         $email_subject = "Новый тикет #{$ticket['id']}: {$ticket['subject']}";
         $email_content = "
@@ -305,10 +305,10 @@ function sendNotificationToSupport($ticket_id) {
             <p>Пожалуйста, ответьте на тикет в кратчайшие сроки.</p>
             <p><a href=\"$ticket_url\" style=\"display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;\">Перейти к тикету</a></p>
         ";
-        
+
         // Получаем список администраторов
         $admins = $pdo->query("SELECT email FROM users WHERE is_admin = 1 AND email IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
-        
+
         foreach ($admins as $admin_email) {
             sendEmailNotification($admin_email, $email_subject, $email_content);
         }
@@ -321,12 +321,12 @@ function sendNotificationToSupport($ticket_id) {
 // Уведомление пользователю о ответе на тикет или изменении статуса
 function sendNotificationToUser($ticket_id, $reply_message = null, $status_change = null) {
     global $pdo;
-    
+
     try {
         $ticket = $pdo->prepare("SELECT t.*, u.email, u.full_name, u.telegram_id FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?");
         $ticket->execute([$ticket_id]);
         $ticket = $ticket->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$ticket) {
             throw new Exception("Ticket #$ticket_id not found");
         }
@@ -350,7 +350,7 @@ function sendNotificationToUser($ticket_id, $reply_message = null, $status_chang
                 $tg_message .= "<b>Ответ поддержки:</b>\n";
                 $tg_message .= substr(strip_tags($reply_message), 0, 1000) . "\n\n";
                 $tg_message .= "<a href=\"$ticket_url\">🔗 Перейти к тикету</a>";
-                
+
                 sendTelegramNotification($ticket['telegram_id'], $tg_message);
             }
 
@@ -365,12 +365,12 @@ function sendNotificationToUser($ticket_id, $reply_message = null, $status_chang
                 <p>Вы можете просмотреть полную переписку и ответить на тикет, перейдя по ссылке ниже:</p>
                 <p><a href=\"$ticket_url\" style=\"display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;\">Перейти к тикету</a></p>
             ";
-            
+
             sendEmailNotification($ticket['email'], $subject, $content);
         } elseif ($status_change) {
             // Уведомление об изменении статуса
             $new_status = getStatusText($status_change);
-            
+
             // Telegram уведомление
             if (!empty($ticket['telegram_id'])) {
                 $tg_message = "🔄 <b>Изменение статуса тикета #{$ticket['id']}</b>\n";
@@ -379,7 +379,7 @@ function sendNotificationToUser($ticket_id, $reply_message = null, $status_chang
                 $tg_message .= "│ 🏷️ <b>Новый статус:</b> $new_status\n";
                 $tg_message .= "└──────────────────────\n";
                 $tg_message .= "<a href=\"$ticket_url\">🔗 Перейти к тикету</a>";
-                
+
                 sendTelegramNotification($ticket['telegram_id'], $tg_message);
             }
 
@@ -391,7 +391,7 @@ function sendNotificationToUser($ticket_id, $reply_message = null, $status_chang
                 <p>Вы можете просмотреть текущее состояние тикета, перейдя по ссылке ниже:</p>
                 <p><a href=\"$ticket_url\" style=\"display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;\">Перейти к тикету</a></p>
             ";
-            
+
             sendEmailNotification($ticket['email'], $subject, $content);
         }
 
@@ -484,3 +484,39 @@ function buildEmailTemplate($title, $content) {
 </html>
 HTML;
 }
+
+/*function logBackupAction($pdo, $user_id, $action, $filename, $details) {
+    try {
+        // Сначала создаем таблицу, если ее нет
+        $createTableQuery = "
+            CREATE TABLE IF NOT EXISTS backup_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                filename VARCHAR(255),
+                details TEXT,
+                ip_address VARCHAR(45),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user_id (user_id),
+                INDEX idx_action (action),
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ";
+        $pdo->exec($createTableQuery);
+
+        // Затем вставляем запись
+        $query = "INSERT INTO backup_logs (user_id, action, filename, details, ip_address)
+                  VALUES (?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([
+            $user_id,
+            $action,
+            $filename,
+            $details,
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
+    } catch (Exception $e) {
+        // Не прерываем выполнение, просто логируем ошибку
+        error_log("Failed to log backup action: " . $e->getMessage());
+    }
+}*/

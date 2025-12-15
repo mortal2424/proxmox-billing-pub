@@ -55,11 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Таблица user_sessions
-            try {
+            /*try {
                 $pdo->exec("DELETE FROM user_sessions WHERE user_id = $userId");
             } catch (Exception $e) {
                 error_log("Ошибка при удаления из user_sessions: " . $e->getMessage());
-            }
+            }*/
 
             // Таблица payments (критически важная - вызывает ошибку внешнего ключа)
             try {
@@ -767,7 +767,7 @@ require 'admin_header.php';
         <?php
         $admin_count = 0;
         $total_balance = 0;
-        
+
         foreach ($users as $user) {
             if ($user['is_admin']) {
                 $admin_count++;
@@ -864,7 +864,7 @@ require 'admin_header.php';
                         <td><?= htmlspecialchars($user['full_name'] ?? 'Не указано') ?></td>
                         <td>
                             <span class="user-type-badge user-type-<?= $user['user_type'] ?>">
-                                <?= 
+                                <?=
                                     $user['user_type'] === 'individual' ? 'Физ. лицо' :
                                     ($user['user_type'] === 'entrepreneur' ? 'ИП' : 'Юр. лицо')
                                 ?>

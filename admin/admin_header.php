@@ -10,12 +10,13 @@ $admin_role = $_SESSION['role'] ?? 'admin';
 $admin_email = $_SESSION['email'] ?? '';
 $admin_id = $_SESSION['user_id'] ?? 0;
 
-// Статистика для шапки (если нужно будет в будущем)
+// Статистика для шапки
 $header_stats = [
     'total_users' => 0,
     'total_vms' => 0,
     'active_vms' => 0,
-    'open_tickets' => 0
+    'open_tickets' => 0,
+    'available_updates' => 0
 ];
 
 // ДОБАВИМ: Подключаем функции для безопасных запросов
@@ -40,6 +41,36 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
         if (safeQuery($pdo, "SHOW TABLES LIKE 'tickets'")->rowCount() > 0) {
             $header_stats['open_tickets'] = (int)safeQuery($pdo, "SELECT COUNT(*) FROM tickets WHERE status = 'open'")->fetchColumn();
         }
+        
+        // ДОБАВЛЕНО: Статистика по обновлениям
+        $updates_path = dirname(__DIR__) . '/admin/updates';
+        $header_stats['available_updates'] = 0;
+        
+        if (file_exists($updates_path)) {
+            // Проверяем, существует ли таблица system_updates
+            $table_exists = safeQuery($pdo, "SHOW TABLES LIKE 'system_updates'")->rowCount() > 0;
+            $applied_versions = [];
+            
+            if ($table_exists) {
+                // Получаем список примененных версий
+                $applied_versions = safeQuery($pdo, "SELECT version FROM system_updates WHERE success = 1")->fetchAll(PDO::FETCH_COLUMN);
+            }
+            
+            // Сканируем папку обновлений
+            $folders = scandir($updates_path);
+            foreach ($folders as $folder) {
+                $folder_path = $updates_path . '/' . $folder;
+                
+                // Проверяем, что это папка и соответствует формату версии X.Y.Z
+                if ($folder != '.' && $folder != '..' && is_dir($folder_path) && preg_match('/^\d+\.\d+\.\d+$/', $folder)) {
+                    // Проверяем, применено ли обновление
+                    if (!in_array($folder, $applied_versions)) {
+                        $header_stats['available_updates']++;
+                    }
+                }
+            }
+        }
+        
     } catch (Exception $e) {
         // В случае ошибки используем значения по умолчанию
         error_log("Ошибка получения статистики для шапки: " . $e->getMessage());
@@ -74,6 +105,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
             --admin-warning: #f59e0b;
             --admin-info: #3b82f6;
             --admin-purple: #8b5cf6;
+            --admin-update: #8b5cf6; /* Новый цвет для обновлений */
             --admin-card-bg: #ffffff;
             --admin-hover-bg: #f1f5f9;
         }
@@ -89,6 +121,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
             --admin-accent-light: rgba(56, 189, 248, 0.15);
             --admin-card-bg: #1e293b;
             --admin-hover-bg: #2d3748;
+            --admin-update: #a78bfa; /* Более светлый фиолетовый для темной темы */
         }
 
         /* ========== ШАПКА ========== */
@@ -248,6 +281,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
             font-size: 16px;
             transition: all 0.2s ease;
             text-decoration: none;
+            position: relative; /* Для бейджа */
         }
 
         .admin-quick-btn:hover {
@@ -255,6 +289,25 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
             color: var(--admin-accent);
             border-color: var(--admin-accent);
             transform: translateY(-1px);
+        }
+
+        /* ДОБАВЛЕНО: Стиль для бейджа обновлений */
+        .admin-update-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: linear-gradient(135deg, var(--admin-update), #7c3aed);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--admin-header-bg);
+            z-index: 1;
         }
 
         /* ========== УВЕДОМЛЕНИЯ ========== */
@@ -845,6 +898,13 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
                         <a href="/admin/payments.php" class="admin-quick-btn" title="Биллинг">
                             <i class="fas fa-credit-card"></i>
                         </a>
+                        <!-- ДОБАВЛЕНО: Бейдж обновлений на иконке -->
+                        <a href="/admin/update.php" class="admin-quick-btn" title="Обновление">
+                            <i class="fas fa-sync"></i>
+                            <?php if ($header_stats['available_updates'] > 0): ?>
+                                <span class="admin-update-badge"><?= htmlspecialchars($header_stats['available_updates']) ?></span>
+                            <?php endif; ?>
+                        </a>
                     </div>
 
                     <!-- Уведомления -->
@@ -1110,6 +1170,45 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
                 notificationMenu.classList.remove('show');
             });
         });
+
+        // Обновление счетчика обновлений каждые 5 минут
+        function updateUpdatesCounter() {
+            // Только если мы на странице, где нужно обновлять счетчик
+            if (<?= ($admin_role === 'admin' || $admin_role === 'superadmin') ? 'true' : 'false' ?>) {
+                fetch('/admin/check_updates_count.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.count > 0) {
+                            // Обновляем бейдж на иконке обновлений
+                            const updateBadge = document.querySelector('.admin-update-badge');
+                            const updateLink = document.querySelector('a[href="/admin/update.php"]');
+                            
+                            if (updateBadge) {
+                                updateBadge.textContent = data.count;
+                            } else if (updateLink) {
+                                // Создаем бейдж если его нет
+                                const badge = document.createElement('span');
+                                badge.className = 'admin-update-badge';
+                                badge.textContent = data.count;
+                                updateLink.appendChild(badge);
+                            }
+                        } else if (data.count === 0) {
+                            // Удаляем бейдж если обновлений нет
+                            const updateBadge = document.querySelector('.admin-update-badge');
+                            if (updateBadge) {
+                                updateBadge.remove();
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Ошибка обновления счетчика обновлений:', error));
+            }
+        }
+
+        // Запускаем обновление счетчика каждые 5 минут
+        setInterval(updateUpdatesCounter, 300000); // 5 минут = 300000 мс
+
+        // Также обновляем при загрузке страницы
+        setTimeout(updateUpdatesCounter, 5000); // Через 5 секунд после загрузки
     });
     </script>
 </body>

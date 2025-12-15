@@ -3,13 +3,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 ini_set('log_errors', 1);
-ini_set('error_log', '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs/php_errors.log');
+/*ini_set('error_log', '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs/php_errors.log');*/
 
 // Инициализация логов
-$logDir = '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs';
+/*$logDir = '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs';
 if (!file_exists($logDir)) {
     mkdir($logDir, 0755, true);
-}
+}*/
 
 function logMessage($message) {
     global $logDir;
@@ -25,9 +25,9 @@ class DatabaseManager {
     public function __construct() {
         $this->dbConfig = [
             'host' => 'localhost',
-            'dbname' => 'homevlad_ru',
-            'user' => 'homevlad_ru',
-            'pass' => 'VvYO1BYAuB74Rbhz'
+            'dbname' => 'имя базы',
+            'user' => 'имя пользователя базы',
+            'pass' => 'пароль'
         ];
         $this->connect();
     }
@@ -1362,7 +1362,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
 }
 
 // Конфигурация и запуск
-$botToken = '8012352785:AAGhltMkgd8xk0ShFrnTwl_2p8_n5gwOpTI';
+$botToken = 'токен бота';
 
 try {
     logMessage('=== BOT STARTED ===');

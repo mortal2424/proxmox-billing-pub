@@ -12,8 +12,8 @@ $user_id = $_SESSION['user']['id'];
 $user = $pdo->query("SELECT * FROM users WHERE id = $user_id")->fetch();
 
 // Настройки Telegram бота
-$bot_token = 'ваш токен бота';
-$bot_username = '@ваше имя бота';
+$bot_token = 'токен чат бота';
+$bot_username = '@имя_bot';
 
 // Создаем таблицы, если их нет
 $pdo->exec("CREATE TABLE IF NOT EXISTS telegram_conversations (
