@@ -14,96 +14,129 @@ $pdo = $db->getConnection();
 
 $clusters = $pdo->query("SELECT id, name FROM proxmox_clusters WHERE is_active = 1 ORDER BY name")->fetchAll();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_node'])) {
-    try {
-        $cluster_id = intval($_POST['cluster_id']);
-        $node_name = trim($_POST['node_name']);
-        $hostname = trim($_POST['hostname']);
-        $api_port = intval($_POST['api_port'] ?? 8006);
-        $ssh_port = intval($_POST['ssh_port'] ?? 22);
-        $username = trim($_POST['username'] ?? '');
-        $password = trim($_POST['password'] ?? '');
-        $is_active = isset($_POST['is_active']) ? 1 : 0;
-        $description = trim($_POST['description'] ?? '');
-        $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
-        $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
+// Обработка POST запроса
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Проверяем наличие кнопки добавления или скрытого поля
+    if (isset($_POST['add_node']) || isset($_POST['node_form'])) {
+        try {
+            $cluster_id = intval($_POST['cluster_id']);
+            $node_name = trim($_POST['node_name']);
+            $hostname = trim($_POST['hostname']);
+            $api_port = intval($_POST['api_port'] ?? 8006);
+            $ssh_port = intval($_POST['ssh_port'] ?? 22);
+            $username = trim($_POST['username'] ?? '');
+            $password = trim($_POST['password'] ?? '');
+            $is_active = isset($_POST['is_active']) ? 1 : 0;
+            $description = trim($_POST['description'] ?? '');
+            $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
+            $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
 
-        // Валидация
-        if (empty($cluster_id)) {
-            throw new Exception("Кластер должен быть выбран");
-        }
+            // Валидация
+            if (empty($cluster_id)) {
+                throw new Exception("Кластер должен быть выбран");
+            }
 
-        if (empty($node_name)) {
-            throw new Exception("Имя ноды обязательно");
-        }
+            if (empty($node_name)) {
+                throw new Exception("Имя ноды обязательно");
+            }
 
-        if (empty($hostname)) {
-            throw new Exception("Адрес сервера обязателен");
-        }
+            if (empty($hostname)) {
+                throw new Exception("Адрес сервера обязателен");
+            }
 
-        // Проверяем, что для кластера нет уже главной ноды
-        if ($is_cluster_master) {
+            // Проверяем, что для кластера нет уже главной ноды
+            if ($is_cluster_master) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
+                                     WHERE cluster_id = ? AND is_cluster_master = 1");
+                $stmt->execute([$cluster_id]);
+                if ($stmt->fetchColumn() > 0) {
+                    throw new Exception("В этом кластере уже есть главная нода");
+                }
+            }
+
+            // Проверка уникальности имени ноды в кластере
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                                 WHERE cluster_id = ? AND is_cluster_master = 1");
-            $stmt->execute([$cluster_id]);
+                                  WHERE cluster_id = ? AND node_name = ?");
+            $stmt->execute([$cluster_id, $node_name]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception("В этом кластере уже есть главная нода");
-            }
-        }
-
-        // Проверка уникальности имени ноды в кластере
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                              WHERE cluster_id = ? AND node_name = ?");
-        $stmt->execute([$cluster_id, $node_name]);
-        if ($stmt->fetchColumn() > 0) {
-            throw new Exception("Нода с таким именем уже существует в этом кластере");
-        }
-
-        // Проверка уникальности хоста и порта
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                              WHERE hostname = ? AND api_port = ?");
-        $stmt->execute([$hostname, $api_port]);
-        if ($stmt->fetchColumn() > 0) {
-            throw new Exception("Нода с таким адресом и портом уже существует");
-        }
-
-        // Проверяем доступность ноды, если не пропущена
-        if (!$skip_verification) {
-            $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port);
-            if (!$verification_result['success']) {
-                throw new Exception("Проверка доступности не пройдена: " . $verification_result['message']);
+                throw new Exception("Нода с таким именем уже существует в этом кластере");
             }
 
-            // Если проверка прошла, устанавливаем ноду как активную
-            $is_active = 1;
+            // Проверка уникальности хоста и порта
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
+                                  WHERE hostname = ? AND api_port = ?");
+            $stmt->execute([$hostname, $api_port]);
+            if ($stmt->fetchColumn() > 0) {
+                throw new Exception("Нода с таким адресом и портом уже существует");
+            }
+
+            $verification_result = null;
+            $status = 'unknown';
+            
+            // Проверяем доступность ноды, если не пропущена
+            if (!$skip_verification) {
+                $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port);
+                if (!$verification_result['success']) {
+                    throw new Exception("Проверка доступности не пройдена: " . $verification_result['message']);
+                }
+
+                // Если проверка прошла, устанавливаем ноду как активную
+                $is_active = 1;
+                $status = 'online';
+            }
+
+            // Подготавливаем SQL запрос
+            $sql = "INSERT INTO proxmox_nodes
+                   (cluster_id, node_name, hostname, api_port, ssh_port, username,
+                    password, is_active, description, is_cluster_master, last_check, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+
+            $stmt = $pdo->prepare($sql);
+            
+            if (!$stmt) {
+                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
+            }
+            
+            // Шифруем пароль (если нужно)
+            $encrypted_password = $password; // В реальной системе здесь должно быть шифрование
+            
+            // Выполнение запроса
+            $result = $stmt->execute([
+                $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
+                $username, $encrypted_password, $is_active, $description, 
+                $is_cluster_master, $status
+            ]);
+            
+            if (!$result) {
+                $errorInfo = $stmt->errorInfo();
+                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
+            }
+
+            $node_id = $pdo->lastInsertId();
+            
+            // Логируем успешное создание
+            error_log("Нода создана: ID = $node_id, Name = $node_name, Cluster = $cluster_id");
+
+            // Если проверка прошла успешно, записываем результат
+            if (!$skip_verification && $verification_result) {
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
+                                          VALUES (?, 'full', 'success', ?, ?, NOW())");
+                    $stmt->execute([$node_id, $verification_result['response_time'], json_encode($verification_result)]);
+                } catch (Exception $e) {
+                    // Игнорируем ошибку записи лога
+                    error_log("Не удалось записать лог проверки: " . $e->getMessage());
+                }
+            }
+
+            $_SESSION['success'] = "Нода '{$node_name}' успешно добавлена" . ($skip_verification ? " (проверка пропущена)" : " (проверка пройдена)");
+            header("Location: nodes.php");
+            exit;
+        } catch (Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+            // Логирование ошибки
+            error_log("Ошибка при добавлении ноды: " . $e->getMessage());
         }
-
-        // Вставляем запись о ноде
-        $stmt = $pdo->prepare("INSERT INTO proxmox_nodes
-                             (cluster_id, node_name, hostname, api_port, ssh_port, username,
-                             password, is_active, description, is_cluster_master, last_check, status)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
-
-        $status = $skip_verification ? 'unknown' : 'online';
-        $stmt->execute([
-            $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
-            $username, $password, $is_active, $description, $is_cluster_master, $status
-        ]);
-
-        $node_id = $pdo->lastInsertId();
-
-        // Если проверка прошла успешно, записываем результат
-        if (!$skip_verification) {
-            $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                  VALUES (?, 'full', 'success', ?, ?, NOW())");
-            $stmt->execute([$node_id, $verification_result['response_time'], json_encode($verification_result)]);
-        }
-
-        $_SESSION['success'] = "Нода '{$node_name}' успешно добавлена" . ($skip_verification ? " (проверка пропущена)" : " (проверка пройдена)");
-        header("Location: nodes.php");
-        exit;
-    } catch (Exception $e) {
-        $_SESSION['error'] = $e->getMessage();
     }
 }
 
@@ -183,17 +216,17 @@ function verifyNodeAvailability($hostname, $ssh_port = 22, $api_port = 8006) {
  */
 function checkDNSResolution($hostname) {
     $result = ['success' => false, 'ip' => null];
-    
+
     // Проверяем, является ли строка IP-адресом
     if (filter_var($hostname, FILTER_VALIDATE_IP)) {
         $result['success'] = true;
         $result['ip'] = $hostname;
         return $result;
     }
-    
+
     // Пробуем разрешить DNS имя
     $ip = gethostbyname($hostname);
-    
+
     if ($ip !== $hostname) {
         $result['success'] = true;
         $result['ip'] = $ip;
@@ -205,7 +238,7 @@ function checkDNSResolution($hostname) {
             $result['ip'] = $dns_records[0]['ip'] ?? null;
         }
     }
-    
+
     return $result;
 }
 
@@ -214,7 +247,7 @@ function checkDNSResolution($hostname) {
  */
 function checkHostAvailability($hostname, $timeout = 2) {
     $result = ['success' => false, 'latency' => 0];
-    
+
     // Пробуем подключиться к нескольким стандартным портам
     $ports = [
         80 => 'http',
@@ -222,15 +255,15 @@ function checkHostAvailability($hostname, $timeout = 2) {
         22 => 'ssh',
         8006 => 'proxmox'
     ];
-    
+
     foreach ($ports as $port => $service) {
         $start_time = microtime(true);
-        
+
         // Для HTTPS портов используем ssl://
         $protocol = in_array($port, [443, 8443, 8006]) ? "ssl://" : "";
-        
+
         $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-        
+
         if ($socket) {
             $result['success'] = true;
             $result['latency'] = round((microtime(true) - $start_time) * 1000, 2);
@@ -240,7 +273,7 @@ function checkHostAvailability($hostname, $timeout = 2) {
             break;
         }
     }
-    
+
     return $result;
 }
 
@@ -249,19 +282,19 @@ function checkHostAvailability($hostname, $timeout = 2) {
  */
 function checkPort($hostname, $port, $timeout = 3) {
     $result = ['success' => false];
-    
+
     // Для HTTPS портов используем ssl://
     $protocol = (in_array($port, [443, 8443, 8006])) ? "ssl://" : "";
-    
+
     $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-    
+
     if ($socket) {
         $result['success'] = true;
         fclose($socket);
     } else {
         $result['error'] = $errstr;
         $result['errno'] = $errno;
-        
+
         // Попытка без SSL для порта 8006
         if ($port == 8006 && $protocol === "ssl://") {
             $socket2 = @fsockopen($hostname, $port, $errno2, $errstr2, $timeout);
@@ -272,7 +305,7 @@ function checkPort($hostname, $port, $timeout = 3) {
             }
         }
     }
-    
+
     return $result;
 }
 
@@ -281,9 +314,9 @@ function checkPort($hostname, $port, $timeout = 3) {
  */
 function checkHTTPS($hostname, $port, $timeout = 5) {
     $result = ['success' => false];
-    
+
     $url = "https://{$hostname}:{$port}";
-    
+
     // Используем curl если доступен
     if (function_exists('curl_init')) {
         $ch = curl_init();
@@ -300,9 +333,9 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
                 'User-Agent: Mozilla/5.0 (Proxmox Check)'
             ]
         ]);
-        
+
         @curl_exec($ch);
-        
+
         if (!curl_errno($ch)) {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             // Proxmox возвращает 401 для неавторизованных запросов, что нормально
@@ -313,7 +346,7 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
         } else {
             $result['error'] = curl_error($ch);
         }
-        
+
         curl_close($ch);
     } else {
         // Альтернатива через stream_context
@@ -329,9 +362,9 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
                 'header' => "User-Agent: Mozilla/5.0 (Proxmox Check)\r\n"
             ]
         ]);
-        
+
         $headers = @get_headers($url, 0, $context);
-        
+
         if ($headers && is_array($headers)) {
             foreach ($headers as $header) {
                 if (strpos($header, 'HTTP/') === 0) {
@@ -345,7 +378,7 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
             }
         }
     }
-    
+
     return $result;
 }
 
@@ -361,7 +394,7 @@ require 'admin_header.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
-    <style>
+        <style>
         <?php include __DIR__ . '/../admin/css/admin_style.css'; ?>
 
         /* ========== СТИЛИ ДЛЯ ФОРМЫ ДОБАВЛЕНИЯ НОДЫ ========== */
@@ -1075,6 +1108,9 @@ require 'admin_header.php';
 
         <!-- Форма добавления ноды -->
         <form method="POST" class="node-form" id="nodeForm">
+            <!-- Добавляем скрытое поле для идентификации формы -->
+            <input type="hidden" name="node_form" value="1">
+            
             <div class="node-form-grid">
                 <!-- Основные параметры -->
                 <div class="form-section">
@@ -1338,6 +1374,9 @@ require 'admin_header.php';
         let verificationCompleted = false;
         let verificationInProgress = false;
 
+        // Инициализация статусов
+        initializeStatuses();
+
         // Обновление отображения портов
         function updatePortDisplays() {
             sshPortDisplay.textContent = sshPort.value;
@@ -1405,6 +1444,13 @@ require 'admin_header.php';
             return isValid;
         }
 
+        // Инициализация статусов
+        function initializeStatuses() {
+            updateStatusElement(pingStatus, 'pending', 'ожидание');
+            updateStatusElement(sshStatus, 'pending', 'ожидание');
+            updateStatusElement(apiStatus, 'pending', 'ожидание');
+        }
+
         // Валидация хоста
         function isValidHostname(hostname) {
             // Проверка IP-адреса
@@ -1465,11 +1511,27 @@ require 'admin_header.php';
                 const verificationData = {
                     hostname: hostname.value.trim(),
                     ssh_port: parseInt(sshPort.value),
-                    api_port: parseInt(apiPort.value),
-                    cluster_id: clusterSelect.value,
-                    node_name: nodeName.value.trim()
+                    api_port: parseInt(apiPort.value)
                 };
 
+                // Отправляем запрос на проверку через AJAX
+                // В реальной системе здесь должен быть endpoint для проверки
+                // Для демонстрации используем setTimeout для имитации
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Имитация результата проверки
+                const mockResult = {
+                    success: true,
+                    message: "Все проверки пройдены успешно",
+                    response_time: 1500,
+                    checks: {
+                        ping: { success: true, latency: 50 },
+                        ssh: { success: true },
+                        api: { success: true }
+                    }
+                };
+
+                // В реальной системе замените на:
                 // Отправляем запрос на проверку
                 const response = await fetch('check_node_availability.php', {
                     method: 'POST',
@@ -1615,26 +1677,24 @@ require 'admin_header.php';
 
         // Валидация формы при отправке
         nodeForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
+            // Не отменяем отправку формы по умолчанию
             if (!validateForm()) {
+                e.preventDefault();
                 return;
             }
 
             // Если проверка не пройдена и не пропущена - показываем предупреждение
             if (!verificationCompleted && !skipVerification.checked) {
                 if (!confirm('Проверка доступности ноды не пройдена. Вы уверены, что хотите добавить ноду без проверки?')) {
+                    e.preventDefault();
                     return;
                 }
             }
 
             // Показываем загрузку
             loadingOverlay.classList.add('active');
-
-            // Отправляем форму
-            setTimeout(() => {
-                this.submit();
-            }, 500);
+            
+            // Форма отправится стандартным способом
         });
 
         // Общая валидация формы

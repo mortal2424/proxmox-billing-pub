@@ -11,9 +11,50 @@ $pdo = $db->getConnection();
 $user_id = $_SESSION['user']['id'];
 $user = $pdo->query("SELECT * FROM users WHERE id = $user_id")->fetch();
 
-// Настройки Telegram бота
-$bot_token = 'токен чат бота';
-$bot_username = '@имя_bot';
+// Функция для получения настроек бота с кешированием
+function getBotSettings() {
+    static $bot_settings = null;
+
+    if ($bot_settings === null) {
+        global $pdo;
+
+        // Кешируем на 5 минут (300 секунд)
+        $cache_key = 'telegram_bot_settings';
+        $cache_time = 300;
+
+        // Проверяем кеш в сессии
+        if (isset($_SESSION[$cache_key]) &&
+            isset($_SESSION[$cache_key]['time']) &&
+            (time() - $_SESSION[$cache_key]['time'] < $cache_time)) {
+            $bot_settings = $_SESSION[$cache_key]['data'];
+            return $bot_settings;
+        }
+
+        // Получаем настройки из базы
+        $bot_settings = $pdo->query("SELECT * FROM telegram_chat_bot ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+
+        if (!$bot_settings || empty($bot_settings['bot_token'])) {
+            // Значения по умолчанию
+            $bot_settings = [
+                'bot_token' => '',
+                'bot_name' => ''
+            ];
+        }
+
+        // Сохраняем в кеш
+        $_SESSION[$cache_key] = [
+            'data' => $bot_settings,
+            'time' => time()
+        ];
+    }
+
+    return $bot_settings;
+}
+
+// Получаем настройки бота
+$bot_settings = getBotSettings();
+$bot_token = $bot_settings['bot_token'];
+$bot_username = $bot_settings['bot_name'];
 
 // Создаем таблицы, если их нет
 $pdo->exec("CREATE TABLE IF NOT EXISTS telegram_conversations (
@@ -45,7 +86,8 @@ $is_telegram_connected = !empty($telegram_id);
 
 // Функция для отправки сообщения в Telegram
 function sendTelegramMessage($chat_id, $message, $parse_mode = 'HTML') {
-    global $bot_token;
+    $bot_settings = getBotSettings();
+    $bot_token = $bot_settings['bot_token'];
 
     $url = "https://api.telegram.org/bot{$bot_token}/sendMessage";
     $data = [
@@ -81,7 +123,8 @@ function sendTelegramMessage($chat_id, $message, $parse_mode = 'HTML') {
 
 // Функция для получения информации о боте
 function getBotInfo() {
-    global $bot_token;
+    $bot_settings = getBotSettings();
+    $bot_token = $bot_settings['bot_token'];
 
     $url = "https://api.telegram.org/bot{$bot_token}/getMe";
 
@@ -112,7 +155,8 @@ function getBotInfo() {
 
 // Функция для получения обновлений от бота
 function getBotUpdates($offset = null) {
-    global $bot_token;
+    $bot_settings = getBotSettings();
+    $bot_token = $bot_settings['bot_token'];
 
     $url = "https://api.telegram.org/bot{$bot_token}/getUpdates";
 
@@ -227,6 +271,13 @@ function getBotResponse($message, $user) {
     ];
 
     return $default_responses[array_rand($default_responses)];
+}
+
+// Функция для очистки кеша настроек бота (можно вызвать при изменении настроек)
+function clearBotSettingsCache() {
+    if (isset($_SESSION['telegram_bot_settings'])) {
+        unset($_SESSION['telegram_bot_settings']);
+    }
 }
 
 // Получаем последние сообщения (от старых к новым для правильного отображения)
@@ -508,10 +559,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     }
-}
 
-// Обработка других POST запросов (подключение, отключение и т.д.)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Подключение Telegram
     if (isset($_POST['connect_telegram'])) {
         try {
@@ -525,12 +573,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Telegram ID должен содержать только цифры (минимум 5)");
             }
 
+            $bot_settings = getBotSettings();
+            $bot_username = $bot_settings['bot_name'];
+
             // Проверяем существование пользователя в Telegram
             $test_message = "✅ Ваш аккаунт HomeVlad Cloud успешно подключен к Telegram боту!\n\nТеперь вы можете общаться с ботом прямо из личного кабинета.";
             $result = sendTelegramMessage($telegram_id_input, $test_message);
 
             if (!$result['success']) {
-                throw new Exception("Не удалось отправить тестовое сообщение. Проверьте правильность ID и что вы начали диалог с ботом @homevlad_chat_bot.");
+                throw new Exception("Не удалось отправить тестовое сообщение. Проверьте правильность ID и что вы начали диалог с ботом " . htmlspecialchars($bot_username) . ".");
             }
 
             // Обновляем Telegram ID пользователя
@@ -1785,7 +1836,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             <?php endif; ?>
         </div>
     </div>
-    
+
     <?php
     // Подключаем общий футер из файла - ТОЛЬКО если файл существует
     $footer_file = __DIR__ . '/../templates/headers/user_footer.php';

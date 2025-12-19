@@ -64,7 +64,7 @@ $stats = [
 
 ];
 
-try {
+/*try {
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM vps_servers WHERE status = 'active'");
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     $stats['servers'] = $result['count'] ?? 0;
@@ -74,7 +74,7 @@ try {
     $stats['users'] = $result['count'] ?? 0;
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
-}
+}*/
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -1054,7 +1054,7 @@ try {
         <div class="container">
             <div class="header-content">
                 <a href="/" class="logo">
-                    <img src="img/logo.png" alt="HomeVlad" class="logo-image">
+                    <!--<img src="img/cloud-icon1.png" alt="HomeVlad Cloud" class="logo-image">-->
                     <span class="logo-text">HomeVlad Cloud</span>
                 </a>
 
@@ -1348,7 +1348,7 @@ try {
                 <div class="footer-content">
                     <div class="footer-column">
                         <a href="/" class="footer-logo">
-                            <img src="img/logo.png" alt="HomeVlad" style="height: 40px;">
+                            <img src="img/logo.png" alt="HomeVlad Cloud" style="height: 40px;">
                             <span class="footer-logo-text">HomeVlad Cloud</span>
                         </a>
                         <p class="footer-description">

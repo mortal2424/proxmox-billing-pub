@@ -59,8 +59,10 @@ $node_stats = $pdo->prepare("
 $node_stats->execute([$node['id']]);
 $node_stats = $node_stats->fetch(PDO::FETCH_ASSOC);
 
+// Обработка POST запроса
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['update_node'])) {
+    // Проверяем наличие кнопки обновления или скрытого поля
+    if (isset($_POST['update_node']) || isset($_POST['node_form'])) {
         try {
             $cluster_id = intval($_POST['cluster_id']);
             $node_name = trim($_POST['node_name']);
@@ -114,8 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Нода с таким адресом и портом уже существует");
             }
 
-            // Проверяем доступность ноды, если не пропущена и требуется
             $new_status = $node['status'];
+            $verification_result = null;
+
+            // Проверяем доступность ноды, если не пропущена и требуется
             if (!$skip_verification && $force_status_update) {
                 $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port);
                 if ($verification_result['success']) {
@@ -127,62 +131,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Записываем результат проверки
-                $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                      VALUES (?, 'manual', ?, ?, ?, NOW())");
-                $stmt->execute([$node['id'], $new_status, $verification_result['response_time'], json_encode($verification_result)]);
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
+                                          VALUES (?, 'manual', ?, ?, ?, NOW())");
+                    $stmt->execute([$node['id'], $new_status, $verification_result['response_time'], json_encode($verification_result)]);
+                } catch (Exception $e) {
+                    // Игнорируем ошибку записи лога
+                    error_log("Не удалось записать лог проверки: " . $e->getMessage());
+                }
             }
 
             // Подготавливаем данные для обновления
             $update_data = [
-                ':cluster_id' => $cluster_id,
-                ':node_name' => $node_name,
-                ':hostname' => $hostname,
-                ':ssh_port' => $ssh_port,
-                ':api_port' => $api_port,
-                ':username' => $username,
-                ':is_active' => $is_active,
-                ':description' => $description,
-                ':is_cluster_master' => $is_cluster_master,
-                ':status' => $new_status,
-                ':last_check' => $force_status_update ? date('Y-m-d H:i:s') : $node['last_check'],
-                ':id' => $node['id']
+                'cluster_id' => $cluster_id,
+                'node_name' => $node_name,
+                'hostname' => $hostname,
+                'ssh_port' => $ssh_port,
+                'api_port' => $api_port,
+                'username' => $username,
+                'is_active' => $is_active,
+                'description' => $description,
+                'is_cluster_master' => $is_cluster_master,
+                'status' => $new_status,
+                'last_check' => $force_status_update ? date('Y-m-d H:i:s') : $node['last_check'],
+                'id' => $node['id']
             ];
 
             // Если пароль не пустой, обновляем его
-            if (!empty($password)) {
-                $update_data[':password'] = $password;
-                $sql = "UPDATE proxmox_nodes SET
-                        cluster_id = :cluster_id,
-                        node_name = :node_name,
-                        hostname = :hostname,
-                        ssh_port = :ssh_port,
-                        api_port = :api_port,
-                        username = :username,
-                        password = :password,
-                        is_active = :is_active,
-                        description = :description,
-                        is_cluster_master = :is_cluster_master,
-                        status = :status,
-                        last_check = :last_check
-                        WHERE id = :id";
-            } else {
-                $sql = "UPDATE proxmox_nodes SET
-                        cluster_id = :cluster_id,
-                        node_name = :node_name,
-                        hostname = :hostname,
-                        ssh_port = :ssh_port,
-                        api_port = :api_port,
-                        username = :username,
-                        is_active = :is_active,
-                        description = :description,
-                        is_cluster_master = :is_cluster_master,
-                        status = :status,
-                        last_check = :last_check
-                        WHERE id = :id";
+            $sql_parts = [];
+            $params = [];
+
+            foreach ($update_data as $key => $value) {
+                if ($key !== 'id') {
+                    $sql_parts[] = "{$key} = ?";
+                    $params[] = $value;
+                }
             }
 
+            // Если есть пароль, добавляем его
+            if (!empty($password)) {
+                $sql_parts[] = "password = ?";
+                $params[] = $password; // В реальной системе здесь должно быть шифрование
+            }
+
+            $params[] = $node['id']; // Для WHERE условия
+
+            $sql = "UPDATE proxmox_nodes SET " . implode(', ', $sql_parts) . " WHERE id = ?";
+
             $stmt = $pdo->prepare($sql);
-            $stmt->execute($update_data);
+
+            if (!$stmt) {
+                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
+            }
+
+            // Выполнение запроса
+            $result = $stmt->execute($params);
+
+            if (!$result) {
+                $errorInfo = $stmt->errorInfo();
+                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
+            }
+
+            // Логируем успешное обновление
+            error_log("Нода обновлена: ID = {$node['id']}, Name = $node_name");
 
             $success_message = "Нода '{$node_name}' успешно обновлена";
             if ($force_status_update) {
@@ -194,6 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
+            // Логирование ошибки
+            error_log("Ошибка при обновлении ноды: " . $e->getMessage());
         }
     }
 
@@ -210,9 +223,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$new_status, $is_active, $node['id']]);
 
             // Записываем результат проверки
-            $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                  VALUES (?, 'manual', ?, ?, ?, NOW())");
-            $stmt->execute([$node['id'], $new_status, $verification_result['response_time'], json_encode($verification_result)]);
+            try {
+                $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
+                                      VALUES (?, 'manual', ?, ?, ?, NOW())");
+                $stmt->execute([$node['id'], $new_status, $verification_result['response_time'], json_encode($verification_result)]);
+            } catch (Exception $e) {
+                // Игнорируем ошибку записи лога
+                error_log("Не удалось записать лог проверки: " . $e->getMessage());
+            }
 
             $_SESSION['success'] = "Проверка завершена. Статус: " . ($new_status === 'online' ? 'доступна' : 'недоступна');
             header("Location: edit_node.php?id=" . $node['id']);
@@ -398,7 +416,7 @@ require 'admin_header.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
-    <style>
+        <style>
         <?php include __DIR__ . '/../admin/css/admin_style.css'; ?>
 
         /* ========== СТИЛИ ДЛЯ РЕДАКТИРОВАНИЯ НОДЫ ========== */
@@ -1170,6 +1188,9 @@ require 'admin_header.php';
                     </div>
                     <div class="edit-card-body">
                         <form method="POST" class="node-form" id="nodeForm">
+                            <!-- Добавляем скрытое поле для идентификации формы -->
+                            <input type="hidden" name="node_form" value="1">
+
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label required">
@@ -1476,15 +1497,16 @@ require 'admin_header.php';
 
         // Валидация формы
         nodeForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
+            // Не отменяем отправку формы по умолчанию
             if (!validateForm()) {
+                e.preventDefault();
                 return;
             }
 
             // Если проверка не пропущена и требуется обновление статуса, показываем подтверждение
             if (!skipVerification.checked && forceStatusUpdate.checked) {
                 if (!confirm('При сохранении будет выполнена проверка доступности ноды. Продолжить?')) {
+                    e.preventDefault();
                     return;
                 }
             }
@@ -1492,10 +1514,7 @@ require 'admin_header.php';
             // Показываем загрузку
             loadingOverlay.classList.add('active');
 
-            // Отправляем форму
-            setTimeout(() => {
-                this.submit();
-            }, 500);
+            // Форма отправится стандартным способом
         });
 
         // Общая валидация формы

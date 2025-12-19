@@ -1,0 +1,32 @@
+[2025-04-14 04:43:40] === BOT STARTED ===
+[2025-04-14 04:43:40] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:43:51] === BOT STARTED ===
+[2025-04-14 04:43:51] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:44:01] === BOT STARTED ===
+[2025-04-14 04:44:01] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:44:11] === BOT STARTED ===
+[2025-04-14 04:44:11] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:44:21] === BOT STARTED ===
+[2025-04-14 04:44:21] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:46:40] === BOT STARTED ===
+[2025-04-14 04:46:40] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:46:50] === BOT STARTED ===
+[2025-04-14 04:46:50] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:47:00] === BOT STARTED ===
+[2025-04-14 04:47:00] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:47:10] === BOT STARTED ===
+[2025-04-14 04:47:10] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:47:21] === BOT STARTED ===
+[2025-04-14 04:47:21] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:51:39] === BOT STARTED ===
+[2025-04-14 04:51:39] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:51:49] === BOT STARTED ===
+[2025-04-14 04:51:49] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:52:00] === BOT STARTED ===
+[2025-04-14 04:52:00] FATAL ERROR: Class "PDO" not found
+[2025-04-14 04:59:56] === BOT STARTED ===
+[2025-04-14 04:59:57] Update: {"update_id":203334297,"message":{"message_id":3,"from":{"id":331473849,"is_bot":false,"first_name":"\u0412\u0430\u0434\u0438\u043c","last_name":"\u041a\u043e\u0440\u0431\u0430\u043d\u043e\u0432","username":"mortal24","language_code":"ru","is_premium":true},"chat":{"id":331473849,"first_name":"\u0412\u0430\u0434\u0438\u043c","last_name":"\u041a\u043e\u0440\u0431\u0430\u043d\u043e\u0432","username":"mortal24","type":"private"},"date":1744604799,"text":"\/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+[2025-04-14 04:59:57] FATAL ERROR: Call to undefined method Database::safeQuery()
+[2025-04-14 05:01:12] === BOT STARTED ===
+[2025-04-14 05:01:13] Update: {"update_id":203334297,"message":{"message_id":3,"from":{"id":331473849,"is_bot":false,"first_name":"\u0412\u0430\u0434\u0438\u043c","last_name":"\u041a\u043e\u0440\u0431\u0430\u043d\u043e\u0432","username":"mortal24","language_code":"ru","is_premium":true},"chat":{"id":331473849,"first_name":"\u0412\u0430\u0434\u0438\u043c","last_name":"\u041a\u043e\u0440\u0431\u0430\u043d\u043e\u0432","username":"mortal24","type":"private"},"date":1744604799,"text":"\/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}
+[2025-04-14 05:01:13] FATAL ERROR: Call to undefined method Database::safeQuery()

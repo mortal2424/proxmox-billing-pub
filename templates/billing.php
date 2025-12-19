@@ -125,11 +125,11 @@ $legal_entity = $stmt->fetch();
 
 // Получаем статистику по платежам
 $stmt = $pdo->prepare("
-    SELECT 
+    SELECT
         SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as total_paid,
         SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as total_pending,
         COUNT(*) as total_payments
-    FROM payments 
+    FROM payments
     WHERE user_id = ?
 ");
 $stmt->execute([$user_id]);
@@ -137,15 +137,15 @@ $payments_stats = $stmt->fetch();
 
 // Получаем среднемесячные расходы
 $stmt = $pdo->prepare("
-    SELECT 
-        AVG(daily_cost) as avg_monthly_cost 
+    SELECT
+        AVG(daily_cost) as avg_monthly_cost
     FROM (
-        SELECT 
+        SELECT
             DATE(created_at) as day,
             SUM(amount) as daily_cost
-        FROM transactions 
-        WHERE user_id = ? 
-            AND type = 'debit' 
+        FROM transactions
+        WHERE user_id = ?
+            AND type = 'debit'
             AND created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
         GROUP BY DATE(created_at)
     ) daily_costs
@@ -912,34 +912,44 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .history-filters {
             display: flex;
-            justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 12px;
+            flex-wrap: nowrap; /* Заменяем wrap на nowrap */
+            gap: 20px; /* Увеличиваем расстояние между элементами */
+            justify-content: flex-start; /* Выравниваем по левому краю */
         }
 
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+       .filter-form {
+           display: flex;
+           align-items: center;
+           gap: 20px;
+           flex-wrap: nowrap;
         }
 
-        .filter-group label {
-            font-size: 14px;
-            color: #64748b;
-            font-weight: 500;
+       .filter-group {
+           display: flex;
+           align-items: center;
+           gap: 8px;
+           white-space: nowrap; /* Запрещаем перенос текста */
         }
 
-        .filter-group select {
-            padding: 8px 12px;
-            border: 1px solid rgba(148, 163, 184, 0.3);
-            border-radius: 8px;
-            background: white;
-            color: #1e293b;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+       .filter-group label {
+           font-size: 14px;
+           color: #64748b;
+           font-weight: 500;
+           white-space: nowrap; /* Запрещаем перенос текста в label */
+        }
+
+       .filter-group select {
+           padding: 8px 12px;
+           border: 1px solid rgba(148, 163, 184, 0.3);
+           border-radius: 8px;
+           background: white;
+           color: #1e293b;
+           font-size: 14px;
+           cursor: pointer;
+           transition: all 0.3s ease;
+           min-width: 120px; /* Минимальная ширина для select */
         }
 
         body.dark-theme .filter-group select {
@@ -1182,13 +1192,15 @@ $title = "Биллинг | HomeVlad Cloud";
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             border: 1px solid rgba(148, 163, 184, 0.2);
             z-index: 1000;
-            max-width: 300px;
+            width: 320px;
+            max-width: 400px;
+            min-width: 300px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
+            bottom: 100%;
             margin-top: 8px;
         }
-
         .debit-item:hover .debit-tooltip {
             opacity: 1;
             visibility: visible;
@@ -1471,15 +1483,15 @@ $title = "Биллинг | HomeVlad Cloud";
                         </h3>
                         <div class="qr-container">
                             <div class="qr-code">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?= urlencode("tel:+79644384646&sum=$amount") ?>" 
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=<?= urlencode("tel:+7 (999) 999-99-99&sum=$amount") ?>"
                                      alt="QR-код для оплаты" width="200" height="200">
                             </div>
                         </div>
-                        
+
                         <div class="bank-details">
                             <p><strong>Контрольное слово:</strong> <span id="sbp-control-word"><?= $control_word ?></span></p>
-                            <p><strong>Телефон для оплаты:</strong> +7 (964) 438-46-46</p>
-                            <p><strong>Получатель:</strong> HomeVlad Cloud</p>
+                            <p><strong>Телефон для оплаты:</strong> +7 (999) 999-99-99</p>
+                            <p><strong>Получатель:</strong> Компания</p>
                         </div>
 
                         <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(0, 188, 212, 0.05); border-radius: 8px;">
@@ -1503,7 +1515,7 @@ $title = "Биллинг | HomeVlad Cloud";
                         <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
                             <i class="fas fa-credit-card"></i> Перевод на карту
                         </h3>
-                        
+
                         <div class="bank-details">
                             <h4><i class="fas fa-university"></i> Реквизиты для перевода:</h4>
                             <p><strong>Номер карты:</strong> 2200 1514 4839 6171</p>
@@ -1534,14 +1546,14 @@ $title = "Биллинг | HomeVlad Cloud";
                             <h3 class="section-title" style="font-size: 18px; margin-bottom: 16px;">
                                 <i class="fas fa-file-invoice-dollar"></i> Счет № <?= $invoice_number ?>
                             </h3>
-                            
+
                             <div class="bank-details">
                                 <p><strong>Дата:</strong> <?= date('d.m.Y') ?></p>
                                 <p><strong>Сумма:</strong> <?= number_format($amount, 2) ?> ₽</p>
                                 <p><strong>Статус:</strong> <span style="color: #f59e0b;">Ожидает оплаты</span></p>
                             </div>
 
-                            <a href="billing.php?download_invoice=1&invoice_number=<?= $invoice_number ?>&amount=<?= $amount ?>" 
+                            <a href="billing.php?download_invoice=1&invoice_number=<?= $invoice_number ?>&amount=<?= $amount ?>"
                                class="btn btn-success" style="width: 100%; margin-bottom: 16px;">
                                 <i class="fas fa-download"></i> Скачать счет в PDF
                             </a>
@@ -1845,7 +1857,7 @@ $title = "Биллинг | HomeVlad Cloud";
                     // Показываем нужные детали
                     const methodName = this.dataset.method;
                     document.getElementById(`${methodName}-details`).classList.add('active');
-                    
+
                     // Устанавливаем значение скрытого поля
                     paymentMethodInput.value = methodName;
 

@@ -78,8 +78,10 @@ $cluster_history = $pdo->prepare("
 $cluster_history->execute([$cluster['id'], $cluster['id']]);
 $cluster_history = $cluster_history->fetchAll(PDO::FETCH_ASSOC);
 
+// Обработка POST запроса
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['update_cluster'])) {
+    // Проверяем наличие кнопки обновления или скрытого поля
+    if (isset($_POST['update_cluster']) || isset($_POST['cluster_form'])) {
         try {
             $name = trim($_POST['name']);
             $description = trim($_POST['description'] ?? '');
@@ -138,35 +140,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $stmt = $pdo->prepare("UPDATE proxmox_clusters SET
-                                 name = ?, description = ?, is_active = ?,
-                                 enable_auto_healing = ?, enable_vm_migration = ?,
-                                 max_vms_per_node = ?, load_balancing_threshold = ?,
-                                 maintenance_mode = ?, updated_at = NOW()
-                                 WHERE id = ?");
-
-            $stmt->execute([
-                $name, $description, $is_active,
-                $enable_auto_healing, $enable_vm_migration,
-                $max_vms_per_node, $load_balancing_threshold,
-                $maintenance_mode, $cluster['id']
-            ]);
+            // Подготавливаем SQL запрос с проверкой наличия полей
+            $sql = "UPDATE proxmox_clusters SET 
+                    name = ?, 
+                    description = ?, 
+                    is_active = ?,
+                    updated_at = NOW()";
+            
+            $params = [$name, $description, $is_active];
+            
+            // Добавляем дополнительные поля, если они существуют в базе
+            $additional_fields = [
+                'enable_auto_healing',
+                'enable_vm_migration', 
+                'max_vms_per_node',
+                'load_balancing_threshold',
+                'maintenance_mode'
+            ];
+            
+            foreach ($additional_fields as $field) {
+                if (isset($$field)) {
+                    $sql .= ", $field = ?";
+                    $params[] = $$field;
+                }
+            }
+            
+            $sql .= " WHERE id = ?";
+            $params[] = $cluster['id'];
+            
+            $stmt = $pdo->prepare($sql);
+            
+            if (!$stmt) {
+                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
+            }
+            
+            // Выполнение запроса
+            $result = $stmt->execute($params);
+            
+            if (!$result) {
+                $errorInfo = $stmt->errorInfo();
+                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
+            }
+            
+            // Логируем успешное обновление
+            error_log("Кластер обновлен: ID = {$cluster['id']}, Name = $name");
 
             // Если кластер переведен в режим обслуживания, останавливаем все ноды
-            if ($maintenance_mode && !$cluster['maintenance_mode']) {
+            if ($maintenance_mode && !($cluster['maintenance_mode'] ?? 0)) {
                 $stmt = $pdo->prepare("UPDATE proxmox_nodes SET is_active = 0 WHERE cluster_id = ?");
                 $stmt->execute([$cluster['id']]);
 
                 // Записываем в историю
-                $log_stmt = $pdo->prepare("
-                    INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                    VALUES (?, 'maintenance_mode', 'Кластер переведен в режим обслуживания', NOW())
-                ");
-                $log_stmt->execute([$cluster['id']]);
+                try {
+                    $log_stmt = $pdo->prepare("
+                        INSERT INTO cluster_logs (cluster_id, action, details, created_at)
+                        VALUES (?, 'maintenance_mode', 'Кластер переведен в режим обслуживания', NOW())
+                    ");
+                    $log_stmt->execute([$cluster['id']]);
+                } catch (Exception $e) {
+                    // Игнорируем ошибку лога, если таблица не существует
+                    error_log("Не удалось записать лог: " . $e->getMessage());
+                }
             }
 
             // Если режим обслуживания снят, активируем доступные ноды
-            if (!$maintenance_mode && $cluster['maintenance_mode']) {
+            if (!$maintenance_mode && ($cluster['maintenance_mode'] ?? 0)) {
                 $stmt = $pdo->prepare("
                     UPDATE proxmox_nodes
                     SET is_active = 1
@@ -174,11 +212,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([$cluster['id']]);
 
-                $log_stmt = $pdo->prepare("
-                    INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                    VALUES (?, 'maintenance_mode', 'Режим обслуживания снят', NOW())
-                ");
-                $log_stmt->execute([$cluster['id']]);
+                try {
+                    $log_stmt = $pdo->prepare("
+                        INSERT INTO cluster_logs (cluster_id, action, details, created_at)
+                        VALUES (?, 'maintenance_mode', 'Режим обслуживания снят', NOW())
+                    ");
+                    $log_stmt->execute([$cluster['id']]);
+                } catch (Exception $e) {
+                    // Игнорируем ошибку лога
+                    error_log("Не удалось записать лог: " . $e->getMessage());
+                }
             }
 
             $_SESSION['success'] = "Кластер '{$name}' успешно обновлен";
@@ -187,6 +230,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
+            // Логирование ошибки
+            error_log("Ошибка при обновлении кластера: " . $e->getMessage());
         }
     }
 
@@ -202,11 +247,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$cluster['id']]);
 
             // Добавляем запись в логи кластера
-            $log_stmt = $pdo->prepare("
-                INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                VALUES (?, 'check_nodes', 'Запущена проверка всех нод кластера', NOW())
-            ");
-            $log_stmt->execute([$cluster['id']]);
+            try {
+                $log_stmt = $pdo->prepare("
+                    INSERT INTO cluster_logs (cluster_id, action, details, created_at)
+                    VALUES (?, 'check_nodes', 'Запущена проверка всех нод кластера', NOW())
+                ");
+                $log_stmt->execute([$cluster['id']]);
+            } catch (Exception $e) {
+                // Игнорируем ошибку лога
+            }
 
             $_SESSION['success'] = "Запущена проверка всех нод кластера. Результаты будут доступны через несколько минут.";
             header("Location: edit_cluster.php?id=" . $cluster['id']);
@@ -230,7 +279,7 @@ require 'admin_header.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
-    <style>
+        <style>
         <?php include __DIR__ . '/../admin/css/admin_style.css'; ?>
 
         /* ========== СТИЛИ ДЛЯ РЕДАКТИРОВАНИЯ КЛАСТЕРА ========== */
@@ -1151,6 +1200,9 @@ require 'admin_header.php';
                     </div>
                     <div class="cluster-card-body">
                         <form method="POST" class="cluster-form" id="clusterForm">
+                            <!-- Добавляем скрытое поле для идентификации формы -->
+                            <input type="hidden" name="cluster_form" value="1">
+                            
                             <div class="form-group">
                                 <label class="form-label required">
                                     <i class="fas fa-tag"></i> Имя кластера
@@ -1539,19 +1591,16 @@ require 'admin_header.php';
 
         // Валидация формы
         clusterForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
+            // Не отменяем отправку формы по умолчанию
             if (!validateForm()) {
+                e.preventDefault();
                 return;
             }
 
             // Показываем загрузку
             loadingOverlay.classList.add('active');
-
-            // Отправляем форму
-            setTimeout(() => {
-                this.submit();
-            }, 500);
+            
+            // Форма отправится стандартным способом
         });
 
         // Функция обновления счетчика символов

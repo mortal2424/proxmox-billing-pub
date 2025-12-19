@@ -4,23 +4,51 @@ use PHPMailer\PHPMailer\Exception;
 
 require '../vendor/autoload.php';
 
+// Функция для получения настроек SMTP из базы данных
+function getSmtpSettings() {
+    try {
+        $db = new Database();
+        $stmt = $db->getConnection()->prepare("SELECT * FROM smtp_settings ORDER BY id ASC LIMIT 1");
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Error fetching SMTP settings: " . $e->getMessage());
+        return null;
+    }
+}
+
 function sendEmail($to, $subject, $body) {
+    // Получаем настройки SMTP из базы данных
+    $smtpSettings = getSmtpSettings();
+    
+    if (!$smtpSettings) {
+        error_log("SMTP settings not found in database");
+        return false;
+    }
 
     $mail = new PHPMailer(true);
 
     try {
-        // Настройки SMTP (пример для Mail.RU)
+        // Настройки SMTP из базы данных
         $mail->isSMTP();
-        $mail->Host = 'smtp.mail.ru';
+        $mail->Host = $smtpSettings['host'];
         $mail->SMTPAuth = true;
-        $mail->Username = 'vps@homevlad.ru'; // Замените на ваш email
-        $mail->Password = 'MflNqxgxJ2OGKPOc7mop'; // Замените на пароль от почты
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 465;
+        $mail->Username = $smtpSettings['user'];
+        $mail->Password = $smtpSettings['pass'];
+        
+        // Настройка шифрования из базы данных
+        if ($smtpSettings['secure'] == 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $smtpSettings['port'] ?: 587;
+        } else {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port = $smtpSettings['port'] ?: 465;
+        }
+        
         $mail->CharSet = 'UTF-8';
 
-        // Отправитель и получатель
-        $mail->setFrom('vps@homevlad.ru', 'HomeVlad');
+        // Отправитель из базы данных
+        $mail->setFrom($smtpSettings['from_email'], $smtpSettings['from_name']);
         $mail->addAddress($to);
 
         // Контент письма
@@ -37,23 +65,38 @@ function sendEmail($to, $subject, $body) {
     }
 }
 
-
 function sendVerificationEmail($email, $code) {
+    // Получаем настройки SMTP из базы данных
+    $smtpSettings = getSmtpSettings();
+    
+    if (!$smtpSettings) {
+        error_log("SMTP settings not found in database");
+        return false;
+    }
+
     $mail = new PHPMailer(true);
 
     try {
-        // Настройки SMTP (пример для Mail.RU)
+        // Настройки SMTP из базы данных
         $mail->isSMTP();
-        $mail->Host = 'smtp.mail.ru';
+        $mail->Host = $smtpSettings['host'];
         $mail->SMTPAuth = true;
-        $mail->Username = 'vps@homevlad.ru'; // Замените на ваш email
-        $mail->Password = 'MflNqxgxJ2OGKPOc7mop'; // Замените на пароль от почты
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 465;
+        $mail->Username = $smtpSettings['user'];
+        $mail->Password = $smtpSettings['pass'];
+        
+        // Настройка шифрования из базы данных
+        if ($smtpSettings['secure'] == 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $smtpSettings['port'] ?: 587;
+        } else {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+            $mail->Port = $smtpSettings['port'] ?: 465;
+        }
+        
         $mail->CharSet = 'UTF-8';
 
-        // Отправитель и получатель
-        $mail->setFrom('vps@homevlad.ru', 'HomeVlad Cloud');
+        // Отправитель из базы данных
+        $mail->setFrom($smtpSettings['from_email'], $smtpSettings['from_name']);
         $mail->addAddress($email);
 
         // Содержание письма

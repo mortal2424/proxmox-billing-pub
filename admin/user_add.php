@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = trim($_POST['full_name']);
         $balance = (float)$_POST['balance'];
         $is_admin = isset($_POST['is_admin']) ? 1 : 0;
+        $is_active = isset($_POST['is_active']) ? 1 : 0; // Добавляем получение статуса активации
         $password = trim($_POST['password']);
         $confirm_password = trim($_POST['confirm_password']);
         $user_type = $_POST['user_type'] ?? 'individual';
@@ -67,13 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Создание пользователя
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT INTO users
-            (email, full_name, balance, is_admin, password_hash, user_type, inn, kpp, company_name, telegram_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            (email, full_name, balance, is_admin, is_active, password_hash, user_type, inn, kpp, company_name, telegram_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
             $email,
             $full_name,
             $balance,
             $is_admin,
+            $is_active, // Добавляем параметр is_active
             $password_hash,
             $user_type,
             $inn,
@@ -1085,6 +1087,15 @@ require 'admin_header.php';
                         Предоставить права администратора
                     </label>
                     <small class="form-hint">Администраторы имеют полный доступ к панели управления</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" name="is_active" id="is_active">
+                        <span class="checkmark"></span>
+                        Активировать пользователя
+                    </label>
+                    <small class="form-hint">Предоставить пользователю доступ к личному кабинету</small>
                 </div>
             </div>
 

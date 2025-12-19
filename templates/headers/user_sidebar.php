@@ -4,42 +4,87 @@ require_once '../includes/auth.php';
 
 checkAuth();
 $user_id = $_SESSION['user']['id'];
-$user = $db->getConnection()->query("SELECT * FROM users WHERE id = $user_id")->fetch();
+
+// Инициализируем подключение ОДИН раз
+$db = new Database();
+$pdo = $db->getConnection();
+
+// Получаем данные пользователя с подготовленным запросом
+$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+$stmt->execute([$user_id]);
+$user = $stmt->fetch();
+
+// Получаем текущую версию системы из базы данных
+$current_version = '2.5.1'; // Версия по умолчанию
+try {
+    // Проверяем существование таблицы system_versions
+    $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables
+                         WHERE table_schema = DATABASE()
+                         AND table_name = 'system_versions'");
+    $table_exists = $stmt->fetchColumn() > 0;
+
+    if ($table_exists) {
+        // Получаем последнюю версию из таблицы
+        $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
+        if ($stmt && $stmt->rowCount() > 0) {
+            $current_version = $stmt->fetchColumn();
+        }
+    }
+} catch (Exception $e) {
+    error_log("Error getting system version: " . $e->getMessage());
+}
 
 // Определяем активную страницу
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-// Получаем статистику ВМ для сайдбара
-$vm_stats = $db->getConnection()->query("
+// Получаем статистику ВМ для сайдбара (используем подготовленные запросы)
+$stmt = $pdo->prepare("
     SELECT
         COUNT(*) as total_vms,
         SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running_vms
     FROM vms
-    WHERE user_id = $user_id AND status != 'deleted'
-")->fetch();
+    WHERE user_id = ? AND status != 'deleted'
+");
+$stmt->execute([$user_id]);
+$vm_stats = $stmt->fetch();
 
 // Получаем квоты пользователя
-$quota = $db->getConnection()->query("SELECT * FROM user_quotas WHERE user_id = $user_id")->fetch();
+$stmt = $pdo->prepare("SELECT * FROM user_quotas WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$quota = $stmt->fetch();
+
 if (!$quota) {
-    $db->getConnection()->exec("INSERT INTO user_quotas (user_id) VALUES ($user_id)");
-    $quota = $db->getConnection()->query("SELECT * FROM user_quotas WHERE user_id = $user_id")->fetch();
+    $stmt = $pdo->prepare("INSERT INTO user_quotas (user_id) VALUES (?)");
+    $stmt->execute([$user_id]);
+
+    $stmt = $pdo->prepare("SELECT * FROM user_quotas WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    $quota = $stmt->fetch();
 }
 
 // Получаем текущее использование ресурсов
-$usage = $db->getConnection()->query("
+$stmt = $pdo->prepare("
     SELECT
         COUNT(*) as vm_count,
-        SUM(cpu) as total_cpu,
-        SUM(ram) as total_ram,
-        SUM(disk) as total_disk
+        COALESCE(SUM(cpu), 0) as total_cpu,
+        COALESCE(SUM(ram), 0) as total_ram,
+        COALESCE(SUM(disk), 0) as total_disk
     FROM vms
-    WHERE user_id = $user_id AND status != 'deleted'
-")->fetch();
+    WHERE user_id = ? AND status != 'deleted'
+");
+$stmt->execute([$user_id]);
+$usage = $stmt->fetch();
+
+// Устанавливаем значения по умолчанию для массивов
+$vm_stats = $vm_stats ?: ['total_vms' => 0, 'running_vms' => 0];
+$quota = $quota ?: ['max_cpu' => 0, 'max_ram' => 0, 'max_disk' => 0, 'max_vms' => 0];
+$usage = $usage ?: ['vm_count' => 0, 'total_cpu' => 0, 'total_ram' => 0, 'total_disk' => 0];
 
 // Рассчитываем процент использования для мини-графиков
 $cpu_percent = $quota['max_cpu'] > 0 ? round(($usage['total_cpu'] / $quota['max_cpu']) * 100) : 0;
 $ram_percent = $quota['max_ram'] > 0 ? round(($usage['total_ram'] / $quota['max_ram']) * 100) : 0;
 $disk_percent = $quota['max_disk'] > 0 ? round(($usage['total_disk'] / $quota['max_disk']) * 100) : 0;
+$vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_vms']) * 100) : 0;
 ?>
 
 <!-- Информативный сайдбар (скроллится с контентом) -->
@@ -364,8 +409,8 @@ $disk_percent = $quota['max_disk'] > 0 ? round(($usage['total_disk'] / $quota['m
             <div class="footer-info">
                 <div class="version-info">
                     <i class="fas fa-code-branch"></i>
-                    <span>v2.5.1</span>
-                    <span class="version-status active" title="Система активна"></span>
+                    <span>v<?= htmlspecialchars($current_version) ?></span>
+                    <span class="version-status"></span>
                 </div>
                 <div class="footer-links">
                     <a href="/docs/" class="footer-link" title="Документация">

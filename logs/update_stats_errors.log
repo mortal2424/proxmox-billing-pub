@@ -1,0 +1,12 @@
+[04-Apr-2025 17:27:16 Asia/Vladivostok] [2025-04-04 17:27:16] Начало обновления статистики нод
+[04-Apr-2025 17:27:16 Asia/Vladivostok] Обработка ноды ID: 1, Hostname: node2.dvcloud.ru
+[04-Apr-2025 17:27:16 Asia/Vladivostok] PHP Fatal error:  Uncaught TypeError: ssh2_exec(): Argument #1 ($session) must be of type resource, string given in /var/www/homevlad_ru_usr/data/www/homevlad.ru/admin/admin_functions.php:134
+Stack trace:
+#0 /var/www/homevlad_ru_usr/data/www/homevlad.ru/admin/admin_functions.php(134): ssh2_exec()
+#1 /var/www/homevlad_ru_usr/data/www/homevlad.ru/admin/update_node_stats.php(35): getNodeStats()
+#2 {main}
+  thrown in /var/www/homevlad_ru_usr/data/www/homevlad.ru/admin/admin_functions.php on line 134
+[04-Apr-2025 17:31:52 Asia/Vladivostok] [2025-04-04 17:31:52] Начало обновления статистики нод
+[04-Apr-2025 17:31:52 Asia/Vladivostok] Обработка ноды ID: 1, Hostname: node2.dvcloud.ru
+[04-Apr-2025 17:31:53 Asia/Vladivostok] Данные для ноды 1 успешно сохранены
+[04-Apr-2025 17:31:53 Asia/Vladivostok] Обработка ноды ID: 2, Hostname: node3.dvcloud.ru

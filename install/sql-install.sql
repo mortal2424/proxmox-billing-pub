@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: localhost:3306
--- Время создания: Дек 15 2025 г., 15:45
+-- Время создания: Дек 19 2025 г., 15:11
 -- Версия сервера: 10.11.14-MariaDB-0+deb12u2
 -- Версия PHP: 8.2.29
 
@@ -359,6 +359,25 @@ CREATE TABLE `resource_prices` (
 -- --------------------------------------------------------
 
 --
+-- Структура таблицы `smtp_settings`
+--
+
+CREATE TABLE `smtp_settings` (
+  `id` int(11) NOT NULL,
+  `host` varchar(255) NOT NULL DEFAULT 'smtp.mail.ru',
+  `port` int(11) NOT NULL DEFAULT 465,
+  `user` varchar(255) NOT NULL,
+  `pass` varchar(255) NOT NULL,
+  `from_email` varchar(255) NOT NULL,
+  `from_name` varchar(255) NOT NULL DEFAULT 'HomeVlad Cloud Support',
+  `secure` enum('ssl','tls') NOT NULL DEFAULT 'ssl',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Структура таблицы `system_updates`
 --
 
@@ -386,6 +405,13 @@ CREATE TABLE `system_versions` (
   `description` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Дамп данных таблицы `system_versions`
+--
+
+INSERT INTO `system_versions` (`id`, `version`, `release_date`, `description`, `created_at`) VALUES
+(1, '2.5.1-beta2', '2025-12-11', 'Initial system version', '2025-12-11 06:39:39');
 
 -- --------------------------------------------------------
 
@@ -422,23 +448,43 @@ CREATE TABLE `tariffs` (
 --
 
 INSERT INTO `tariffs` (`id`, `name`, `cpu`, `ram`, `disk`, `price`, `is_active`, `created_at`, `traffic`, `backups`, `support`, `is_popular`, `description`, `os_type`, `price_per_hour_cpu`, `price_per_hour_ram`, `price_per_hour_disk`, `is_custom`, `vm_type`, `sort_order`, `updated_at`) VALUES
-(4, 'Start', 1, 1024, 20, 1300.00, 1, '2025-04-03 16:16:29', '500 GB', 'Еженедельные бэкапы', 'Только критические запросы', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(5, 'Basic', 2, 2048, 40, 2500.00, 1, '2025-04-03 16:16:51', '1 ТБ', 'Еженедельные бэкапы', 'Техническая поддержка', 1, '', 'linux', 0.0000, 0.0001, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(6, 'Pro', 4, 4096, 80, 5100.00, 1, '2025-04-03 16:17:11', '2 ТБ', 'Ежедневные бэкапы', 'Техническая поддержка', 0, '', 'windows', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(7, 'Business', 8, 16384, 100, 11000.00, 1, '2025-04-03 21:02:29', '3 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(8, 'Ultimate', 6, 32768, 250, 16000.00, 1, '2025-04-07 20:12:27', '5 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(12, 'Свой', 3, 2048, 17, 3073.82, 1, '2025-04-13 01:18:23', '', '', '', 0, '', 'linux', 0.8100, 0.0080, 0.0400, 1, 'qemu', 0, '2025-12-12 20:23:26'),
-(13, 'Свой', 1, 2048, 13, 1606.75, 1, '2025-04-14 18:44:20', '', '', '', 0, '', 'linux', 0.9100, 0.0051, 0.0300, 1, 'qemu', 0, '2025-12-12 20:23:26'),
-(14, 'Свой', 1, 512, 3, 816.91, 1, '2025-04-15 20:34:40', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
-(15, 'Promo', 1, 1024, 10, 150.00, 1, '2025-04-15 20:52:01', '100 ГБ', 'Нет', 'Нет', 0, 'Промо тариф', 'linux', 0.1285, 0.0000, 0.0039, 0, 'qemu', 0, '2025-12-12 20:23:26'),
-(17, 'test2', 1, 512, 10, 50.00, 1, '2025-04-19 20:00:30', '', '', '', 0, '', '', 0.0001, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
-(20, 'Linux-1-1-10', 1, 1024, 10, 150.00, 1, '2025-04-21 21:06:37', '', '', '', 0, '', '', 0.0300, 0.0005, 0.0200, 1, 'lxc', 0, '2025-12-12 20:23:26'),
-(22, 'Свой', 1, 1536, 15, 499.64, 1, '2025-04-21 23:05:32', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
-(26, 'Свой', 1, 1024, 20, 441.50, 1, '2025-04-21 23:56:26', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
-(27, 'Свой', 1, 2048, 10, 557.77, 1, '2025-04-26 17:45:03', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
-(28, 'Свой', 2, 2048, 20, 882.56, 1, '2025-04-26 22:50:10', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26'),
-(34, 'Свой', 2, 2048, 30, 2029.97, 1, '2025-05-01 00:11:42', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-12 20:23:26'),
-(35, 'Свой', 1, 2048, 15, 557.88, 1, '2025-12-08 18:41:22', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-12 20:23:26');
+(4, 'Start', 1, 1024, 20, 1300.00, 1, '2025-04-04 02:16:29', '500 GB', 'Еженедельные бэкапы', 'Только критические запросы', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(5, 'Basic', 2, 2048, 40, 2500.00, 1, '2025-04-04 02:16:51', '1 ТБ', 'Еженедельные бэкапы', 'Техническая поддержка', 1, '', 'linux', 0.0000, 0.0001, 0.0000, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(6, 'Pro', 4, 4096, 80, 5100.00, 1, '2025-04-04 02:17:11', '2 ТБ', 'Ежедневные бэкапы', 'Техническая поддержка', 0, '', 'windows', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(7, 'Business', 8, 16384, 100, 11000.00, 1, '2025-04-04 07:02:29', '3 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(8, 'Ultimate', 6, 32768, 250, 16000.00, 1, '2025-04-08 06:12:27', '5 ТБ', 'Ежедневные бэкапы', 'Премиальная поддержка', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(12, 'Свой', 3, 2048, 17, 3073.82, 1, '2025-04-13 11:18:23', '', '', '', 0, '', 'linux', 0.8100, 0.0080, 0.0400, 1, 'qemu', 0, '2025-12-13 06:23:26'),
+(13, 'Свой', 1, 2048, 13, 1606.75, 1, '2025-04-15 04:44:20', '', '', '', 0, '', 'linux', 0.9100, 0.0051, 0.0300, 1, 'qemu', 0, '2025-12-13 06:23:26'),
+(14, 'Свой', 1, 512, 3, 816.91, 1, '2025-04-16 06:34:40', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-13 06:23:26'),
+(15, 'Promo', 1, 1024, 10, 150.00, 1, '2025-04-16 06:52:01', '100 ГБ', 'Нет', 'Нет', 0, 'Промо тариф', 'linux', 0.1285, 0.0000, 0.0039, 0, 'qemu', 0, '2025-12-13 06:23:26'),
+(17, 'test2', 1, 512, 10, 50.00, 1, '2025-04-20 06:00:30', '', '', '', 0, '', '', 0.0001, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-13 06:23:26'),
+(20, 'Linux-1-1-10', 1, 1024, 10, 150.00, 1, '2025-04-22 07:06:37', '', '', '', 0, '', '', 0.0300, 0.0005, 0.0200, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(22, 'Свой', 1, 1536, 15, 499.64, 1, '2025-04-22 09:05:32', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(26, 'Свой', 1, 1024, 20, 441.50, 1, '2025-04-22 09:56:26', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(27, 'Свой', 1, 2048, 10, 557.77, 1, '2025-04-27 03:45:03', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(28, 'Свой', 2, 2048, 20, 882.56, 1, '2025-04-27 08:50:10', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(34, 'Свой', 2, 2048, 30, 2029.97, 1, '2025-05-01 10:11:42', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'qemu', 0, '2025-12-13 06:23:26'),
+(35, 'Свой', 1, 2048, 15, 557.88, 1, '2025-12-09 04:41:22', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 1, 'lxc', 0, '2025-12-13 06:23:26'),
+(36, 'test3', 1, 512, 15, 101.00, 0, '2025-12-16 05:29:53', '', '', '', 0, '', '', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-17 02:55:26'),
+(37, 'test4', 1, 1024, 11, 137.00, 0, '2025-12-17 00:32:47', '', '', '', 0, '', '', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-17 02:55:36'),
+(38, 'test5', 2, 1024, 17, 431.00, 0, '2025-12-17 02:08:29', NULL, NULL, NULL, 0, NULL, 'linux', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-17 02:08:29'),
+(39, 'test6', 1, 1024, 11, 159.00, 0, '2025-12-17 03:20:29', '', '', '', 0, '', '', 0.0000, 0.0000, 0.0000, 0, 'qemu', 0, '2025-12-17 03:20:29'),
+(40, 'test7', 3, 3072, 33, 0.00, 0, '2025-12-17 03:21:07', '', '', '', 0, '', '', 1.0000, 3.0000, 7.0000, 1, 'qemu', 0, '2025-12-17 03:21:07'),
+(41, 'Promo LXC', 1, 2048, 10, 150.00, 1, '2025-12-18 11:10:02', '100 ГБ Трафика', 'Нет', 'Нет', 0, '', 'linux', 0.0000, 0.0000, 0.0000, 0, 'lxc', 0, '2025-12-18 11:10:02');
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `telegram_chat_bot`
+--
+
+CREATE TABLE `telegram_chat_bot` (
+  `id` int(11) NOT NULL,
+  `bot_token` varchar(255) NOT NULL,
+  `bot_name` varchar(100) DEFAULT 'Chat Bot',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -491,6 +537,20 @@ CREATE TABLE `telegram_queue` (
   `sent_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `telegram_support_bot`
+--
+
+CREATE TABLE `telegram_support_bot` (
+  `id` int(11) NOT NULL,
+  `bot_token` varchar(255) NOT NULL,
+  `bot_name` varchar(100) DEFAULT 'Support Bot',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -587,7 +647,8 @@ CREATE TABLE `users` (
   `telegram_username` varchar(50) DEFAULT NULL,
   `avatar` varchar(255) DEFAULT NULL COMMENT 'URL аватара пользователя',
   `verification_code` varchar(10) DEFAULT NULL,
-  `verification_sent_at` datetime DEFAULT NULL
+  `verification_sent_at` datetime DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 -- --------------------------------------------------------
@@ -869,6 +930,12 @@ ALTER TABLE `resource_prices`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Индексы таблицы `smtp_settings`
+--
+ALTER TABLE `smtp_settings`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Индексы таблицы `system_updates`
 --
 ALTER TABLE `system_updates`
@@ -886,6 +953,12 @@ ALTER TABLE `system_versions`
 -- Индексы таблицы `tariffs`
 --
 ALTER TABLE `tariffs`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Индексы таблицы `telegram_chat_bot`
+--
+ALTER TABLE `telegram_chat_bot`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -911,6 +984,12 @@ ALTER TABLE `telegram_queue`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_status` (`status`),
   ADD KEY `idx_user_id` (`user_id`);
+
+--
+-- Индексы таблицы `telegram_support_bot`
+--
+ALTER TABLE `telegram_support_bot`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Индексы таблицы `tickets`
@@ -1105,6 +1184,12 @@ ALTER TABLE `resource_prices`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT для таблицы `smtp_settings`
+--
+ALTER TABLE `smtp_settings`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT для таблицы `system_updates`
 --
 ALTER TABLE `system_updates`
@@ -1114,13 +1199,19 @@ ALTER TABLE `system_updates`
 -- AUTO_INCREMENT для таблицы `system_versions`
 --
 ALTER TABLE `system_versions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT для таблицы `tariffs`
 --
 ALTER TABLE `tariffs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
+
+--
+-- AUTO_INCREMENT для таблицы `telegram_chat_bot`
+--
+ALTER TABLE `telegram_chat_bot`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `telegram_conversations`
@@ -1138,6 +1229,12 @@ ALTER TABLE `telegram_last_check`
 -- AUTO_INCREMENT для таблицы `telegram_queue`
 --
 ALTER TABLE `telegram_queue`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `telegram_support_bot`
+--
+ALTER TABLE `telegram_support_bot`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

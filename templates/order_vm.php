@@ -74,7 +74,7 @@ $nodes = $pdo->query("
     ORDER BY c.name, n.node_name
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-$vmType = $_POST['vm_type'] ?? 'qemu'; // 'qemu' или 'lxc'
+$vmType = $_GET['vm_type'] ?? $_POST['vm_type'] ?? 'qemu'; // 'qemu' или 'lxc'
 
 // Получаем только тарифы для выбранного типа VM
 $regular_tariffs = $pdo->query("SELECT * FROM tariffs WHERE is_active = 1 AND is_custom = 0 AND vm_type = '$vmType' ORDER BY price")->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -85,8 +85,11 @@ $success = false;
 $vncUrl = '';
 $creationTime = 0;
 
+// Проверяем, является ли запрос переключением типа VM
+$is_switching_vm_type = isset($_GET['vm_type']) || (isset($_POST['vm_type']) && empty($_POST['node_id']));
+
 // ВАЖНО: Убрал проверку !$quota_exceeded из условия, чтобы форма обрабатывалась всегда
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
     $creationStart = time();
 
     try {
@@ -1279,7 +1282,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             <?php endif; ?>
 
             <!-- Сообщения об ошибках -->
-            <?php if (!empty($errors)): ?>
+            <?php if (!empty($errors) && !$is_switching_vm_type): ?>
                 <div class="notification notification-danger">
                     <i class="fas fa-exclamation-circle"></i>
                     <strong>Ошибка при создании:</strong>
@@ -1343,12 +1346,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 <div class="form-section">
                     <h3><i class="fas fa-server"></i> 0. Выберите тип виртуальной машины</h3>
                     <div class="vm-type-selector">
-                        <button type="button" class="vm-type-btn <?= $vmType === 'qemu' ? 'active' : '' ?>" data-vm-type="qemu">
+                        <a href="?vm_type=qemu" class="vm-type-btn <?= $vmType === 'qemu' ? 'active' : '' ?>">
                             <i class="fas fa-desktop"></i> Виртуальная машина (KVM)
-                        </button>
-                        <button type="button" class="vm-type-btn <?= $vmType === 'lxc' ? 'active' : '' ?>" data-vm-type="lxc">
+                        </a>
+                        <a href="?vm_type=lxc" class="vm-type-btn <?= $vmType === 'lxc' ? 'active' : '' ?>">
                             <i class="fas fa-box"></i> Контейнер (LXC)
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -1928,40 +1931,6 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     }, 2000);
                 }
             }
-
-            // Переключение между типами виртуальных машин
-            const vmTypeBtns = document.querySelectorAll('.vm-type-btn');
-            vmTypeBtns.forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-
-                    const type = this.dataset.vmType;
-                    console.log('Выбран тип VM:', type);
-
-                    vmTypeBtns.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-
-                    vmTypeInput.value = type;
-
-                    // Обновляем текст кнопки submit
-                    if (submitBtn) {
-                        submitBtn.innerHTML = type === 'qemu'
-                            ? '<i class="fas fa-shopping-cart"></i> Создать виртуальную машину'
-                            : '<i class="fas fa-shopping-cart"></i> Создать контейнер';
-                    }
-
-                    // Перезагружаем страницу с новым типом VM
-                    const form = document.getElementById('vm-order-form');
-                    if (form) {
-                        const tempInput = document.createElement('input');
-                        tempInput.type = 'hidden';
-                        tempInput.name = 'vm_type';
-                        tempInput.value = type;
-                        form.appendChild(tempInput);
-                        form.submit();
-                    }
-                });
-            });
 
             // Переключение между типами тарифов
             const tariffTypeBtns = document.querySelectorAll('.tariff-type-btn');

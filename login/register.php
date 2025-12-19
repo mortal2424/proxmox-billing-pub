@@ -4,6 +4,35 @@ require_once '../includes/db.php';
 require_once '../includes/functions.php';
 redirectIfLoggedIn();
 
+// Функция для получения данных бота из базы данных
+function getTelegramBotData() {
+    try {
+        $db = new Database();
+        $stmt = $db->getConnection()->prepare("SELECT bot_token, bot_name FROM telegram_support_bot ORDER BY id ASC LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && !empty($result['bot_token'])) {
+            // Убираем символ @ из начала bot_name, если он есть
+            $bot_name = $result['bot_name'];
+            if (strpos($bot_name, '@') === 0) {
+                $bot_name = substr($bot_name, 1);
+            }
+            
+            return [
+                'token' => $result['bot_token'],
+                'name' => $bot_name
+            ];
+        } else {
+            error_log("No Telegram bot data found in database");
+            return null;
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching Telegram bot data: " . $e->getMessage());
+        return null;
+    }
+}
+
 // Создаем экземпляр Database
 try {
     $db = new Database();
@@ -11,10 +40,84 @@ try {
     die("Database connection error: " . $e->getMessage());
 }
 
+// Получаем данные бота
+$bot_data = getTelegramBotData();
+$bot_token = $bot_data ? $bot_data['token'] : null;
+$telegram_bot_username = $bot_data ? $bot_data['name'] : null;
+
 $current_step = 1;
 $errors = [];
 $success = false;
 $telegram_data = [];
+
+// Функция для проверки Telegram авторизации
+function verifyTelegramAuthorization($auth_data) {
+    global $bot_token;
+    
+    if (!$bot_token) {
+        error_log("Telegram bot token is not available");
+        return false;
+    }
+
+    $check_hash = $auth_data['hash'];
+    unset($auth_data['hash']);
+
+    $data_check_arr = [];
+    foreach ($auth_data as $key => $value) {
+        if (!empty($value)) {
+            $data_check_arr[] = $key . '=' . $value;
+        }
+    }
+
+    sort($data_check_arr);
+    $data_check_string = implode("\n", $data_check_arr);
+
+    $secret_key = hash('sha256', $bot_token, true);
+    $hash = hash_hmac('sha256', $data_check_string, $secret_key);
+
+    if (strcmp($hash, $check_hash) !== 0) {
+        error_log("Telegram hash verification failed");
+        return false;
+    }
+
+    if ((time() - $auth_data['auth_date']) > 86400) {
+        error_log("Telegram auth data expired");
+        return false;
+    }
+
+    return true;
+}
+
+// Функция для отправки сообщения в Telegram
+function sendTelegramMessage($chat_id, $message) {
+    global $bot_token;
+    
+    if (!$bot_token) {
+        error_log("Telegram bot token is not available");
+        return false;
+    }
+    
+    $api_url = "https://api.telegram.org/bot$bot_token/sendMessage";
+
+    $data = [
+        'chat_id' => $chat_id,
+        'text' => $message,
+        'parse_mode' => 'HTML'
+    ];
+
+    $options = [
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content' => http_build_query($data)
+        ]
+    ];
+
+    $context = stream_context_create($options);
+    $result = file_get_contents($api_url, false, $context);
+
+    return $result !== false;
+}
 
 // Обработка данных из Telegram Widget
 if (isset($_POST['auth_date'])) {
@@ -351,60 +454,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
         }
     }
 }
-
-// Функция для проверки данных Telegram
-function verifyTelegramAuthorization($auth_data) {
-    $bot_token = '7733127948:AAHzUlwbL0Iw0dK-0h4d3KJXZDNA9aa6spo';
-
-    $check_hash = $auth_data['hash'];
-    unset($auth_data['hash']);
-
-    $data_check_arr = [];
-    foreach ($auth_data as $key => $value) {
-        $data_check_arr[] = $key . '=' . $value;
-    }
-
-    sort($data_check_arr);
-    $data_check_string = implode("\n", $data_check_arr);
-
-    $secret_key = hash('sha256', $bot_token, true);
-    $hash = hash_hmac('sha256', $data_check_string, $secret_key);
-
-    if (strcmp($hash, $check_hash) !== 0) {
-        return false;
-    }
-
-    if ((time() - $auth_data['auth_date']) > 86400) {
-        return false;
-    }
-
-    return true;
-}
-
-// Функция для отправки сообщения в Telegram
-function sendTelegramMessage($chat_id, $message) {
-    $bot_token = '7733127948:AAHzUlwbL0Iw0dK-0h4d3KJXZDNA9aa6spo';
-    $api_url = "https://api.telegram.org/bot$bot_token/sendMessage";
-
-    $data = [
-        'chat_id' => $chat_id,
-        'text' => $message,
-        'parse_mode' => 'HTML'
-    ];
-
-    $options = [
-        'http' => [
-            'method' => 'POST',
-            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query($data)
-        ]
-    ];
-
-    $context = stream_context_create($options);
-    $result = file_get_contents($api_url, false, $context);
-
-    return $result !== false;
-}
 ?>
 
 <!DOCTYPE html>
@@ -416,7 +465,7 @@ function sendTelegramMessage($chat_id, $message) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
-    <style>
+        <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
@@ -1389,11 +1438,12 @@ function sendTelegramMessage($chat_id, $message) {
 
                 <!-- Шаг 1: Основные данные / Telegram -->
                 <?php if ($current_step == 1): ?>
-                    <!-- Telegram авторизация -->
+                    <!-- Telegram авторизация (показываем только если есть username бота) -->
+                    <?php if ($telegram_bot_username): ?>
                     <div class="telegram-login-container">
                         <div class="telegram-widget">
                             <script async src="https://telegram.org/js/telegram-widget.js?19"
-                                    data-telegram-login="homevlad_support_bot"
+                                    data-telegram-login="<?php echo htmlspecialchars($telegram_bot_username); ?>"
                                     data-size="large"
                                     data-userpic="false"
                                     data-radius="12"
@@ -1404,6 +1454,12 @@ function sendTelegramMessage($chat_id, $message) {
                             <span>или</span>
                         </div>
                     </div>
+                    <?php else: ?>
+                        <div class="notification warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Telegram авторизация временно недоступна
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Обычная регистрация -->
                     <form method="POST" id="registrationForm">
@@ -1647,20 +1703,7 @@ function sendTelegramMessage($chat_id, $message) {
     if (file_exists($footer_file)) {
         include $footer_file;
     }
-    // Если файл не найден - футер просто не отображается
     ?>
-    <!--<footer class="modern-footer">
-        <div class="container">
-            <div class="footer-bottom">
-                <div class="copyright">
-                    © 2024 HomeVlad Cloud. Все права защищены.
-                </div>
-                <div class="copyright">
-                    Разработано с <i class="fas fa-heart" style="color: #ef4444;"></i> для сообщества
-                </div>
-            </div>
-        </div>
-    </footer>-->
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

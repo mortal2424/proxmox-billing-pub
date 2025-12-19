@@ -912,7 +912,7 @@ require 'admin_header.php';
     <!-- Шапка дашборда -->
     <div class="dashboard-header">
         <div class="header-left">
-            <h1><i class="fas fa-tachometer-alt"></i> Админ дашборд</h1>
+            <h1><i class="fas fa-tachometer-alt"></i> Дашборд администратора</h1>
             <p>Обзор системы и управление ресурсами</p>
         </div>
         <div class="dashboard-quick-actions">
@@ -1098,10 +1098,10 @@ require 'admin_header.php';
                             </div>
                             <div class="dashboard-item-meta">
                                 <span class="dashboard-item-status dashboard-item-status-<?= $vm['status'] ?>">
-                                    <?= 
-                                        $vm['status'] === 'running' ? 'Запущена' : 
-                                        ($vm['status'] === 'stopped' ? 'Остановлена' : 
-                                        ($vm['status'] === 'error' ? 'Ошибка' : $vm['status'])) 
+                                    <?=
+                                        $vm['status'] === 'running' ? 'Запущена' :
+                                        ($vm['status'] === 'stopped' ? 'Остановлена' :
+                                        ($vm['status'] === 'error' ? 'Ошибка' : $vm['status']))
                                     ?>
                                 </span>
                                 <span class="dashboard-item-time"><?= date('d.m.Y', strtotime($vm['created_at'])) ?></span>
@@ -1206,10 +1206,10 @@ require 'admin_header.php';
                             </div>
                             <div class="dashboard-item-meta">
                                 <span class="dashboard-item-status dashboard-item-status-<?= $ticket['status'] ?>">
-                                    <?= 
-                                        $ticket['status'] === 'open' ? 'Открыт' : 
-                                        ($ticket['status'] === 'closed' ? 'Закрыт' : 
-                                        ($ticket['status'] === 'pending' ? 'В работе' : $ticket['status'])) 
+                                    <?=
+                                        $ticket['status'] === 'open' ? 'Открыт' :
+                                        ($ticket['status'] === 'closed' ? 'Закрыт' :
+                                        ($ticket['status'] === 'pending' ? 'В работе' : $ticket['status']))
                                     ?>
                                 </span>
                                 <span class="dashboard-item-time"><?= date('d.m H:i', strtotime($ticket['created_at'])) ?></span>
@@ -1293,7 +1293,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Обновляем тренды
                     updateTrends(data);
-                    
+
                     // Обновляем системный статус
                     updateSystemStatus(data);
                 }
@@ -1354,8 +1354,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 nodeTrend.textContent = data.active_nodes + ' активных';
                 nodeTrend.style.display = 'block';
                 const isAllActive = data.active_nodes === data.total_nodes && data.total_nodes > 0;
-                nodeTrend.className = isAllActive ? 
-                    'dashboard-stat-trend dashboard-stat-trend-positive' : 
+                nodeTrend.className = isAllActive ?
+                    'dashboard-stat-trend dashboard-stat-trend-positive' :
                     'dashboard-stat-trend dashboard-stat-trend-warning';
             } else {
                 nodeTrend.style.display = 'none';
@@ -1386,31 +1386,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     function updateSystemStatus(data) {
         // Обновляем индикаторы системного статуса
         const vmIndicator = document.querySelector('.dashboard-status-item:nth-child(1) .dashboard-status-indicator');
         const nodeIndicator = document.querySelector('.dashboard-status-item:nth-child(2) .dashboard-status-indicator');
         const ticketIndicator = document.querySelector('.dashboard-status-item:nth-child(3) .dashboard-status-indicator');
         const incomeIndicator = document.querySelector('.dashboard-status-item:nth-child(4) .dashboard-status-indicator');
-        
+
         if (vmIndicator) {
-            vmIndicator.className = 'dashboard-status-indicator ' + 
+            vmIndicator.className = 'dashboard-status-indicator ' +
                 (data.running_vms > 0 ? '' : 'dashboard-status-indicator-warning');
         }
-        
+
         if (nodeIndicator) {
-            nodeIndicator.className = 'dashboard-status-indicator ' + 
+            nodeIndicator.className = 'dashboard-status-indicator ' +
                 (data.active_nodes > 0 ? '' : 'dashboard-status-indicator-danger');
         }
-        
+
         if (ticketIndicator) {
-            ticketIndicator.className = 'dashboard-status-indicator ' + 
+            ticketIndicator.className = 'dashboard-status-indicator ' +
                 (data.open_tickets === 0 ? '' : 'dashboard-status-indicator-warning');
         }
-        
+
         if (incomeIndicator) {
-            incomeIndicator.className = 'dashboard-status-indicator ' + 
+            incomeIndicator.className = 'dashboard-status-indicator ' +
                 (data.total_income > 0 ? '' : 'dashboard-status-indicator-warning');
         }
     }

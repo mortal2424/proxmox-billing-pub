@@ -732,6 +732,7 @@ try {
     <!-- Заголовок -->
     <div class="sidebar-header">
         <div class="sidebar-logo">
+        <h3 class="sidebar-title">Свернуть/Развернуть</h3>
             <!--<div class="sidebar-logo-icon">
                <i class="fas fa-shield-alt"></i>
             </div>-->
@@ -881,7 +882,7 @@ try {
                         <div class="menu-icon nodes">
                             <i class="fas fa-network-wired"></i>
                         </div>
-                        <span class="menu-text">Ноды Proxmox</span>
+                        <span class="menu-text">Настройки Proxmox</span>
                         <?php if ($system_stats['total_nodes'] > 0): ?>
                             <span class="menu-badge count"><?= $system_stats['total_nodes'] ?></span>
                         <?php endif; ?>

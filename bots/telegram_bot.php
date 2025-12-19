@@ -3,13 +3,13 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 'stderr');
 ini_set('log_errors', 1);
-/*ini_set('error_log', '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs/php_errors.log');*/
+ini_set('error_log', '/home/mortal/web/homevlad.ru/public_html/bots/logs/php_errors.log');
 
 // Инициализация логов
-/*$logDir = '/var/www/homevlad_ru_usr/data/www/homevlad.ru/bots/logs';
+$logDir = '/home/mortal/web/homevlad.ru/public_html/bots/logs';
 if (!file_exists($logDir)) {
     mkdir($logDir, 0755, true);
-}*/
+}
 
 function logMessage($message) {
     global $logDir;
@@ -21,17 +21,17 @@ function logMessage($message) {
 class DatabaseManager {
     private $dbConfig;
     private $pdo;
-    
+
     public function __construct() {
         $this->dbConfig = [
             'host' => 'localhost',
-            'dbname' => 'имя базы',
-            'user' => 'имя пользователя базы',
-            'pass' => 'пароль'
+            'dbname' => 'имя бд',
+            'user' => 'пользователь бд',
+            'pass' => 'пароль бд'
         ];
         $this->connect();
     }
-    
+
     private function connect() {
         $dsn = "mysql:host={$this->dbConfig['host']};dbname={$this->dbConfig['dbname']};charset=utf8mb4";
         $options = [
@@ -41,7 +41,7 @@ class DatabaseManager {
             PDO::ATTR_PERSISTENT => false,
             PDO::ATTR_TIMEOUT => 5
         ];
-        
+
         try {
             $this->pdo = new PDO($dsn, $this->dbConfig['user'], $this->dbConfig['pass'], $options);
             logMessage("Database connection established");
@@ -50,7 +50,7 @@ class DatabaseManager {
             throw $e;
         }
     }
-    
+
     public function getConnection() {
         try {
             // Проверяем соединение
@@ -67,37 +67,37 @@ class DatabaseManager {
 function safeQuery($pdo, $query, $params = [], $requiredTables = ['users']) {
     $maxAttempts = 2;
     $attempt = 0;
-    
+
     while ($attempt < $maxAttempts) {
         try {
             // Проверка существования таблиц
             foreach ($requiredTables as $table) {
-                $checkTable = $pdo->prepare("SELECT 1 FROM information_schema.tables 
-                                           WHERE table_schema = DATABASE() 
+                $checkTable = $pdo->prepare("SELECT 1 FROM information_schema.tables
+                                           WHERE table_schema = DATABASE()
                                            AND table_name = ?");
                 $checkTable->execute([$table]);
-                
+
                 if ($checkTable->rowCount() == 0) {
                     throw new PDOException("Таблица $table не существует");
                 }
-                
+
                 if ($table === 'users') {
-                    $checkColumn = $pdo->prepare("SELECT 1 FROM information_schema.columns 
-                                               WHERE table_schema = DATABASE() 
-                                               AND table_name = 'users' 
+                    $checkColumn = $pdo->prepare("SELECT 1 FROM information_schema.columns
+                                               WHERE table_schema = DATABASE()
+                                               AND table_name = 'users'
                                                AND column_name = 'telegram_id'");
                     $checkColumn->execute();
-                    
+
                     if ($checkColumn->rowCount() == 0) {
                         throw new PDOException("Столбец telegram_id отсутствует в таблице users");
                     }
                 }
             }
-            
+
             $stmt = $pdo->prepare($query);
             $stmt->execute($params);
             return $stmt;
-            
+
         } catch (PDOException $e) {
             $attempt++;
             if ($attempt >= $maxAttempts) {
@@ -128,14 +128,14 @@ class TelegramBot {
     private $processedCallbacks = [];
     private $lastActionTime = [];
     private $dbManager;
-    
+
     public function __construct($dbManager, $token) {
         $this->dbManager = $dbManager;
         $this->pdo = $dbManager->getConnection();
         $this->token = $token;
         $this->initializeProxmoxApi();
     }
-    
+
     private function reconnectDatabase() {
         try {
             logMessage("Attempting to reconnect to database...");
@@ -146,7 +146,7 @@ class TelegramBot {
             return false;
         }
     }
-    
+
     private function initializeProxmoxApi() {
         try {
             $nodeInfo = $this->getMainProxmoxNode();
@@ -166,7 +166,7 @@ class TelegramBot {
             logMessage("Proxmox API initialization error: " . $e->getMessage());
         }
     }
-    
+
     private function getMainProxmoxNode() {
         try {
             $stmt = safeQuery($this->pdo, "SELECT * FROM proxmox_nodes ORDER BY id LIMIT 1");
@@ -180,7 +180,7 @@ class TelegramBot {
             throw $e;
         }
     }
-    
+
     public function handleUpdate($update) {
         try {
             if (isset($update['message'])) {
@@ -198,11 +198,11 @@ class TelegramBot {
             logMessage("Error in handleUpdate: " . $e->getMessage());
         }
     }
-    
+
     private function handleMessage($message) {
         $chatId = $message['chat']['id'];
         $text = trim($message['text'] ?? '');
-        
+
         try {
             if ($text === '/start') {
                 $this->handleStartCommand($chatId);
@@ -224,35 +224,35 @@ class TelegramBot {
             $this->sendMessage($chatId, "⚠️ Произошла ошибка: " . $e->getMessage());
         }
     }
-    
+
     private function handleCallback($callback) {
         $chatId = $callback['message']['chat']['id'];
         $callbackId = $callback['id'];
         $messageId = $callback['message']['message_id'];
         $data = $callback['data'];
-        
+
         // Уникальный ключ для идентификации callback'а
         $callbackKey = $chatId . '_' . $messageId . '_' . $data;
-        
+
         // Проверяем, не обрабатывался ли уже этот callback
         if (isset($this->processedCallbacks[$callbackKey])) {
             $this->answerCallbackQuery($callbackId, "Команда уже обработана");
             return;
         }
-        
+
         // Помечаем callback как обработанный
         $this->processedCallbacks[$callbackKey] = true;
-        
+
         // Очищаем старые записи (чтобы не накапливались)
         if (count($this->processedCallbacks) > 100) {
             $this->processedCallbacks = array_slice($this->processedCallbacks, -50, null, true);
         }
-        
+
         try {
             if (strpos($data, 'vms_page_') === 0) {
                 $page = (int) str_replace('vms_page_', '', $data);
                 $this->handleVmsCommand($chatId, $page);
-            } 
+            }
             elseif (strpos($data, 'vm_manage_') === 0) {
                 $parts = explode('_', $data);
                 $vmId = $parts[2];
@@ -262,17 +262,17 @@ class TelegramBot {
                 $parts = explode('_', $data);
                 $vmId = $parts[2];
                 $action = $parts[3];
-                
+
                 // Проверяем время последнего действия для этой VM
                 $actionKey = $chatId . '_' . $vmId;
                 $currentTime = time();
                 $lastActionTime = $this->lastActionTime[$actionKey] ?? 0;
-                
+
                 if ($currentTime - $lastActionTime < 5) {
                     $this->answerCallbackQuery($callbackId, "⚠️ Подождите 5 секунд перед следующим действием");
                     return;
                 }
-                
+
                 $this->lastActionTime[$actionKey] = $currentTime;
                 $this->handleVMAction($chatId, $vmId, $action, $callbackId);
             }
@@ -283,23 +283,23 @@ class TelegramBot {
             }
             elseif ($data === 'main_menu') {
                 $this->showMainMenu($chatId);
-            } 
+            }
             elseif ($data === 'balance') {
                 $this->handleBalanceCommand($chatId);
-            } 
+            }
             elseif ($data === 'support') {
                 $this->handleSupportCommand($chatId);
-            } 
+            }
             elseif ($data === 'deposit') {
                 $this->handleDepositCommand($chatId);
-            } 
+            }
             elseif ($data === 'refresh_vms') {
                 unset($this->userVMs[$chatId]);
                 $this->handleVmsCommand($chatId, 1);
             }
-            
+
             $this->answerCallbackQuery($callbackId);
-            
+
         } catch (PDOException $e) {
             logMessage("Database ERROR in handleCallback: " . $e->getMessage());
             if ($this->reconnectDatabase()) {
@@ -314,25 +314,25 @@ class TelegramBot {
             $this->sendMessage($chatId, "⚠️ Ошибка обработки запроса: " . $e->getMessage());
         }
     }
-    
+
     private function handleVMMetrics($chatId, $vmId, $callbackId = null) {
     try {
         // Проверяем права пользователя на эту VM
         $stmt = safeQuery($this->pdo, "
-            SELECT v.*, n.hostname as node_hostname, n.node_name, n.username, n.password 
+            SELECT v.*, n.hostname as node_hostname, n.node_name, n.username, n.password
             FROM vms v
             JOIN users u ON u.id = v.user_id
             JOIN proxmox_nodes n ON n.id = v.node_id
             WHERE u.telegram_id = ? AND v.vm_id = ?
         ", [$chatId, $vmId]);
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$vm) {
             throw new Exception("Виртуальная машина #{$vmId} не найдена или у вас нет к ней доступа");
         }
-        
+
         $this->answerCallbackQuery($callbackId, "⏳ Загружаем метрики...");
-        
+
         // Инициализируем Proxmox API для этой ноды
         $proxmoxApi = new ProxmoxAPI(
             $vm['node_hostname'],
@@ -343,14 +343,14 @@ class TelegramBot {
             $vm['node_id'],
             $this->pdo
         );
-        
+
         // Получаем метрики напрямую из Proxmox API
         $rrdData = $proxmoxApi->getRRDData($vmId, 'hour');
-        
+
         if (!$rrdData || !is_array($rrdData)) {
             throw new Exception("Не удалось получить метрики: пустой ответ от API");
         }
-        
+
         // Формируем данные для графиков
         $labels = [];
         $cpuData = [];
@@ -360,100 +360,100 @@ class TelegramBot {
         $netOutData = [];
         $diskReadData = [];
         $diskWriteData = [];
-        
+
         // Получаем информацию о VM для общего объема памяти
         $vmInfo = $proxmoxApi->getVMStatus($vmId);
         $memTotal = $vmInfo['maxmem'] ?? 0;
-        
+
         foreach ($rrdData as $point) {
             $timestamp = $point['time'];
             $labels[] = date('H:i', $timestamp);
-            
+
             // CPU в процентах
             $cpuData[] = round($point['cpu'] * 100, 2);
-            
+
             // Память в гигабайтах
             $memData[] = round($point['mem'] / (1024 * 1024 * 1024), 2);
             $memTotalData[] = round($memTotal / (1024 * 1024 * 1024), 1);
-            
+
             // Сеть в Mbits/s
             $netInData[] = round(($point['netin'] * 8) / (1024 * 1024), 2);
             $netOutData[] = round(($point['netout'] * 8) / (1024 * 1024), 2);
-            
+
             // Диск в мегабайтах
             $diskReadData[] = round($point['diskread'] / 1024, 2);
             $diskWriteData[] = round($point['diskwrite'] / 1024, 2);
         }
-        
+
         // Отправляем графики по одному
         $this->sendCpuChart($chatId, $vmId, [
             'labels' => $labels,
             'cpuData' => $cpuData
         ]);
-        
+
         $this->sendMemoryChart($chatId, $vmId, [
             'labels' => $labels,
             'memData' => $memData,
             'memTotalData' => $memTotalData
         ]);
-        
+
         $this->sendNetworkChart($chatId, $vmId, [
             'labels' => $labels,
             'netInData' => $netInData,
             'netOutData' => $netOutData
         ]);
-        
+
         $this->sendDiskChart($chatId, $vmId, [
             'labels' => $labels,
             'diskReadData' => $diskReadData,
             'diskWriteData' => $diskWriteData
         ]);
-        
+
     } catch (Exception $e) {
         logMessage("VM Metrics ERROR: " . $e->getMessage());
         $this->answerCallbackQuery($callbackId, "⚠️ Ошибка: " . $e->getMessage());
         $this->sendMessage($chatId, "⚠️ Ошибка при получении метрик: " . $e->getMessage());
     }
 }
-    
+
     private function sendCpuChart($chatId, $vmId, $metrics) {
     $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'; // Путь к шрифту
-    
+
     $width = 800;
     $height = 400;
     $padding = 50;
-    
+
     $image = imagecreatetruecolor($width, $height);
     $white = imagecolorallocate($image, 255, 255, 255);
     $black = imagecolorallocate($image, 0, 0, 0);
     $red = imagecolorallocate($image, 255, 99, 132);
     $lightRed = imagecolorallocate($image, 255, 182, 193);
-    
+
     imagefill($image, 0, 0, $white);
-    
+
     // Рисуем оси
     imageline($image, $padding, $padding, $padding, $height - $padding, $black);
     imageline($image, $padding, $height - $padding, $width - $padding, $height - $padding, $black);
-    
+
     // Настройки графика
     $labels = $metrics['labels'];
     $cpuData = $metrics['cpuData'];
     $maxY = 100;
     $stepY = 20;
     $stepX = ($width - 2 * $padding) / (count($labels) - 1);
-    
+
     // Сетка и подписи Y
     for ($y = 0; $y <= $maxY; $y += $stepY) {
         $yPos = $height - $padding - ($y / $maxY) * ($height - 2 * $padding);
         imageline($image, $padding, $yPos, $width - $padding, $yPos, imagecolorallocate($image, 200, 200, 200));
-        
+
         if (file_exists($fontPath)) {
             imagettftext($image, 10, 0, $padding - 45, $yPos + 5, $black, $fontPath, $y . '%');
         } else {
             imagestring($image, 2, $padding - 30, $yPos - 8, $y . '%', $black);
         }
     }
-    
+
     // Подписи X (каждую 5-ю точку)
     $labelStep = max(1, floor(count($labels) / 5));
     for ($i = 0; $i < count($labels); $i++) {
@@ -467,7 +467,7 @@ class TelegramBot {
             }
         }
     }
-    
+
     // Рисуем график
     $points = [];
     for ($i = 0; $i < count($cpuData); $i++) {
@@ -477,58 +477,58 @@ class TelegramBot {
         $points[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $red);
     }
-    
+
     if (count($points) > 2) {
         imagepolygon($image, $points, count($points) / 2, $red);
     }
-    
+
     // Заливка под графиком
     $pointsWithBottom = $points;
     array_push($pointsWithBottom, $width - $padding, $height - $padding);
     array_push($pointsWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsWithBottom, count($pointsWithBottom) / 2, $lightRed);
-    
+
     // Заголовок
     if (file_exists($fontPath)) {
         imagettftext($image, 12, 0, $width / 2 - 100, 30, $black, $fontPath, "Использование CPU (VM #{$vmId})");
     } else {
         imagestring($image, 5, $width / 2 - 100, 10, "CPU Usage (VM #{$vmId})", $black);
     }
-    
+
     // Подписи осей
     if (file_exists($fontPath)) {
         imagettftext($image, 10, 0, $width / 2 - 30, $height - $padding + 35, $black, $fontPath, 'Время');
         imagettftext($image, 10, 90, 25, $height / 2, $black, $fontPath, 'Использование CPU (%)');
     }
-    
+
     $tempFile = tempnam(sys_get_temp_dir(), 'cpu_chart') . '.png';
     imagepng($image, $tempFile);
     imagedestroy($image);
-    
+
     $this->sendPhoto($chatId, $tempFile, "🖥 <b>Использование CPU виртуальной машины #{$vmId}</b>\n\nГрафик показывает загрузку процессора за последний час.");
     unlink($tempFile);
 }
 
 private function sendMemoryChart($chatId, $vmId, $metrics) {
     $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-    
+
     $width = 800;
     $height = 400;
     $padding = 50;
-    
+
     $image = imagecreatetruecolor($width, $height);
     $white = imagecolorallocate($image, 255, 255, 255);
     $black = imagecolorallocate($image, 0, 0, 0);
     $blue = imagecolorallocate($image, 54, 162, 235);
     $lightBlue = imagecolorallocate($image, 173, 216, 230);
     $green = imagecolorallocate($image, 75, 192, 192);
-    
+
     imagefill($image, 0, 0, $white);
-    
+
     // Рисуем оси
     imageline($image, $padding, $padding, $padding, $height - $padding, $black);
     imageline($image, $padding, $height - $padding, $width - $padding, $height - $padding, $black);
-    
+
     // Настройки графика
     $labels = $metrics['labels'];
     $memData = $metrics['memData'];
@@ -536,19 +536,19 @@ private function sendMemoryChart($chatId, $vmId, $metrics) {
     $maxY = $memTotal * 1.1;
     $stepY = max(0.5, round($memTotal / 5, 1));
     $stepX = ($width - 2 * $padding) / (count($labels) - 1);
-    
+
     // Сетка и подписи Y
     for ($y = 0; $y <= $maxY; $y += $stepY) {
         $yPos = $height - $padding - ($y / $maxY) * ($height - 2 * $padding);
         imageline($image, $padding, $yPos, $width - $padding, $yPos, imagecolorallocate($image, 200, 200, 200));
-        
+
         if (file_exists($fontPath)) {
             imagettftext($image, 10, 0, $padding - 45, $yPos + 5, $black, $fontPath, round($y, 1) . ' ГБ');
         } else {
             imagestring($image, 2, $padding - 30, $yPos - 8, round($y, 1) . ' GB', $black);
         }
     }
-    
+
     // Подписи X (каждую 5-ю точку)
     $labelStep = max(1, floor(count($labels) / 5));
     for ($i = 0; $i < count($labels); $i++) {
@@ -562,17 +562,17 @@ private function sendMemoryChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     // Линия общего объема памяти
     $totalY = $height - $padding - ($memTotal / $maxY) * ($height - 2 * $padding);
     imageline($image, $padding, $totalY, $width - $padding, $totalY, $green);
-    
+
     if (file_exists($fontPath)) {
         imagettftext($image, 10, 0, $width - $padding + 10, $totalY - 8, $green, $fontPath, "Всего: " . round($memTotal, 1) . " ГБ");
     } else {
         imagestring($image, 2, $width - $padding + 5, $totalY - 8, "Total: " . round($memTotal, 1) . " GB", $green);
     }
-    
+
     // Рисуем график
     $points = [];
     for ($i = 0; $i < count($memData); $i++) {
@@ -582,45 +582,45 @@ private function sendMemoryChart($chatId, $vmId, $metrics) {
         $points[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $blue);
     }
-    
+
     if (count($points) > 2) {
         imagepolygon($image, $points, count($points) / 2, $blue);
     }
-    
+
     // Заливка под графиком
     $pointsWithBottom = $points;
     array_push($pointsWithBottom, $width - $padding, $height - $padding);
     array_push($pointsWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsWithBottom, count($pointsWithBottom) / 2, $lightBlue);
-    
+
     // Заголовок
     if (file_exists($fontPath)) {
         imagettftext($image, 12, 0, $width / 2 - 120, 30, $black, $fontPath, "Использование памяти (VM #{$vmId})");
     } else {
         imagestring($image, 5, $width / 2 - 100, 10, "Memory Usage (VM #{$vmId})", $black);
     }
-    
+
     // Подписи осей
     if (file_exists($fontPath)) {
         imagettftext($image, 10, 0, $width / 2 - 30, $height - $padding + 35, $black, $fontPath, 'Время');
         imagettftext($image, 10, 90, 25, $height / 2, $black, $fontPath, 'Использование памяти (ГБ)');
     }
-    
+
     $tempFile = tempnam(sys_get_temp_dir(), 'mem_chart') . '.png';
     imagepng($image, $tempFile);
     imagedestroy($image);
-    
+
     $this->sendPhoto($chatId, $tempFile, "🧠 <b>Использование памяти виртуальной машины #{$vmId}</b>\n\nГрафик показывает использование оперативной памяти за последний час.");
     unlink($tempFile);
 }
 
 private function sendNetworkChart($chatId, $vmId, $metrics) {
     $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-    
+
     $width = 800;
     $height = 400;
     $padding = 50;
-    
+
     $image = imagecreatetruecolor($width, $height);
     $white = imagecolorallocate($image, 255, 255, 255);
     $black = imagecolorallocate($image, 0, 0, 0);
@@ -628,13 +628,13 @@ private function sendNetworkChart($chatId, $vmId, $metrics) {
     $lightPurple = imagecolorallocate($image, 216, 191, 255);
     $orange = imagecolorallocate($image, 255, 159, 64);
     $lightOrange = imagecolorallocate($image, 255, 209, 148);
-    
+
     imagefill($image, 0, 0, $white);
-    
+
     // Рисуем оси
     imageline($image, $padding, $padding, $padding, $height - $padding, $black);
     imageline($image, $padding, $height - $padding, $width - $padding, $height - $padding, $black);
-    
+
     // Настройки графика
     $labels = $metrics['labels'];
     $netInData = $metrics['netInData'];
@@ -643,19 +643,19 @@ private function sendNetworkChart($chatId, $vmId, $metrics) {
     $maxValue = max(1, $maxValue);
     $stepY = max(0.1, round($maxValue / 5, 1));
     $stepX = ($width - 2 * $padding) / (count($labels) - 1);
-    
+
     // Сетка и подписи Y
     for ($y = 0; $y <= $maxValue; $y += $stepY) {
         $yPos = $height - $padding - ($y / $maxValue) * ($height - 2 * $padding);
         imageline($image, $padding, $yPos, $width - $padding, $yPos, imagecolorallocate($image, 200, 200, 200));
-        
+
         if (file_exists($fontPath)) {
             imagettftext($image, 10, 0, $padding - 45, $yPos + 5, $black, $fontPath, round($y, 1) . ' Mbit');
         } else {
             imagestring($image, 2, $padding - 30, $yPos - 8, round($y, 1) . ' Mbit', $black);
         }
     }
-    
+
     // Подписи X (каждую 5-ю точку)
     $labelStep = max(1, floor(count($labels) / 5));
     for ($i = 0; $i < count($labels); $i++) {
@@ -669,7 +669,7 @@ private function sendNetworkChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     // Рисуем график входящего трафика
     $pointsIn = [];
     for ($i = 0; $i < count($netInData); $i++) {
@@ -679,17 +679,17 @@ private function sendNetworkChart($chatId, $vmId, $metrics) {
         $pointsIn[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $purple);
     }
-    
+
     if (count($pointsIn) > 2) {
         imagepolygon($image, $pointsIn, count($pointsIn) / 2, $purple);
     }
-    
+
     // Заливка под графиком входящего трафика
     $pointsInWithBottom = $pointsIn;
     array_push($pointsInWithBottom, $width - $padding, $height - $padding);
     array_push($pointsInWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsInWithBottom, count($pointsInWithBottom) / 2, $lightPurple);
-    
+
     // Рисуем график исходящего трафика
     $pointsOut = [];
     for ($i = 0; $i < count($netOutData); $i++) {
@@ -699,63 +699,63 @@ private function sendNetworkChart($chatId, $vmId, $metrics) {
         $pointsOut[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $orange);
     }
-    
+
     if (count($pointsOut) > 2) {
         imagepolygon($image, $pointsOut, count($pointsOut) / 2, $orange);
     }
-    
+
     // Заливка под графиком исходящего трафика
     $pointsOutWithBottom = $pointsOut;
     array_push($pointsOutWithBottom, $width - $padding, $height - $padding);
     array_push($pointsOutWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsOutWithBottom, count($pointsOutWithBottom) / 2, $lightOrange);
-    
+
     // Легенда
     $legendX = $width - $padding - 200;
     $legendY = $padding + 20;
-    
+
     if (file_exists($fontPath)) {
         imagefilledrectangle($image, $legendX, $legendY, $legendX + 20, $legendY + 10, $purple);
         imagettftext($image, 10, 0, $legendX + 25, $legendY + 10, $black, $fontPath, 'Входящий трафик');
-        
+
         imagefilledrectangle($image, $legendX, $legendY + 20, $legendX + 20, $legendY + 30, $orange);
         imagettftext($image, 10, 0, $legendX + 25, $legendY + 30, $black, $fontPath, 'Исходящий трафик');
     } else {
         imagefilledrectangle($image, $legendX, $legendY, $legendX + 20, $legendY + 10, $purple);
         imagestring($image, 3, $legendX + 25, $legendY, 'Incoming', $black);
-        
+
         imagefilledrectangle($image, $legendX, $legendY + 20, $legendX + 20, $legendY + 30, $orange);
         imagestring($image, 3, $legendX + 25, $legendY + 20, 'Outgoing', $black);
     }
-    
+
     // Заголовок
     if (file_exists($fontPath)) {
         imagettftext($image, 12, 0, $width / 2 - 120, 30, $black, $fontPath, "Сетевой трафик (VM #{$vmId})");
     } else {
         imagestring($image, 5, $width / 2 - 100, 10, "Network Traffic (VM #{$vmId})", $black);
     }
-    
+
     // Подписи осей
     if (file_exists($fontPath)) {
         imagettftext($image, 10, 0, $width / 2 - 30, $height - $padding + 35, $black, $fontPath, 'Время');
         imagettftext($image, 10, 90, 25, $height / 2, $black, $fontPath, 'Скорость (Mbit/s)');
     }
-    
+
     $tempFile = tempnam(sys_get_temp_dir(), 'net_chart') . '.png';
     imagepng($image, $tempFile);
     imagedestroy($image);
-    
+
     $this->sendPhoto($chatId, $tempFile, "🌐 <b>Сетевой трафик виртуальной машины #{$vmId}</b>\n\nГрафик показывает входящий и исходящий трафик за последний час.");
     unlink($tempFile);
 }
 
 private function sendDiskChart($chatId, $vmId, $metrics) {
     $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
-    
+
     $width = 800;
     $height = 400;
     $padding = 50;
-    
+
     $image = imagecreatetruecolor($width, $height);
     $white = imagecolorallocate($image, 255, 255, 255);
     $black = imagecolorallocate($image, 0, 0, 0);
@@ -763,13 +763,13 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
     $lightRed = imagecolorallocate($image, 255, 182, 193);
     $blue = imagecolorallocate($image, 54, 162, 235);
     $lightBlue = imagecolorallocate($image, 173, 216, 230);
-    
+
     imagefill($image, 0, 0, $white);
-    
+
     // Рисуем оси
     imageline($image, $padding, $padding, $padding, $height - $padding, $black);
     imageline($image, $padding, $height - $padding, $width - $padding, $height - $padding, $black);
-    
+
     // Настройки графика
     $labels = $metrics['labels'];
     $diskReadData = $metrics['diskReadData'];
@@ -778,19 +778,19 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
     $maxValue = max(1, $maxValue);
     $stepY = max(0.1, round($maxValue / 5, 1));
     $stepX = ($width - 2 * $padding) / (count($labels) - 1);
-    
+
     // Сетка и подписи Y
     for ($y = 0; $y <= $maxValue; $y += $stepY) {
         $yPos = $height - $padding - ($y / $maxValue) * ($height - 2 * $padding);
         imageline($image, $padding, $yPos, $width - $padding, $yPos, imagecolorallocate($image, 200, 200, 200));
-        
+
         if (file_exists($fontPath)) {
             imagettftext($image, 10, 0, $padding - 45, $yPos + 5, $black, $fontPath, round($y, 1) . ' МБ');
         } else {
             imagestring($image, 2, $padding - 30, $yPos - 8, round($y, 1) . ' MB', $black);
         }
     }
-    
+
     // Подписи X (каждую 5-ю точку)
     $labelStep = max(1, floor(count($labels) / 5));
     for ($i = 0; $i < count($labels); $i++) {
@@ -804,7 +804,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     // Рисуем график чтения с диска
     $pointsRead = [];
     for ($i = 0; $i < count($diskReadData); $i++) {
@@ -814,17 +814,17 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
         $pointsRead[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $red);
     }
-    
+
     if (count($pointsRead) > 2) {
         imagepolygon($image, $pointsRead, count($pointsRead) / 2, $red);
     }
-    
+
     // Заливка под графиком чтения
     $pointsReadWithBottom = $pointsRead;
     array_push($pointsReadWithBottom, $width - $padding, $height - $padding);
     array_push($pointsReadWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsReadWithBottom, count($pointsReadWithBottom) / 2, $lightRed);
-    
+
     // Рисуем график записи на диск
     $pointsWrite = [];
     for ($i = 0; $i < count($diskWriteData); $i++) {
@@ -834,91 +834,91 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
         $pointsWrite[] = $y;
         imagefilledellipse($image, $x, $y, 4, 4, $blue);
     }
-    
+
     if (count($pointsWrite) > 2) {
         imagepolygon($image, $pointsWrite, count($pointsWrite) / 2, $blue);
     }
-    
+
     // Заливка под графиком записи
     $pointsWriteWithBottom = $pointsWrite;
     array_push($pointsWriteWithBottom, $width - $padding, $height - $padding);
     array_push($pointsWriteWithBottom, $padding, $height - $padding);
     imagefilledpolygon($image, $pointsWriteWithBottom, count($pointsWriteWithBottom) / 2, $lightBlue);
-    
+
     // Легенда
     $legendX = $width - $padding - 200;
     $legendY = $padding + 20;
-    
+
     if (file_exists($fontPath)) {
         imagefilledrectangle($image, $legendX, $legendY, $legendX + 20, $legendY + 10, $red);
         imagettftext($image, 10, 0, $legendX + 25, $legendY + 10, $black, $fontPath, 'Чтение с диска');
-        
+
         imagefilledrectangle($image, $legendX, $legendY + 20, $legendX + 20, $legendY + 30, $blue);
         imagettftext($image, 10, 0, $legendX + 25, $legendY + 30, $black, $fontPath, 'Запись на диск');
     } else {
         imagefilledrectangle($image, $legendX, $legendY, $legendX + 20, $legendY + 10, $red);
         imagestring($image, 3, $legendX + 25, $legendY, 'Disk Read', $black);
-        
+
         imagefilledrectangle($image, $legendX, $legendY + 20, $legendX + 20, $legendY + 30, $blue);
         imagestring($image, 3, $legendX + 25, $legendY + 20, 'Disk Write', $black);
     }
-    
+
     // Заголовок
     if (file_exists($fontPath)) {
         imagettftext($image, 12, 0, $width / 2 - 120, 30, $black, $fontPath, "Дисковые операции (VM #{$vmId})");
     } else {
         imagestring($image, 5, $width / 2 - 100, 10, "Disk I/O (VM #{$vmId})", $black);
     }
-    
+
     // Подписи осей
     if (file_exists($fontPath)) {
         imagettftext($image, 10, 0, $width / 2 - 30, $height - $padding + 35, $black, $fontPath, 'Время');
         imagettftext($image, 10, 90, 25, $height / 2, $black, $fontPath, 'Объем данных (МБ)');
     }
-    
+
     $tempFile = tempnam(sys_get_temp_dir(), 'disk_chart') . '.png';
     imagepng($image, $tempFile);
     imagedestroy($image);
-    
+
     $this->sendPhoto($chatId, $tempFile, "💾 <b>Дисковые операции виртуальной машины #{$vmId}</b>\n\nГрафик показывает операции чтения и записи на диск за последний час.");
     unlink($tempFile);
 }
-    
+
     private function sendPhoto($chatId, $photoPath, $caption = '') {
         $data = [
             'chat_id' => $chatId,
             'caption' => $caption,
             'parse_mode' => 'HTML'
         ];
-        
+
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, "https://api.telegram.org/bot{$this->token}/sendPhoto");
         curl_setopt($curl, CURLOPT_POST, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        
+
         $postFields = [
             'chat_id' => $chatId,
             'caption' => $caption,
             'parse_mode' => 'HTML',
             'photo' => new CURLFile($photoPath)
         ];
-        
+
         curl_setopt($curl, CURLOPT_POSTFIELDS, $postFields);
         $response = curl_exec($curl);
-        
+
         if ($response === false) {
             logMessage("Failed to send photo: " . curl_error($curl));
         }
-        
+
         curl_close($curl);
     }
-    
+
     private function answerCallbackQuery($callbackId, $text = null) {
         $data = ['callback_query_id' => $callbackId];
         if ($text !== null) {
             $data['text'] = $text;
         }
-        
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
@@ -927,20 +927,20 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 'timeout' => 2
             ]
         ]);
-        
+
         @file_get_contents(
             "https://api.telegram.org/bot{$this->token}/answerCallbackQuery",
             false,
             $context
         );
     }
-    
+
     private function showVMManagement($chatId, $vmId) {
         try {
             // Проверяем права пользователя на эту VM
             $stmt = safeQuery($this->pdo, "
-                SELECT 
-                    v.*, 
+                SELECT
+                    v.*,
                     t.name as tariff_name,
                     n.node_name
                 FROM vms v
@@ -950,15 +950,15 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 WHERE u.telegram_id = ? AND v.vm_id = ?
             ", [$chatId, $vmId]);
             $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$vm) {
                 throw new Exception("Виртуальная машина #{$vmId} не найдена или у вас нет к ней доступа");
             }
-            
+
             $ipAddress = $vm['ip_address'] ?: 'не назначен';
             $tariffName = $vm['tariff_name'] ?: 'индивидуальный';
             $statusIcon = $vm['status'] === 'running' ? '🟢' : '🔴';
-            
+
             $message = "🖥 <b>Управление виртуальной машиной #{$vmId}</b>\n\n";
             $message .= "🔹 <b>ID:</b> {$vm['id']}\n";
             $message .= "🔹 <b>Имя:</b> {$vm['hostname']}\n";
@@ -969,9 +969,9 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             $message .= "🔹 <b>RAM:</b> {$vm['ram']} MB\n";
             $message .= "🔹 <b>Диск:</b> {$vm['disk']} GB\n";
             $message .= "🔹 <b>Статус:</b> {$statusIcon} {$vm['status']}\n";
-            
+
             $keyboard = [];
-            
+
             if ($vm['status'] === 'running') {
                 $keyboard[] = [
                     ['text' => '⏹ Остановить', 'callback_data' => "vm_action_{$vmId}_stop"],
@@ -982,22 +982,22 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     ['text' => '▶️ Запустить', 'callback_data' => "vm_action_{$vmId}_start"]
                 ];
             }
-            
+
             $keyboard[] = [
                 ['text' => '📊 Метрики', 'callback_data' => "vm_metrics_{$vmId}"],
                 ['text' => '↩️ Назад к списку', 'callback_data' => 'vms_page_1']
             ];
-            
+
             $this->sendMessage($chatId, $message, [
                 'inline_keyboard' => $keyboard
             ]);
-            
+
         } catch (Exception $e) {
             logMessage("VM Management ERROR: " . $e->getMessage());
             $this->sendMessage($chatId, "⚠️ Ошибка: " . $e->getMessage());
         }
     }
-    
+
     private function handleVMAction($chatId, $vmId, $action, $callbackId = null) {
         try {
             // Проверяем права пользователя на эту VM
@@ -1007,15 +1007,15 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 WHERE u.telegram_id = ? AND v.vm_id = ?
             ", [$chatId, $vmId]);
             $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$vm) {
                 throw new Exception("Виртуальная машина #{$vmId} не найдена или у вас нет к ней доступа");
             }
-            
+
             if (!$this->proxmoxApi) {
                 throw new Exception("Ошибка подключения к серверу Proxmox");
             }
-            
+
             $result = null;
             $actionName = '';
             switch ($action) {
@@ -1034,7 +1034,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 default:
                     throw new Exception("Неизвестное действие");
             }
-            
+
             if ($result && $result['success']) {
                 $this->answerCallbackQuery($callbackId, "✅ {$actionName} ВМ #{$vmId} выполнена");
                 $this->sendMessage($chatId, "✅ Виртуальная машина #{$vmId} ({$vm['hostname']}): {$actionName} выполнена успешно!");
@@ -1042,7 +1042,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             } else {
                 throw new Exception($result['error'] ?? "Не удалось выполнить {$actionName} виртуальной машины");
             }
-            
+
         } catch (Exception $e) {
             logMessage("VM Action ERROR: " . $e->getMessage());
             $this->answerCallbackQuery($callbackId, "⚠️ Ошибка: " . $e->getMessage());
@@ -1057,7 +1057,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 "SELECT * FROM users WHERE telegram_id = ?",
                 [$chatId]
             )->fetch();
-            
+
             if ($user) {
                 $this->showMainMenu($chatId, $user);
             } else {
@@ -1079,7 +1079,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     private function showMainMenu($chatId, $user = null) {
         try {
             if (!$user) {
@@ -1088,22 +1088,22 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     [$chatId]
                 )->fetch();
             }
-            
+
             if (!$user) {
                 $this->handleStartCommand($chatId);
                 return;
             }
-            
+
             $vmsCount = safeQuery($this->pdo,
                 "SELECT COUNT(*) FROM vms WHERE user_id = ?",
                 [$user['id']]
             )->fetchColumn();
-            
+
             $message = "👋 Добро пожаловать, <b>" . htmlspecialchars($user['full_name']) . "</b>!\n\n";
             $message .= "💳 Баланс: <b>" . number_format($user['balance'], 2) . " руб.</b>\n";
             $message .= "🎁 Бонусный баланс: <b>" . number_format($user['bonus_balance'], 2) . " руб.</b>\n";
             $message .= "🖥 Виртуальных машин: <b>$vmsCount</b>";
-            
+
             $this->sendMessage($chatId, $message, [
                 'inline_keyboard' => [
                     [
@@ -1119,7 +1119,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     ]
                 ]
             ]);
-            
+
         } catch (PDOException $e) {
             logMessage("Database ERROR in showMainMenu: " . $e->getMessage());
             if ($this->reconnectDatabase()) {
@@ -1129,12 +1129,12 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     private function handleVmsCommand($chatId, $page = 1) {
         try {
             if (!isset($this->userVMs[$chatId])) {
                 $this->userVMs[$chatId] = safeQuery($this->pdo,
-                    "SELECT 
+                    "SELECT
                         v.id, v.vm_id, v.hostname, v.status, v.sdn, v.cpu, v.ram, v.disk,
                         v.ip_address, t.name as tariff_name, n.node_name
                      FROM vms v
@@ -1146,9 +1146,9 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     [$chatId]
                 )->fetchAll();
             }
-            
+
             $vms = $this->userVMs[$chatId];
-            
+
             if (empty($vms)) {
                 $this->sendMessage($chatId, "У вас нет виртуальных машин.", [
                     'inline_keyboard' => [
@@ -1157,19 +1157,19 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 ]);
                 return;
             }
-            
+
             $perPage = 5;
             $totalPages = ceil(count($vms) / $perPage);
             $page = max(1, min($page, $totalPages));
             $offset = ($page - 1) * $perPage;
             $currentVMs = array_slice($vms, $offset, $perPage);
-            
+
             $message = "🖥 <b>Ваши виртуальные машины (стр. $page из $totalPages):</b>\n\n";
             foreach ($currentVMs as $vm) {
                 $statusIcon = $vm['status'] === 'running' ? '🟢' : '🔴';
                 $ipAddress = $vm['ip_address'] ?: 'не назначен';
                 $tariffName = $vm['tariff_name'] ?: 'индивидуальный';
-                
+
                 $message .= sprintf(
                     "%s <b>%s</b>\n" .
                     "📋 Тариф: %s\n" .
@@ -1190,15 +1190,15 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     $vm['status']
                 );
             }
-            
+
             $keyboard = [];
-            
+
             foreach ($currentVMs as $vm) {
                 $keyboard[] = [
                     ['text' => "Управление #{$vm['id']} ({$vm['hostname']})", 'callback_data' => "vm_manage_{$vm['vm_id']}"]
                 ];
             }
-            
+
             if ($totalPages > 1) {
                 $paginationRow = [];
                 if ($page > 1) {
@@ -1210,16 +1210,16 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 }
                 $keyboard[] = $paginationRow;
             }
-            
+
             $keyboard[] = [
                 ['text' => '🔄 Обновить', 'callback_data' => 'refresh_vms'],
                 ['text' => '↩️ В меню', 'callback_data' => 'main_menu']
             ];
-            
+
             $this->sendMessage($chatId, $message, [
                 'inline_keyboard' => $keyboard
             ]);
-            
+
         } catch (PDOException $e) {
             logMessage("Database ERROR in handleVmsCommand: " . $e->getMessage());
             if ($this->reconnectDatabase()) {
@@ -1232,14 +1232,14 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             $this->sendMessage($chatId, "⚠️ Ошибка при получении списка ВМ");
         }
     }
-    
+
     private function handleBalanceCommand($chatId) {
         try {
             $user = safeQuery($this->pdo,
                 "SELECT balance, bonus_balance FROM users WHERE telegram_id = ?",
                 [$chatId]
             )->fetch();
-            
+
             if (!$user) {
                 $this->sendMessage($chatId, "❌ Пользователь не найден", [
                     'inline_keyboard' => [
@@ -1248,20 +1248,20 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 ]);
                 return;
             }
-            
+
             $transactions = safeQuery($this->pdo,
-                "SELECT amount, description, created_at 
-                 FROM transactions 
+                "SELECT amount, description, created_at
+                 FROM transactions
                  WHERE user_id = (SELECT id FROM users WHERE telegram_id = ?)
-                 ORDER BY created_at DESC 
+                 ORDER BY created_at DESC
                  LIMIT 5",
                 [$chatId]
             )->fetchAll();
-            
+
             $message = "💰 <b>Ваш баланс:</b> " . number_format($user['balance'], 2) . " руб.\n";
             $message .= "🎁 <b>Бонусный баланс:</b> " . number_format($user['bonus_balance'], 2) . " руб.\n\n";
             $message .= "📝 <b>Последние операции:</b>\n";
-            
+
             foreach ($transactions as $tx) {
                 $amountColor = $tx['amount'] >= 0 ? '🟢' : '🔴';
                 $message .= sprintf(
@@ -1272,7 +1272,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     $tx['description']
                 );
             }
-            
+
             $this->sendMessage($chatId, $message, [
                 'inline_keyboard' => [
                     [
@@ -1284,7 +1284,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                     ]
                 ]
             ]);
-            
+
         } catch (PDOException $e) {
             logMessage("Database ERROR in handleBalanceCommand: " . $e->getMessage());
             if ($this->reconnectDatabase()) {
@@ -1294,7 +1294,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             }
         }
     }
-    
+
     private function handleDepositCommand($chatId) {
         $this->sendMessage($chatId, "💳 <b>Пополнение баланса</b>\n\nВыберите способ оплаты:", [
             'inline_keyboard' => [
@@ -1309,7 +1309,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             ]
         ]);
     }
-    
+
     private function handleSupportCommand($chatId) {
         $this->sendMessage($chatId, "🆘 <b>Техническая поддержка</b>\n\nВыберите действие:", [
             'inline_keyboard' => [
@@ -1326,18 +1326,18 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             ]
         ]);
     }
-    
+
     public function sendMessage($chatId, $text, $replyMarkup = null) {
         $data = [
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => 'HTML'
         ];
-        
+
         if ($replyMarkup) {
             $data['reply_markup'] = json_encode($replyMarkup);
         }
-        
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
@@ -1346,30 +1346,30 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 'timeout' => 5
             ]
         ]);
-        
+
         $result = @file_get_contents(
             "https://api.telegram.org/bot{$this->token}/sendMessage",
             false,
             $context
         );
-        
+
         if ($result === false) {
             logMessage("Failed to send message to chat $chatId");
         }
-        
+
         return $result;
     }
 }
 
 // Конфигурация и запуск
-$botToken = 'токен бота';
+$botToken = 'токен бота который будед давать информацию';
 
 try {
     logMessage('=== BOT STARTED ===');
     $dbManager = new DatabaseManager();
     $bot = new TelegramBot($dbManager, $botToken);
     $lastUpdateId = 0;
-    
+
     while (true) {
         try {
             $response = file_get_contents(
@@ -1377,7 +1377,7 @@ try {
                 false,
                 stream_context_create(['http' => ['timeout' => 30]])
             );
-            
+
             if ($response !== false) {
                 $data = json_decode($response, true);
                 if ($data && $data['ok'] && !empty($data['result'])) {
@@ -1387,7 +1387,7 @@ try {
                     }
                 }
             }
-            
+
             sleep(1);
         } catch (PDOException $e) {
             logMessage("Database ERROR in main loop: " . $e->getMessage());

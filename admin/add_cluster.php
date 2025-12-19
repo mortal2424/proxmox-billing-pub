@@ -12,43 +12,65 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_cluster'])) {
-    try {
-        $name = trim($_POST['name']);
-        $description = trim($_POST['description'] ?? '');
-        $is_active = isset($_POST['is_active']) ? 1 : 0;
+// Обработка POST запроса
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Проверяем наличие скрытого поля или кнопки
+    if (isset($_POST['add_cluster']) || isset($_POST['cluster_form'])) {
+        try {
+            $name = trim($_POST['name']);
+            $description = trim($_POST['description'] ?? '');
+            $is_active = isset($_POST['is_active']) ? 1 : 0;
 
-        if (empty($name)) {
-            throw new Exception("Имя кластера обязательно");
+            if (empty($name)) {
+                throw new Exception("Имя кластера обязательно");
+            }
+
+            // Проверка уникальности имени кластера
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_clusters WHERE name = ?");
+            $stmt->execute([$name]);
+            if ($stmt->fetchColumn() > 0) {
+                throw new Exception("Кластер с таким именем уже существует");
+            }
+
+            // Валидация длины имени
+            if (strlen($name) > 50) {
+                throw new Exception("Имя кластера не должно превышать 50 символов");
+            }
+
+            // Валидация длины описания
+            if (strlen($description) > 500) {
+                throw new Exception("Описание не должно превышать 500 символов");
+            }
+
+            // Подготовка SQL запроса
+            $sql = "INSERT INTO proxmox_clusters (name, description, is_active, created_at) VALUES (?, ?, ?, NOW())";
+            $stmt = $pdo->prepare($sql);
+
+            if (!$stmt) {
+                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
+            }
+
+            // Выполнение запроса
+            $result = $stmt->execute([$name, $description, $is_active]);
+
+            if (!$result) {
+                $errorInfo = $stmt->errorInfo();
+                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
+            }
+
+            $clusterId = $pdo->lastInsertId();
+
+            // Логирование успешного создания
+            error_log("Кластер создан: ID = $clusterId, Name = $name");
+
+            $_SESSION['success'] = "Кластер '{$name}' успешно создан";
+            header("Location: nodes.php");
+            exit;
+        } catch (Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+            // Логирование ошибки
+            error_log("Ошибка при создании кластера: " . $e->getMessage());
         }
-
-        // Проверка уникальности имени кластера
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_clusters WHERE name = ?");
-        $stmt->execute([$name]);
-        if ($stmt->fetchColumn() > 0) {
-            throw new Exception("Кластер с таким именем уже существует");
-        }
-
-        // Валидация длины имени
-        if (strlen($name) > 50) {
-            throw new Exception("Имя кластера не должно превышать 50 символов");
-        }
-
-        // Валидация длины описания
-        if (strlen($description) > 500) {
-            throw new Exception("Описание не должно превышать 500 символов");
-        }
-
-        $stmt = $pdo->prepare("INSERT INTO proxmox_clusters (name, description, is_active) VALUES (?, ?, ?)");
-        $stmt->execute([$name, $description, $is_active]);
-
-        $clusterId = $pdo->lastInsertId();
-
-        $_SESSION['success'] = "Кластер '{$name}' успешно создан";
-        header("Location: nodes.php");
-        exit;
-    } catch (Exception $e) {
-        $_SESSION['error'] = $e->getMessage();
     }
 }
 
@@ -675,6 +697,9 @@ require 'admin_header.php';
             </div>
             <div class="form-card-body">
                 <form method="POST" class="cluster-form" id="clusterForm">
+                    <!-- Добавляем скрытое поле для идентификации формы -->
+                    <input type="hidden" name="cluster_form" value="1">
+
                     <div class="form-group">
                         <label class="form-label required">
                             <i class="fas fa-tag"></i> Имя кластера
@@ -784,19 +809,16 @@ require 'admin_header.php';
 
         // Валидация формы
         clusterForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
+            // Не отменяем отправку формы по умолчанию
             if (!validateForm()) {
+                e.preventDefault();
                 return;
             }
 
             // Показываем загрузку
             loadingOverlay.classList.add('active');
 
-            // Отправляем форму
-            setTimeout(() => {
-                this.submit();
-            }, 500);
+            // Форма отправится стандартным способом
         });
 
         // Функция обновления счетчика символов
@@ -880,13 +902,6 @@ require 'admin_header.php';
             if (!nameValid) {
                 // Фокусируемся на поле с ошибкой
                 clusterName.focus();
-
-                // Показываем анимацию ошибки
-                clusterName.style.animation = 'none';
-                setTimeout(() => {
-                    clusterName.style.animation = 'pulse 0.5s';
-                }, 10);
-
                 return false;
             }
 

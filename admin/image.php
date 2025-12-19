@@ -2,12 +2,14 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+session_start();
+
+
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
 require_once __DIR__ . '/admin_functions.php';
 
-session_start();
 checkAuth();
 
 $db = new Database();
@@ -93,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image_file']) && !$i
             $filename_lower = strtolower($filename);
             $is_tar_gz = substr($filename_lower, -7) === '.tar.gz' || substr($filename_lower, -8) === '.tar.xz';
             $is_gz_xz = in_array($extension, ['gz', 'xz']) && !$is_tar_gz;
-            
+
             if (!$is_tar_gz && !$is_gz_xz) {
                 throw new Exception('Шаблоны LXC должны иметь расширение .tar.gz, .tar.xz, .gz или .xz');
             }
@@ -221,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Скачиваем шаблон в указанное хранилище
         $download_cmd = "pveam download {$storage_name} {$template_name} 2>&1";
         $output = $proxmoxApi->execSSHCommand($download_cmd);
-        
+
         // Проверяем успешность выполнения
         if (strpos($output, 'downloaded') !== false || strpos($output, 'already exists') !== false || strpos($output, '100%') !== false) {
             $success = "Шаблон '{$template_name}' успешно скачан в хранилище '{$storage_name}'";
@@ -253,15 +255,15 @@ if (isset($_GET['update_templates']) && $current_node_id) {
                 $current_node['id'],
                 $pdo
             );
-            
+
             $result = $proxmoxApi->execSSHCommand("pveam update 2>&1");
-            
+
             if (strpos($result, 'update successful') !== false || strpos($result, 'already up-to-date') !== false) {
                 $success = "Список шаблонов успешно обновлен";
             } else {
                 $success = "Список шаблонов обновлен: " . $result;
             }
-            
+
             header("Location: image.php?node_id=$current_node_id&type=templates&success=" . urlencode($success));
             exit;
         }
@@ -320,7 +322,7 @@ if ($current_node_id) {
             } elseif ($image_type === 'lxc') {
                 $images = $proxmoxApi->getLXCTemplates();
             }
-            
+
             // Получаем доступные шаблоны из репозитория
             if ($is_templates_section) {
                 $available_templates = $proxmoxApi->getAvailableTemplates();
@@ -889,7 +891,7 @@ $title = "Управление образами | HomeVlad Cloud";
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
-        
+
         .template-filter-btn {
             padding: 8px 16px;
             background: white;
@@ -900,31 +902,31 @@ $title = "Управление образами | HomeVlad Cloud";
             transition: all 0.3s ease;
             font-size: 14px;
         }
-        
+
         body.dark-theme .template-filter-btn {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.1);
             color: #94a3b8;
         }
-        
+
         .template-filter-btn:hover {
             border-color: #00bcd4;
             color: #00bcd4;
         }
-        
+
         .template-filter-btn.active {
             background: rgba(0, 188, 212, 0.1);
             border-color: #00bcd4;
             color: #00bcd4;
         }
-        
+
         .template-info {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 5px;
         }
-        
+
         .template-distro {
             display: inline-block;
             padding: 3px 8px;
@@ -934,7 +936,7 @@ $title = "Управление образами | HomeVlad Cloud";
             background: rgba(0, 188, 212, 0.1);
             color: #00bcd4;
         }
-        
+
         .template-section {
             font-size: 12px;
             color: #94a3b8;
@@ -942,7 +944,7 @@ $title = "Управление образами | HomeVlad Cloud";
             padding: 2px 6px;
             border-radius: 4px;
         }
-        
+
         .btn-download {
             padding: 8px 16px;
             background: linear-gradient(135deg, #10b981, #059669);
@@ -956,12 +958,12 @@ $title = "Управление образами | HomeVlad Cloud";
             align-items: center;
             gap: 6px;
         }
-        
+
         .btn-download:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
-        
+
         .btn-update {
             padding: 8px 16px;
             background: linear-gradient(135deg, #3b82f6, #2563eb);
@@ -976,17 +978,17 @@ $title = "Управление образами | HomeVlad Cloud";
             gap: 6px;
             margin-left: 10px;
         }
-        
+
         .btn-update:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
-        
+
         .template-size {
             font-weight: 500;
             color: #8b5cf6;
         }
-        
+
         .download-form {
             background: rgba(0, 188, 212, 0.05);
             border-radius: 12px;
@@ -994,7 +996,7 @@ $title = "Управление образами | HomeVlad Cloud";
             margin-bottom: 20px;
             border: 1px solid rgba(0, 188, 212, 0.1);
         }
-        
+
         .distro-icon {
             width: 20px;
             height: 20px;
@@ -1006,7 +1008,7 @@ $title = "Управление образами | HomeVlad Cloud";
             font-size: 12px;
             font-weight: bold;
         }
-        
+
         .distro-alpine { background: #0d597f; color: white; }
         .distro-debian { background: #a80030; color: white; }
         .distro-ubuntu { background: #e95420; color: white; }
@@ -1084,8 +1086,8 @@ $title = "Управление образами | HomeVlad Cloud";
     </style>
 </head>
 <body>
-    <?php include 'admin_header.php'; ?>
 
+     <?php include 'admin_header.php'; ?>
     <!-- Кнопка мобильного меню -->
     <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">
         <i class="fas fa-bars"></i>
@@ -1168,7 +1170,7 @@ $title = "Управление образами | HomeVlad Cloud";
                             <i class="fas fa-sync-alt"></i> Обновить список шаблонов
                         </button>
                     </h3>
-                    
+
                     <?php if (empty($storages)): ?>
                         <div class="notification notification-warning">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -1185,7 +1187,7 @@ $title = "Управление образами | HomeVlad Cloud";
                             <button class="template-filter-btn" data-distro="ubuntu">Ubuntu</button>
                             <button class="template-filter-btn" data-distro="centos">CentOS</button>
                         </div>
-                        
+
                         <?php if (empty($available_templates)): ?>
                             <div class="no-data">
                                 <i class="fas fa-folder-open"></i>
@@ -1207,17 +1209,17 @@ $title = "Управление образами | HomeVlad Cloud";
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($available_templates as $template): 
+                                        <?php foreach ($available_templates as $template):
                                             $template_name = $template['name'] ?? '';
                                             $section = $template['section'] ?? '';
                                             $size = $template['size'] ?? 'N/A';
                                             $template_id = $template['id'] ?? $template_name;
-                                            
+
                                             // Определяем дистрибутив по имени
                                             $distro = 'unknown';
                                             $distro_name = 'Unknown';
                                             $distro_class = 'distro-unknown';
-                                            
+
                                             $template_lower = strtolower($template_name);
                                             if (strpos($template_lower, 'alpine') !== false) {
                                                 $distro = 'alpine';
@@ -1270,7 +1272,7 @@ $title = "Управление образами | HomeVlad Cloud";
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <button class="btn-download" 
+                                                    <button class="btn-download"
                                                             onclick="showDownloadModal('<?= htmlspecialchars($template_name) ?>', '<?= htmlspecialchars($section) ?>')">
                                                         <i class="fas fa-download"></i> Скачать
                                                     </button>
@@ -1424,12 +1426,12 @@ $title = "Управление образами | HomeVlad Cloud";
                         <input type="hidden" name="node_id" id="modal-node-id" value="<?= $current_node_id ?>">
                         <input type="hidden" name="template_name" id="modal-template-name">
                         <input type="hidden" name="section" id="modal-template-section">
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Выбранный шаблон:</label>
                             <div class="form-control" id="selected-template-name" style="background: #f8f9fa; font-weight: 500;"></div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label class="form-label">Хранилище для скачивания:</label>
                             <select name="storage" class="form-control" required id="modal-storage-select">
@@ -1648,7 +1650,7 @@ $title = "Управление образами | HomeVlad Cloud";
             // Фильтрация шаблонов
             const filterBtns = document.querySelectorAll('.template-filter-btn');
             const templateRows = document.querySelectorAll('.template-row');
-            
+
             if (filterBtns.length > 0) {
                 filterBtns.forEach(btn => {
                     btn.addEventListener('click', function() {
@@ -1656,10 +1658,10 @@ $title = "Управление образами | HomeVlad Cloud";
                         filterBtns.forEach(b => b.classList.remove('active'));
                         // Добавляем активный класс текущей кнопке
                         this.classList.add('active');
-                        
+
                         const section = this.dataset.section;
                         const distro = this.dataset.distro;
-                        
+
                         // Показываем/скрываем строки таблицы
                         templateRows.forEach(row => {
                             if (section === 'all') {
@@ -1675,19 +1677,19 @@ $title = "Управление образами | HomeVlad Cloud";
                     });
                 });
             }
-            
+
             // Показать модальное окно скачивания
             window.showDownloadModal = function(templateName, section) {
                 document.getElementById('modal-template-name').value = templateName;
                 document.getElementById('modal-template-section').value = section;
                 document.getElementById('selected-template-name').textContent = templateName;
                 document.getElementById('modal-node-id').value = '<?= $current_node_id ?>';
-                
+
                 // Инициализируем Bootstrap модальное окно
                 const downloadModal = new bootstrap.Modal(document.getElementById('downloadModal'));
                 downloadModal.show();
             };
-            
+
             // Обновление списка шаблонов
             window.updateTemplatesList = function() {
                 const nodeId = '<?= $current_node_id ?>';
@@ -1700,7 +1702,7 @@ $title = "Управление образами | HomeVlad Cloud";
                     });
                     return;
                 }
-                
+
                 Swal.fire({
                     title: 'Обновление списка шаблонов',
                     text: 'Пожалуйста, подождите...',
@@ -1711,7 +1713,7 @@ $title = "Управление образами | HomeVlad Cloud";
                         Swal.showLoading();
                     }
                 });
-                
+
                 window.location.href = `image.php?node_id=${nodeId}&type=templates&update_templates=1`;
             };
 
@@ -1733,7 +1735,7 @@ $title = "Управление образами | HomeVlad Cloud";
                 checkScreenSize();
                 window.addEventListener('resize', checkScreenSize);
             }
-            
+
             // Обработка формы скачивания шаблона
             const downloadForm = document.getElementById('download-template-form');
             if (downloadForm) {
@@ -1749,11 +1751,11 @@ $title = "Управление образами | HomeVlad Cloud";
                         });
                         return;
                     }
-                    
+
                     // Показываем уведомление о начале скачивания
                     const modal = bootstrap.Modal.getInstance(document.getElementById('downloadModal'));
                     modal.hide();
-                    
+
                     Swal.fire({
                         title: 'Начинаем скачивание',
                         text: 'Шаблон скачивается из репозитория. Это может занять несколько минут.',

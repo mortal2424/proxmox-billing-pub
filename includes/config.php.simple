@@ -1,5 +1,5 @@
 <?php
-// config.php.simple - Шаблон конфигурации для установки Mortal Prox
+// config.php.simple - Шаблон конфигурации для установки Биллинг Proxmox
 // Этот файл будет автоматически заполнен установщиком
 
 // === НАСТРОЙКИ БАЗЫ ДАННЫХ ===
@@ -9,17 +9,13 @@ define('DB_USER', '');
 define('DB_PASS', '');
 
 // === НАСТРОЙКИ TELEGRAM ===
-// Основной бот для уведомлений (получите у @BotFather)
-define('TELEGRAM_BOT_TOKEN', 'ваш токен бота'); 
-// Пример: '123456789:AAFm-xxxxxxxxxxxxxxxxxxx'
+// Support Bot (бот для поддержки и уведомлений администраторов)
+define('TELEGRAM_SUPPORT_BOT_TOKEN', '');
+define('TELEGRAM_SUPPORT_BOT_NAME', 'Support Bot');
 
-// Чат для уведомлений администраторов (личный Chat ID или группа)
-define('TELEGRAM_CHAT_ID', 'id чата или группы'); 
-// Пример: '-123456789' для группы или '123456789' для личного чата
-
-// Дополнительные константы для совместимости
-define('TELEGRAM_CHAT_BOT_TOKEN', TELEGRAM_BOT_TOKEN); // Тот же токен для чата
-define('TELEGRAM_ADMIN_CHAT_ID', TELEGRAM_CHAT_ID);    // ID для административных уведомлений
+// Chat Bot (бот для общения с пользователями в чате)
+define('TELEGRAM_CHAT_BOT_TOKEN', '');
+define('TELEGRAM_CHAT_BOT_NAME', 'Chat Bot');
 
 // === НАСТРОЙКИ SMTP ДЛЯ ОТПРАВКИ EMAIL ===
 define('SMTP_HOST', 'smtp.mail.ru');    // Сервер SMTP (mail.ru, gmail.com, yandex.ru и т.д.)
@@ -39,7 +35,6 @@ define('ENVIRONMENT', 'production');     // production, development
 define('TIMEZONE', 'Europe/Moscow');
 define('ENCRYPTION_KEY', '');            // Будет сгенерирован при установке
 define('INSTALL_TIME', time());          // Время установки
-
 define('DB_CHARSET', 'utf8mb4');
 
 // === НАСТРОЙКИ БЕЗОПАСНОСТИ ===
@@ -107,15 +102,15 @@ if (ENVIRONMENT === 'development') {
 spl_autoload_register(function ($class) {
     $prefix = 'MortalProx\\';
     $base_dir = __DIR__ . '/classes/';
-    
+
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) {
         return;
     }
-    
+
     $relative_class = substr($class, $len);
     $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
-    
+
     if (file_exists($file)) {
         require $file;
     }
@@ -124,210 +119,136 @@ spl_autoload_register(function ($class) {
 // === УСТАНОВКА ЧАСОВОГО ПОЯСА ===
 date_default_timezone_set(TIMEZONE);
 
-// === СОЗДАНИЕ СОЕДИНЕНИЯ С БАЗОЙ ДАННЫХ ===
-try {
-    $pdo = new PDO(
-        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
-        DB_USER,
-        DB_PASS,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET,
-            PDO::MYSQL_ATTR_LOCAL_INFILE => true
-        ]
-    );
-} catch (PDOException $e) {
-    die("Ошибка подключения к базе данных: " . $e->getMessage());
-}
+// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
 
-// === ФУНКЦИИ ДЛЯ ЛОГГИРОВАНИЯ ===
-function log_message($type, $message, $context = []) {
-    if (!defined('LOG_PATH') || !is_writable(LOG_PATH)) {
-        return false;
+/**
+ * Получить настройки Telegram бота поддержки
+ */
+function getTelegramBotSettings() {
+    static $settings = null;
+    
+    if ($settings === null) {
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
+                DB_USER,
+                DB_PASS,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET,
+                ]
+            );
+            
+            $stmt = $pdo->query("SELECT * FROM telegram_support_bot ORDER BY id DESC LIMIT 1");
+            $settings = $stmt->fetch();
+            $pdo = null;
+        } catch (Exception $e) {
+            // Возвращаем настройки по умолчанию из констант
+            $settings = [
+                'bot_token' => defined('TELEGRAM_SUPPORT_BOT_TOKEN') ? TELEGRAM_SUPPORT_BOT_TOKEN : '',
+                'bot_name' => defined('TELEGRAM_SUPPORT_BOT_NAME') ? TELEGRAM_SUPPORT_BOT_NAME : 'Support Bot'
+            ];
+        }
     }
     
-    $log_file = LOG_PATH . date('Y-m-d') . '.log';
-    $timestamp = date('Y-m-d H:i:s');
-    $context_str = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
-    $log_message = "[$timestamp] [$type] $message$context_str" . PHP_EOL;
-    
-    return file_put_contents($log_file, $log_message, FILE_APPEND | LOCK_EX);
+    return $settings;
 }
 
-// === ФУНКЦИЯ ДЛЯ ПРОВЕРКИ CSRF ТОКЕНА ===
-function verify_csrf_token() {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        return true;
+/**
+ * Получить настройки Telegram чат бота
+ */
+function getTelegramChatBotSettings() {
+    static $settings = null;
+    
+    if ($settings === null) {
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
+                DB_USER,
+                DB_PASS,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET,
+                ]
+            );
+            
+            $stmt = $pdo->query("SELECT * FROM telegram_chat_bot ORDER BY id DESC LIMIT 1");
+            $settings = $stmt->fetch();
+            $pdo = null;
+        } catch (Exception $e) {
+            // Возвращаем настройки по умолчанию из констант
+            $settings = [
+                'bot_token' => defined('TELEGRAM_CHAT_BOT_TOKEN') ? TELEGRAM_CHAT_BOT_TOKEN : '',
+                'bot_name' => defined('TELEGRAM_CHAT_BOT_NAME') ? TELEGRAM_CHAT_BOT_NAME : 'Chat Bot'
+            ];
+        }
     }
     
-    $token_name = defined('CSRF_TOKEN_NAME') ? CSRF_TOKEN_NAME : 'csrf_token';
+    return $settings;
+}
+
+/**
+ * Получить настройки SMTP
+ */
+function getSmtpSettings() {
+    static $settings = null;
     
-    if (!isset($_POST[$token_name]) || !isset($_SESSION[$token_name])) {
-        log_message('WARNING', 'CSRF токен отсутствует', [
-            'post_token' => isset($_POST[$token_name]) ? 'установлен' : 'отсутствует',
-            'session_token' => isset($_SESSION[$token_name]) ? 'установлен' : 'отсутствует'
-        ]);
-        return false;
+    if ($settings === null) {
+        try {
+            $pdo = new PDO(
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET,
+                DB_USER,
+                DB_PASS,
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES " . DB_CHARSET,
+                ]
+            );
+            
+            $stmt = $pdo->query("SELECT * FROM smtp_settings ORDER BY id DESC LIMIT 1");
+            $settings = $stmt->fetch();
+            $pdo = null;
+        } catch (Exception $e) {
+            // Возвращаем настройки по умолчанию из констант
+            $settings = [
+                'host' => defined('SMTP_HOST') ? SMTP_HOST : 'smtp.mail.ru',
+                'port' => defined('SMTP_PORT') ? SMTP_PORT : 465,
+                'user' => defined('SMTP_USER') ? SMTP_USER : '',
+                'pass' => defined('SMTP_PASS') ? SMTP_PASS : '',
+                'from_email' => defined('SMTP_FROM') ? SMTP_FROM : '',
+                'from_name' => defined('SMTP_FROM_NAME') ? SMTP_FROM_NAME : 'HomeVlad Cloud Support',
+                'secure' => defined('SMTP_SECURE') ? SMTP_SECURE : 'ssl'
+            ];
+        }
     }
     
-    $result = hash_equals($_SESSION[$token_name], $_POST[$token_name]);
-    
-    if (!$result) {
-        log_message('WARNING', 'Неверный CSRF токен');
-    }
-    
-    return $result;
+    return $settings;
 }
 
-// === ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ CSRF ТОКЕНА ===
-function generate_csrf_token() {
-    if (!isset($_SESSION[CSRF_TOKEN_NAME]) || empty($_SESSION[CSRF_TOKEN_NAME])) {
-        $_SESSION[CSRF_TOKEN_NAME] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION[CSRF_TOKEN_NAME];
+// === ДЛЯ СОВМЕСТИМОСТИ СО СТАРЫМ КОДОМ ===
+// Определяем константы, которые ожидает старый код
+if (!defined('TELEGRAM_BOT_TOKEN') && function_exists('getTelegramBotSettings')) {
+    $tg_settings = getTelegramBotSettings();
+    define('TELEGRAM_BOT_TOKEN', $tg_settings['bot_token'] ?? '');
+    define('TELEGRAM_CHAT_ID', ''); // Это нужно будет задать отдельно
 }
 
-// === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
-global $pdo; // Объект PDO для работы с базой данных
-
-// === ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ ===
-// Включить/выключить обслуживание сайта
-define('MAINTENANCE_MODE', false);
-define('MAINTENANCE_ALLOWED_IPS', ['127.0.0.1', '::1']);
-
-// Настройки сессии
-session_name(SESSION_NAME);
-session_set_cookie_params([
-    'lifetime' => COOKIE_LIFETIME,
-    'path' => '/',
-    'domain' => $_SERVER['HTTP_HOST'],
-    'secure' => isset($_SERVER['HTTPS']),
-    'httponly' => true,
-    'samesite' => 'Strict'
-]);
-
-// Запуск сессии
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (!defined('SMTP_FROM') && function_exists('getSmtpSettings')) {
+    $smtp_settings = getSmtpSettings();
+    define('SMTP_FROM', $smtp_settings['from_email'] ?? '');
+    define('SMTP_FROM_NAME', $smtp_settings['from_name'] ?? 'HomeVlad Cloud Support');
 }
 
-// Проверка режима обслуживания
-if (MAINTENANCE_MODE && !in_array($_SERVER['REMOTE_ADDR'], MAINTENANCE_ALLOWED_IPS)) {
-    http_response_code(503);
-    header('Retry-After: 3600');
-    die('<h1>Сайт на техническом обслуживании</h1><p>Приносим извинения за неудобства. Работы будут завершены в ближайшее время.</p>');
-}
+// === НАЧАЛО СЕССИИ (опционально, можно закомментировать) ===
+// if (session_status() === PHP_SESSION_NONE) {
+//     session_name(SESSION_NAME);
+//     session_start();
+// }
 
-// Генерация CSRF токена при начале сессии
-if (empty($_SESSION[CSRF_TOKEN_NAME])) {
-    generate_csrf_token();
-}
-
-// === ФУНКЦИИ ДЛЯ РАБОТЫ С ПУТЯМИ ===
-function asset($path) {
-    return SITE_URL . '/' . ltrim($path, '/');
-}
-
-function url($path = '') {
-    return SITE_URL . '/' . ltrim($path, '/');
-}
-
-function redirect($url, $statusCode = 302) {
-    header('Location: ' . $url, true, $statusCode);
-    exit;
-}
-
-// === БАЗОВЫЕ ФУНКЦИИ БЕЗОПАСНОСТИ ===
-function sanitize_input($data) {
-    if (is_array($data)) {
-        return array_map('sanitize_input', $data);
-    }
-    
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-    
-    return $data;
-}
-
-function validate_email($email) {
-    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
-}
-
-function validate_phone($phone) {
-    return preg_match('/^\+7\d{10}$/', $phone);
-}
-
-function generate_random_string($length = 32) {
-    return bin2hex(random_bytes($length / 2));
-}
-
-// === ОБРАБОТКА ОШИБОК ===
-set_error_handler(function($errno, $errstr, $errfile, $errline) {
-    if (!(error_reporting() & $errno)) {
-        return false;
-    }
-    
-    $error_types = [
-        E_ERROR => 'ERROR',
-        E_WARNING => 'WARNING',
-        E_PARSE => 'PARSE',
-        E_NOTICE => 'NOTICE',
-        E_CORE_ERROR => 'CORE_ERROR',
-        E_CORE_WARNING => 'CORE_WARNING',
-        E_COMPILE_ERROR => 'COMPILE_ERROR',
-        E_COMPILE_WARNING => 'COMPILE_WARNING',
-        E_USER_ERROR => 'USER_ERROR',
-        E_USER_WARNING => 'USER_WARNING',
-        E_USER_NOTICE => 'USER_NOTICE',
-        E_STRICT => 'STRICT',
-        E_RECOVERABLE_ERROR => 'RECOVERABLE_ERROR',
-        E_DEPRECATED => 'DEPRECATED',
-        E_USER_DEPRECATED => 'USER_DEPRECATED'
-    ];
-    
-    $error_type = isset($error_types[$errno]) ? $error_types[$errno] : 'UNKNOWN';
-    
-    log_message('PHP_ERROR', "$error_type: $errstr in $errfile on line $errline", [
-        'error_no' => $errno,
-        'file' => $errfile,
-        'line' => $errline
-    ]);
-    
-    if (DEBUG_MODE) {
-        echo "<pre>Error [$error_type]: $errstr in $errfile on line $errline</pre>";
-    }
-    
-    return true;
-});
-
-set_exception_handler(function($exception) {
-    log_message('EXCEPTION', $exception->getMessage(), [
-        'file' => $exception->getFile(),
-        'line' => $exception->getLine(),
-        'trace' => $exception->getTraceAsString()
-    ]);
-    
-    if (DEBUG_MODE) {
-        echo "<pre>Exception: " . $exception->getMessage() . " in " . $exception->getFile() . " on line " . $exception->getLine() . "</pre>";
-        echo "<pre>" . $exception->getTraceAsString() . "</pre>";
-    } else {
-        http_response_code(500);
-        echo "<h1>Внутренняя ошибка сервера</h1>";
-        echo "<p>Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.</p>";
-    }
-    
-    exit(1);
-});
-
-// === ФУНКЦИЯ ДЛЯ ПРОВЕРКИ SSL ===
-function is_secure() {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
-           || $_SERVER['SERVER_PORT'] == 443
-           || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https');
-}
-
-// === КОНЕЦ ФАЙЛА КОНФИГУРАЦИИ ===
-?>
+// === КОНЕЦ КОНФИГУРАЦИИ ===

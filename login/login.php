@@ -3,17 +3,139 @@ session_start();
 error_log("Login page accessed. Session: " . print_r($_SESSION, true));
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
+require_once '../includes/functions.php';
+
+// Функция для получения данных бота из базы данных
+function getTelegramBotData() {
+    try {
+        $db = new Database();
+        $stmt = $db->getConnection()->prepare("SELECT bot_token, bot_name FROM telegram_support_bot ORDER BY id ASC LIMIT 1");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && !empty($result['bot_token'])) {
+            // Убираем символ @ из начала bot_name, если он есть
+            $bot_name = $result['bot_name'];
+            if (strpos($bot_name, '@') === 0) {
+                $bot_name = substr($bot_name, 1);
+            }
+            
+            return [
+                'token' => $result['bot_token'],
+                'name' => $bot_name
+            ];
+        } else {
+            error_log("No Telegram bot data found in database");
+            return null;
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching Telegram bot data: " . $e->getMessage());
+        return null;
+    }
+}
+
+// Функция для проверки Telegram авторизации
+function verifyTelegramAuthorization($auth_data) {
+    // Получаем данные бота из базы данных
+    $bot_data = getTelegramBotData();
+    
+    if (!$bot_data || empty($bot_data['token'])) {
+        error_log("Telegram bot token is not available");
+        return false;
+    }
+
+    $bot_token = $bot_data['token'];
+    $check_hash = $auth_data['hash'];
+    unset($auth_data['hash']);
+
+    $data_check_arr = [];
+    foreach ($auth_data as $key => $value) {
+        if (!empty($value)) {
+            $data_check_arr[] = $key . '=' . $value;
+        }
+    }
+
+    sort($data_check_arr);
+    $data_check_string = implode("\n", $data_check_arr);
+
+    $secret_key = hash('sha256', $bot_token, true);
+    $hash = hash_hmac('sha256', $data_check_string, $secret_key);
+
+    if (strcmp($hash, $check_hash) !== 0) {
+        error_log("Telegram hash verification failed");
+        return false;
+    }
+
+    if ((time() - $auth_data['auth_date']) > 86400) {
+        error_log("Telegram auth data expired");
+        return false;
+    }
+
+    return true;
+}
+
+// Получаем данные бота
+$bot_data = getTelegramBotData();
+$bot_token = $bot_data ? $bot_data['token'] : null;
+$telegram_bot_username = $bot_data ? $bot_data['name'] : null;
+
+// Обработка данных из Telegram Widget
+if (isset($_POST['auth_date'])) {
+    // Проверяем наличие токена бота
+    if (!$bot_token) {
+        $_SESSION['error'] = "Telegram бот не настроен. Обратитесь к администратору.";
+    } else {
+        $telegram_data = [
+            'id' => $_POST['id'],
+            'first_name' => $_POST['first_name'] ?? '',
+            'last_name' => $_POST['last_name'] ?? '',
+            'username' => $_POST['username'] ?? '',
+            'photo_url' => $_POST['photo_url'] ?? '',
+            'auth_date' => $_POST['auth_date'],
+            'hash' => $_POST['hash']
+        ];
+
+        // Проверяем подлинность данных Telegram
+        if (verifyTelegramAuthorization($telegram_data)) {
+            try {
+                $db = new Database();
+                $stmt = $db->getConnection()->prepare("SELECT * FROM users WHERE telegram_id = ?");
+                $stmt->execute([$telegram_data['id']]);
+                $user = $stmt->fetch();
+
+                if ($user) {
+                    // Проверяем активность пользователя
+                    if ($user['is_active'] == 0) {
+                        $_SESSION['error'] = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
+                    } else {
+                        $_SESSION['user'] = $user;
+                        header('Location: /templates/dashboard.php');
+                        exit;
+                    }
+                } else {
+                    $_SESSION['error'] = "Пользователь с таким Telegram ID не найден. Сначала зарегистрируйтесь.";
+                    header('Location: register.php?telegram_id=' . $telegram_data['id']);
+                    exit;
+                }
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Ошибка при проверке Telegram: " . $e->getMessage();
+            }
+        } else {
+            $_SESSION['error'] = "Не удалось проверить подлинность данных Telegram. Попробуйте еще раз.";
+        }
+    }
+}
 
 // Генерация новой капчи при каждой загрузке страницы
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['auth_date'])) {
     $num1 = rand(1, 10);
     $num2 = rand(1, 10);
     $_SESSION['captcha'] = $num1 + $num2;
     $_SESSION['captcha_question'] = "$num1 + $num2";
 }
 
-// Обработка входа
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Обработка обычного входа (только если не было Telegram авторизации)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $captcha_answer = isset($_POST['captcha']) ? (int)$_POST['captcha'] : null;
@@ -36,17 +158,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
-            $_SESSION['user'] = $user;
+            // Проверяем активность пользователя
+            if ($user['is_active'] == 0) {
+                $error = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
+            } else {
+                $_SESSION['user'] = $user;
 
-            // Удаляем использованную капчу
-            unset($_SESSION['captcha']);
-            unset($_SESSION['captcha_question']);
+                // Удаляем использованную капчу
+                unset($_SESSION['captcha']);
+                unset($_SESSION['captcha_question']);
 
-            header('Location: /templates/dashboard.php');
-            exit;
+                header('Location: /templates/dashboard.php');
+                exit;
+            }
         } else {
             $error = "Неверный email или пароль!";
         }
+    }
+
+    if ($error) {
+        $_SESSION['login_error'] = $error;
     }
 }
 ?>
@@ -67,6 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
+            --telegram-gradient: linear-gradient(135deg, #0088cc, #006699);
             --light-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
             --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
@@ -212,7 +344,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             bottom: 0;
             background:
                 radial-gradient(circle at 10% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0, 136, 204, 0.05) 0%, transparent 30%);
         }
 
         /* Карточка авторизации */
@@ -287,6 +420,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             line-height: 1.7;
         }
 
+        /* Telegram Widget */
+        .telegram-login-container {
+            text-align: center;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .telegram-widget {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .telegram-divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: var(--text-light);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .telegram-divider::before,
+        .telegram-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(148, 163, 184, 0.2);
+        }
+
+        .telegram-divider span {
+            padding: 0 15px;
+        }
+
+        /* Стили для Telegram кнопки */
+        .telegram-login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #0088cc, #0077b5);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .telegram-login-button:hover {
+            background: linear-gradient(135deg, #0077b5, #0066a1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 136, 204, 0.4);
+        }
+
+        .telegram-login-button i {
+            font-size: 18px;
+        }
+
         /* Форма */
         .form-group {
             margin-bottom: 24px;
@@ -357,7 +555,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: 600;
         }
 
-        /* Кнопка входа */
+        /* Кнопки */
         .btn-auth {
             width: 100%;
             padding: 18px;
@@ -373,7 +571,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
         }
 
@@ -418,7 +616,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .auth-divider {
             display: flex;
             align-items: center;
-            margin: 32px 0;
+            margin: 24px 0;
             color: var(--text-light);
             font-size: 14px;
         }
@@ -452,6 +650,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             gap: 10px;
             text-decoration: none;
+            margin-bottom: 16px;
         }
 
         .btn-register:hover {
@@ -482,6 +681,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1));
             border: 1px solid rgba(239, 68, 68, 0.2);
             color: #dc2626;
+        }
+
+        .notification.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1));
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: #d97706;
         }
 
         .notification i {
@@ -675,6 +880,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .auth-subtitle {
                 color: #94a3b8;
             }
+
+            .btn-register {
+                background: rgba(255, 255, 255, 0.05);
+                border-color: rgba(0, 188, 212, 0.2);
+            }
         }
     </style>
 </head>
@@ -716,10 +926,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </p>
                 </div>
 
-                <?php if (isset($error)): ?>
+                <?php if (isset($_SESSION['error'])): ?>
                     <div class="notification error">
                         <i class="fas fa-exclamation-circle"></i>
-                        <?= htmlspecialchars($error) ?>
+                        <?= htmlspecialchars($_SESSION['error']) ?>
+                        <?php unset($_SESSION['error']); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($_SESSION['login_error'])): ?>
+                    <div class="notification error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <?= htmlspecialchars($_SESSION['login_error']) ?>
+                        <?php unset($_SESSION['login_error']); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($_SESSION['success'])): ?>
+                    <div class="notification success">
+                        <i class="fas fa-check-circle"></i>
+                        <?= htmlspecialchars($_SESSION['success']) ?>
+                        <?php unset($_SESSION['success']); ?>
                     </div>
                 <?php endif; ?>
 
@@ -731,6 +958,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endif; ?>
 
+                <!-- Telegram авторизация (показываем только если есть username бота) -->
+                <?php if ($telegram_bot_username): ?>
+                <div class="telegram-login-container">
+                    <div class="telegram-widget">
+                        <script async src="https://telegram.org/js/telegram-widget.js?19"
+                                data-telegram-login="<?php echo htmlspecialchars($telegram_bot_username); ?>"
+                                data-size="large"
+                                data-userpic="false"
+                                data-radius="12"
+                                data-onauth="onTelegramAuth(user)"
+                                data-request-access="write"></script>
+                    </div>
+                    <div class="telegram-divider">
+                        <span>или войдите через email</span>
+                    </div>
+                </div>
+                <?php else: ?>
+                    <div class="notification warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Telegram авторизация временно недоступна
+                    </div>
+                <?php endif; ?>
+
+                <!-- Обычная форма входа -->
                 <form method="POST" id="loginForm">
                     <!-- Email -->
                     <div class="form-group">
@@ -794,6 +1045,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="auth-info">
                     <p><i class="fas fa-shield-alt"></i> Ваши данные защищены шифрованием</p>
                     <p><i class="fas fa-clock"></i> Поддержка 24/7</p>
+                    <p><i class="fab fa-telegram"></i> Telegram уведомления доступны</p>
                 </div>
             </div>
         </div>
@@ -806,20 +1058,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (file_exists($footer_file)) {
         include $footer_file;
     }
-    // Если файл не найден - футер просто не отображается
     ?>
-    <!--<footer class="modern-footer">
-        <div class="container">
-            <div class="footer-bottom">
-                <div class="copyright">
-                    © 2024 HomeVlad Cloud. Все права защищены.
-                </div>
-                <div class="copyright">
-                    Разработано с <i class="fas fa-heart" style="color: #ef4444;"></i> для сообщества
-                </div>
-            </div>
-        </div>
-    </footer>-->
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -836,7 +1075,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 submitBtn.disabled = true;
             });
 
-            // Показ/скрытие пароля (можно добавить иконку глаза)
+            // Показ/скрытие пароля
             const passwordField = document.getElementById('password');
             const addEyeIcon = document.createElement('span');
             addEyeIcon.innerHTML = '<i class="fas fa-eye" style="cursor: pointer; margin-left: 10px;"></i>';
@@ -891,28 +1130,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
 
-        // Показ уведомления при загрузке (если есть в session)
-        <?php if (isset($_SESSION['login_message'])): ?>
-            setTimeout(() => {
-                const notification = document.createElement('div');
-                notification.className = 'notification success';
-                notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; animation: slideIn 0.3s ease;';
-                notification.innerHTML = `
-                    <i class="fas fa-check-circle"></i>
-                    <span><?= addslashes($_SESSION['login_message']) ?></span>
-                    <button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; color: inherit; cursor: pointer;">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-                document.body.appendChild(notification);
+        // Обработка данных из Telegram Widget
+        function onTelegramAuth(user) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '';
 
-                setTimeout(() => {
-                    notification.style.animation = 'slideOut 0.3s ease forwards';
-                    setTimeout(() => notification.remove(), 300);
-                }, 5000);
-            }, 500);
-            <?php unset($_SESSION['login_message']); ?>
-        <?php endif; ?>
+            for (const key in user) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = user[key];
+                form.appendChild(input);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+        }
     </script>
 </body>
 </html>

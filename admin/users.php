@@ -12,8 +12,8 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
-// Получаем список всех пользователей
-$users = $pdo->query("SELECT id, email, full_name, balance, is_admin, user_type, created_at FROM users ORDER BY id DESC")->fetchAll();
+// Получаем список всех пользователей (добавляем поле is_active)
+$users = $pdo->query("SELECT id, email, full_name, balance, is_admin, user_type, is_active, created_at FROM users ORDER BY id DESC")->fetchAll();
 
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -525,6 +525,29 @@ require 'admin_header.php';
     border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+/* Стили для статуса пользователя */
+.user-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    gap: 5px;
+}
+
+.user-status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.user-status-inactive {
+    background: rgba(239, 68, 68, 0.15);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* ========== ДЕЙСТВИЯ ========== */
 .user-actions {
     display: flex;
@@ -767,48 +790,49 @@ require 'admin_header.php';
         <?php
         $admin_count = 0;
         $total_balance = 0;
+        $active_count = 0;
 
         foreach ($users as $user) {
             if ($user['is_admin']) {
                 $admin_count++;
             }
             $total_balance += $user['balance'];
+            if ($user['is_active']) {
+                $active_count++;
+            }
         }
         ?>
 
         <div class="user-stat-card">
             <div class="user-stat-icon active">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <div class="user-stat-content">
+                <h4>Активных</h4>
+                <div class="user-stat-value"><?= $active_count ?></div>
+                <p class="user-stat-subtext"><?= $active_count ?> из <?= count($users) ?></p>
+            </div>
+        </div>
+
+        <div class="user-stat-card">
+            <div class="user-stat-icon admins">
                 <i class="fas fa-user-shield"></i>
             </div>
             <div class="user-stat-content">
-                <h4>Администраторы</h4>
+                <h4>Администраторов</h4>
                 <div class="user-stat-value"><?= $admin_count ?></div>
                 <p class="user-stat-subtext"><?= $admin_count ?> из <?= count($users) ?></p>
             </div>
         </div>
 
         <div class="user-stat-card">
-            <div class="user-stat-icon admins">
+            <div class="user-stat-icon balance">
                 <i class="fas fa-credit-card"></i>
             </div>
             <div class="user-stat-content">
                 <h4>Общий баланс</h4>
                 <div class="user-stat-value"><?= number_format($total_balance, 2) ?> ₽</div>
                 <p class="user-stat-subtext">Средний: <?= count($users) > 0 ? number_format($total_balance / count($users), 2) : '0' ?> ₽</p>
-            </div>
-        </div>
-
-        <div class="user-stat-card">
-            <div class="user-stat-icon balance">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="user-stat-content">
-                <?php
-                $today_users = $pdo->query("SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = CURDATE()")->fetch();
-                ?>
-                <h4>Новые сегодня</h4>
-                <div class="user-stat-value"><?= $today_users['count'] ?></div>
-                <p class="user-stat-subtext">За текущий день</p>
             </div>
         </div>
     </div>
@@ -853,6 +877,7 @@ require 'admin_header.php';
                         <th>Баланс</th>
                         <th>Роль</th>
                         <th>Дата регистрации</th>
+                        <th>Статус</th>
                         <th>Действия</th>
                     </tr>
                 </thead>
@@ -879,6 +904,12 @@ require 'admin_header.php';
                             </span>
                         </td>
                         <td class="user-date"><?= date('d.m.Y H:i', strtotime($user['created_at'])) ?></td>
+                        <td>
+                            <span class="user-status-badge user-status-<?= $user['is_active'] ? 'active' : 'inactive' ?>">
+                                <i class="fas fa-<?= $user['is_active'] ? 'check-circle' : 'times-circle' ?>"></i>
+                                <?= $user['is_active'] ? 'Активен' : 'Выключен' ?>
+                            </span>
+                        </td>
                         <td>
                             <div class="user-actions">
                                 <a href="user_edit.php?id=<?= $user['id'] ?>" class="user-action-btn user-action-edit" title="Редактировать">

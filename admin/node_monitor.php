@@ -3,17 +3,17 @@
  * AJAX endpoint для проверки доступности ноды
  */
 session_start();
-require_once '../includes/db.php';
-require_once '../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
 // Проверка аутентификации
-if (!isAdmin()) {
+/*if (!isAdmin()) {
     echo json_encode(['success' => false, 'message' => 'Доступ запрещен', 'code' => 403]);
     exit;
-}
+}*/
 
 // Разрешаем только POST запросы
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -67,7 +67,7 @@ function checkDNSResolution($hostname, $timeout = 2) {
 
     // Пробуем разрешить DNS имя
     $ip = @gethostbyname($hostname);
-    
+
     if ($ip !== $hostname) {
         $result['success'] = true;
         $result['ip'] = $ip;
@@ -91,7 +91,7 @@ function checkDNSResolution($hostname, $timeout = 2) {
 // Проверка доступности через стандартные порты (без exec)
 function checkHostAvailability($hostname, $timeout = 2) {
     $result = ['success' => false, 'latency' => 0, 'error' => '', 'service' => null, 'port' => null];
-    
+
     $hostname = parse_url($hostname, PHP_URL_HOST) ?: $hostname;
     $hostname = preg_replace('/:\d+$/', '', $hostname);
 
@@ -107,15 +107,15 @@ function checkHostAvailability($hostname, $timeout = 2) {
         22 => 'ssh',
         8006 => 'proxmox'
     ];
-    
+
     foreach ($ports as $port => $service) {
         $start_time = microtime(true);
-        
+
         // Для HTTPS портов используем ssl://
         $protocol = in_array($port, [443, 8443, 8006]) ? "ssl://" : "";
-        
+
         $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-        
+
         if ($socket) {
             $result['success'] = true;
             $result['latency'] = (microtime(true) - $start_time) * 1000;
@@ -125,11 +125,11 @@ function checkHostAvailability($hostname, $timeout = 2) {
             break;
         }
     }
-    
+
     if (!$result['success']) {
         $result['error'] = 'Не удалось подключиться к стандартным портам (80, 443, 22, 8006)';
     }
-    
+
     return $result;
 }
 
@@ -139,10 +139,10 @@ function checkPort($hostname, $port, $timeout = 3) {
     $hostname = parse_url($hostname, PHP_URL_HOST) ?: $hostname;
 
     $start_time = microtime(true);
-    
+
     // Для HTTPS портов используем ssl://
     $protocol = in_array($port, [443, 8443, 8006]) ? "ssl://" : "";
-    
+
     $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
 
     if ($socket) {
@@ -151,7 +151,7 @@ function checkPort($hostname, $port, $timeout = 3) {
         fclose($socket);
     } else {
         $result['error'] = "{$errstr} (код: {$errno})";
-        
+
         // Попытка без SSL для порта 8006
         if ($port == 8006 && $protocol === "ssl://") {
             $socket2 = @fsockopen($hostname, $port, $errno2, $errstr2, $timeout);
@@ -171,7 +171,7 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
     $result = ['success' => false, 'error' => '', 'latency' => 0];
 
     $start_time = microtime(true);
-    
+
     $hostname_clean = parse_url($hostname, PHP_URL_HOST) ?: $hostname;
     $url = "https://{$hostname_clean}:{$port}";
 
@@ -191,10 +191,10 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
                 'User-Agent: Mozilla/5.0 (Proxmox Check)'
             ]
         ]);
-        
+
         @curl_exec($ch);
         $result['latency'] = (microtime(true) - $start_time) * 1000;
-        
+
         if (!curl_errno($ch)) {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             // Proxmox возвращает 401 для неавторизованных запросов, что нормально
@@ -207,7 +207,7 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
         } else {
             $result['error'] = curl_error($ch);
         }
-        
+
         curl_close($ch);
     } else {
         // Альтернатива через stream_context

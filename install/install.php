@@ -319,15 +319,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             'admin_last_name' => trim($_POST['admin_last_name'] ?? ''),
             'admin_phone' => trim($_POST['admin_phone'] ?? ''),
             'site_url' => rtrim(trim($_POST['site_url'] ?? ''), '/'),
+            // Telegram Support Bot
+            'telegram_support_bot_token' => trim($_POST['telegram_support_bot_token'] ?? ''),
+            'telegram_support_bot_name' => trim($_POST['telegram_support_bot_name'] ?? 'Support Bot'),
+            // Telegram Chat Bot
+            'telegram_chat_bot_token' => trim($_POST['telegram_chat_bot_token'] ?? ''),
+            'telegram_chat_bot_name' => trim($_POST['telegram_chat_bot_name'] ?? 'Chat Bot'),
+            // SMTP settings
             'smtp_host' => trim($_POST['smtp_host'] ?? ''),
             'smtp_port' => trim($_POST['smtp_port'] ?? '465'),
             'smtp_user' => trim($_POST['smtp_user'] ?? ''),
             'smtp_pass' => $_POST['smtp_pass'] ?? '',
             'smtp_from' => trim($_POST['smtp_from'] ?? ''),
-            'smtp_from_name' => trim($_POST['smtp_from_name'] ?? ''),
-            'smtp_secure' => trim($_POST['smtp_secure'] ?? 'ssl'),
-            'telegram_bot_token' => trim($_POST['telegram_bot_token'] ?? ''),
-            'telegram_chat_id' => trim($_POST['telegram_chat_id'] ?? '')
+            'smtp_from_name' => trim($_POST['smtp_from_name'] ?? 'HomeVlad Cloud Support'),
+            'smtp_secure' => trim($_POST['smtp_secure'] ?? 'ssl')
         ];
 
         // Валидация
@@ -358,7 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
     }
 }
 
-// Шаг 5: Создание конфигурационных файлов
+// Шаг 5: Создание конфигурационных файлов и заполнение таблиц
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['step'] == 5) {
     if (!isset($_SESSION['install_db']) || !isset($_SESSION['install_config'])) {
         $errors[] = "Данные установки утеряны. Пожалуйста, начните установку заново.";
@@ -424,7 +429,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 throw new Exception("Ошибка создания администратора: " . $e->getMessage());
             }
 
-            // 2. Создаем config.php из шаблона
+            // 2. Заполняем таблицу с ботом поддержки
+            try {
+                $stmt = $pdo->prepare("INSERT INTO telegram_support_bot (bot_token, bot_name) VALUES (?, ?)");
+                $stmt->execute([
+                    $sys_config['telegram_support_bot_token'],
+                    $sys_config['telegram_support_bot_name']
+                ]);
+            } catch (PDOException $e) {
+                throw new Exception("Ошибка записи настроек бота поддержки: " . $e->getMessage());
+            }
+
+            // 3. Заполняем таблицу с чат-ботом
+            try {
+                $stmt = $pdo->prepare("INSERT INTO telegram_chat_bot (bot_token, bot_name) VALUES (?, ?)");
+                $stmt->execute([
+                    $sys_config['telegram_chat_bot_token'],
+                    $sys_config['telegram_chat_bot_name']
+                ]);
+            } catch (PDOException $e) {
+                throw new Exception("Ошибка записи настроек чат-бота: " . $e->getMessage());
+            }
+
+            // 4. Заполняем таблицу с настройками SMTP
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO smtp_settings 
+                    (host, port, user, pass, from_email, from_name, secure) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $sys_config['smtp_host'],
+                    $sys_config['smtp_port'],
+                    $sys_config['smtp_user'],
+                    $sys_config['smtp_pass'],
+                    $sys_config['smtp_from'],
+                    $sys_config['smtp_from_name'],
+                    $sys_config['smtp_secure']
+                ]);
+            } catch (PDOException $e) {
+                throw new Exception("Ошибка записи настроек SMTP: " . $e->getMessage());
+            }
+
+            // 5. Создаем config.php из шаблона
             $config_template = file_get_contents('../includes/config.php.simple');
 
             $replacements = [
@@ -432,8 +479,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 'define(\'DB_NAME\', \'\')' => "define('DB_NAME', '" . addslashes($db_config['db_name']) . "')",
                 'define(\'DB_USER\', \'\')' => "define('DB_USER', '" . addslashes($db_config['db_user']) . "')",
                 'define(\'DB_PASS\', \'\')' => "define('DB_PASS', '" . addslashes($db_config['db_pass']) . "')",
-                'define(\'TELEGRAM_BOT_TOKEN\', \'ваш токен бота\')' => "define('TELEGRAM_BOT_TOKEN', '" . addslashes($sys_config['telegram_bot_token']) . "')",
-                'define(\'TELEGRAM_CHAT_ID\', \'id чата или группы\')' => "define('TELEGRAM_CHAT_ID', '" . addslashes($sys_config['telegram_chat_id']) . "')",
+                'define(\'TELEGRAM_SUPPORT_BOT_TOKEN\', \'\')' => "define('TELEGRAM_SUPPORT_BOT_TOKEN', '" . addslashes($sys_config['telegram_support_bot_token']) . "')",
+                'define(\'TELEGRAM_SUPPORT_BOT_NAME\', \'Support Bot\')' => "define('TELEGRAM_SUPPORT_BOT_NAME', '" . addslashes($sys_config['telegram_support_bot_name']) . "')",
+                'define(\'TELEGRAM_CHAT_BOT_TOKEN\', \'\')' => "define('TELEGRAM_CHAT_BOT_TOKEN', '" . addslashes($sys_config['telegram_chat_bot_token']) . "')",
+                'define(\'TELEGRAM_CHAT_BOT_NAME\', \'Chat Bot\')' => "define('TELEGRAM_CHAT_BOT_NAME', '" . addslashes($sys_config['telegram_chat_bot_name']) . "')",
                 'define(\'SMTP_HOST\', \'smtp.mail.ru\')' => "define('SMTP_HOST', '" . addslashes($sys_config['smtp_host']) . "')",
                 'define(\'SMTP_PORT\', 465)' => "define('SMTP_PORT', " . $sys_config['smtp_port'] . ")",
                 'define(\'SMTP_USER\', \'\')' => "define('SMTP_USER', '" . addslashes($sys_config['smtp_user']) . "')",
@@ -448,23 +497,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 array_values($replacements),
                 $config_template
             );
-
-            // Добавляем дополнительные константы
-            if (!str_contains($config_content, 'TELEGRAM_CHAT_BOT_TOKEN')) {
-                $config_content = str_replace(
-                    'define(\'TELEGRAM_BOT_TOKEN\'',
-                    "define('TELEGRAM_CHAT_BOT_TOKEN', '" . addslashes($sys_config['telegram_bot_token']) . "');\ndefine('TELEGRAM_BOT_TOKEN'",
-                    $config_content
-                );
-            }
-
-            if (!str_contains($config_content, 'TELEGRAM_ADMIN_CHAT_ID')) {
-                $config_content = str_replace(
-                    'define(\'TELEGRAM_CHAT_ID\'',
-                    "define('TELEGRAM_ADMIN_CHAT_ID', '" . addslashes($sys_config['telegram_chat_id']) . "');\ndefine('TELEGRAM_CHAT_ID'",
-                    $config_content
-                );
-            }
 
             // Создаем config.php
             if (file_put_contents('../includes/config.php', $config_content) === false) {
@@ -1372,6 +1404,7 @@ foreach ($requirements as $req) {
                         </div>
                         <p style="color: var(--text-secondary); font-size: 14px;">
                             Будет импортирована структура базы данных из файла <code>sql-install.sql</code>.
+                            Включая новые таблицы для Telegram ботов и SMTP настроек.
                         </p>
                     </div>
 
@@ -1380,7 +1413,19 @@ foreach ($requirements as $req) {
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
-                                <span style="font-size: 14px;">Пользователи</span>
+                                <span style="font-size: 14px;">Пользователи (users)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                                <span style="font-size: 14px;">Telegram Support Bot</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                                <span style="font-size: 14px;">Telegram Chat Bot</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                                <span style="font-size: 14px;">SMTP Settings</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
@@ -1389,18 +1434,6 @@ foreach ($requirements as $req) {
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
                                 <span style="font-size: 14px;">Балансы</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
-                                <span style="font-size: 14px;">Тарифы</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
-                                <span style="font-size: 14px;">Квоты</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
-                                <span style="font-size: 14px;">Цены ресурсов</span>
                             </div>
                         </div>
                     </div>
@@ -1544,6 +1577,72 @@ foreach ($requirements as $req) {
 
                     <div class="info-box" style="margin-top: 30px;">
                         <div class="info-box-title">
+                            <i class="fab fa-telegram"></i>
+                            <span>Telegram Support Bot</span>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 14px;">
+                            Бот для поддержки пользователей и уведомлений администраторов.
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telegram_support_bot_token" class="form-label">Токен Support Bot</label>
+                        <input type="text"
+                               id="telegram_support_bot_token"
+                               name="telegram_support_bot_token"
+                               class="form-control"
+                               value="<?= htmlspecialchars($form_data['step4']['telegram_support_bot_token'] ?? '') ?>"
+                               placeholder="123456789:AAFm-xxxxxxxxxxxxxxxxxxx">
+                        <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">
+                            Получите у @BotFather в Telegram
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telegram_support_bot_name" class="form-label">Имя Support Bot</label>
+                        <input type="text"
+                               id="telegram_support_bot_name"
+                               name="telegram_support_bot_name"
+                               class="form-control"
+                               value="<?= htmlspecialchars($form_data['step4']['telegram_support_bot_name'] ?? 'Support Bot') ?>"
+                               placeholder="Support Bot">
+                    </div>
+
+                    <div class="info-box" style="margin-top: 30px;">
+                        <div class="info-box-title">
+                            <i class="fab fa-telegram"></i>
+                            <span>Telegram Chat Bot</span>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 14px;">
+                            Бот для общения с пользователями в чате.
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telegram_chat_bot_token" class="form-label">Токен Chat Bot</label>
+                        <input type="text"
+                               id="telegram_chat_bot_token"
+                               name="telegram_chat_bot_token"
+                               class="form-control"
+                               value="<?= htmlspecialchars($form_data['step4']['telegram_chat_bot_token'] ?? '') ?>"
+                               placeholder="123456789:AAFm-xxxxxxxxxxxxxxxxxxx">
+                        <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">
+                            Получите у @BotFather в Telegram (может быть тем же ботом или другим)
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telegram_chat_bot_name" class="form-label">Имя Chat Bot</label>
+                        <input type="text"
+                               id="telegram_chat_bot_name"
+                               name="telegram_chat_bot_name"
+                               class="form-control"
+                               value="<?= htmlspecialchars($form_data['step4']['telegram_chat_bot_name'] ?? 'Chat Bot') ?>"
+                               placeholder="Chat Bot">
+                    </div>
+
+                    <div class="info-box" style="margin-top: 30px;">
+                        <div class="info-box-title">
                             <i class="fas fa-envelope"></i>
                             <span>Настройки SMTP</span>
                         </div>
@@ -1612,40 +1711,12 @@ foreach ($requirements as $req) {
                                placeholder="HomeVlad Cloud Support">
                     </div>
 
-                    <div class="info-box" style="margin-top: 30px;">
-                        <div class="info-box-title">
-                            <i class="fab fa-telegram"></i>
-                            <span>Настройки Telegram</span>
-                        </div>
-                        <p style="color: var(--text-secondary); font-size: 14px;">
-                            Для работы Telegram ботов и уведомлений.
-                        </p>
-                    </div>
-
                     <div class="form-group">
-                        <label for="telegram_bot_token" class="form-label">Токен Telegram бота</label>
-                        <input type="text"
-                               id="telegram_bot_token"
-                               name="telegram_bot_token"
-                               class="form-control"
-                               value="<?= htmlspecialchars($form_data['step4']['telegram_bot_token'] ?? '') ?>"
-                               placeholder="123456789:AAFm-xxxxxxxxxxxxxxxxxxx">
-                        <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">
-                            Получите у @BotFather в Telegram
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="telegram_chat_id" class="form-label">ID Telegram чата</label>
-                        <input type="text"
-                               id="telegram_chat_id"
-                               name="telegram_chat_id"
-                               class="form-control"
-                               value="<?= htmlspecialchars($form_data['step4']['telegram_chat_id'] ?? '') ?>"
-                               placeholder="-1234567890">
-                        <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">
-                            Ваш личный Chat ID или ID группы для уведомлений
-                        </div>
+                        <label for="smtp_secure" class="form-label">Тип шифрования</label>
+                        <select id="smtp_secure" name="smtp_secure" class="form-control">
+                            <option value="ssl" <?= ($form_data['step4']['smtp_secure'] ?? 'ssl') == 'ssl' ? 'selected' : '' ?>>SSL</option>
+                            <option value="tls" <?= ($form_data['step4']['smtp_secure'] ?? '') == 'tls' ? 'selected' : '' ?>>TLS</option>
+                        </select>
                     </div>
 
                     <div class="form-actions">
@@ -1670,7 +1741,7 @@ foreach ($requirements as $req) {
                         <div>
                             <p>Настройки системы успешно сохранены!</p>
                             <p style="margin-top: 8px; font-size: 14px;">
-                                Теперь будут созданы конфигурационные файлы.
+                                Теперь будут созданы конфигурационные файлы и заполнены таблицы базы данных.
                             </p>
                         </div>
                     </div>
@@ -1678,10 +1749,10 @@ foreach ($requirements as $req) {
                     <div class="info-box">
                         <div class="info-box-title">
                             <i class="fas fa-file-code"></i>
-                            <span>Создаваемые файлы</span>
+                            <span>Создаваемые файлы и данные</span>
                         </div>
                         <p style="color: var(--text-secondary); font-size: 14px;">
-                            Будут созданы следующие файлы и директории:
+                            Будут созданы следующие файлы и заполнены таблицы:
                         </p>
                     </div>
 
@@ -1699,31 +1770,31 @@ foreach ($requirements as $req) {
 
                             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border-radius: 8px;">
                                 <div style="width: 36px; height: 36px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-folder" style="color: var(--accent);"></i>
+                                    <i class="fas fa-robot" style="color: var(--accent);"></i>
                                 </div>
                                 <div>
-                                    <div style="font-weight: 500; color: var(--text-primary);">Рабочие директории</div>
-                                    <div style="font-size: 12px; color: var(--text-light);">uploads/, logs/, cache/, backups/, temp/</div>
+                                    <div style="font-weight: 500; color: var(--text-primary);">Telegram Support Bot</div>
+                                    <div style="font-size: 12px; color: var(--text-light);">Данные бота поддержки</div>
                                 </div>
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border-radius: 8px;">
                                 <div style="width: 36px; height: 36px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-shield-alt" style="color: var(--accent);"></i>
+                                    <i class="fas fa-comment" style="color: var(--accent);"></i>
                                 </div>
                                 <div>
-                                    <div style="font-weight: 500; color: var(--text-primary);">.htaccess</div>
-                                    <div style="font-size: 12px; color: var(--text-light);">Настройки безопасности</div>
+                                    <div style="font-weight: 500; color: var(--text-primary);">Telegram Chat Bot</div>
+                                    <div style="font-size: 12px; color: var(--text-light);">Данные чат-бота</div>
                                 </div>
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border-radius: 8px;">
                                 <div style="width: 36px; height: 36px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-info-circle" style="color: var(--accent);"></i>
+                                    <i class="fas fa-envelope" style="color: var(--accent);"></i>
                                 </div>
                                 <div>
-                                    <div style="font-weight: 500; color: var(--text-primary);">version.txt</div>
-                                    <div style="font-size: 12px; color: var(--text-light);">Информация о версии</div>
+                                    <div style="font-weight: 500; color: var(--text-primary);">SMTP Settings</div>
+                                    <div style="font-size: 12px; color: var(--text-light);">Настройки почты</div>
                                 </div>
                             </div>
                         </div>
@@ -1768,9 +1839,9 @@ foreach ($requirements as $req) {
                             <i class="fas fa-info-circle"></i> Важные действия:
                         </h4>
                         <ol style="text-align: left; padding-left: 20px; color: var(--text-secondary);">
-                            <li style="margin-bottom: 8px;">Создайте или зарегеструйте пользователя системы</li>
+                            <li style="margin-bottom: 8px;">Создайте или зарегестрируйте пользователя системы</li>
                             <li style="margin-bottom: 8px;">Удалите папку /install/ для безопасности</li>
-                            <li style="margin-bottom: 8px;">Настройте SMTP для отправки email</li>
+                            <li style="margin-bottom: 8px;">Настройки Telegram ботов и SMTP сохранены в базу данных</li>
                             <li>Добавьте настройки Proxmox в файл config.php</li>
                         </ol>
                     </div>

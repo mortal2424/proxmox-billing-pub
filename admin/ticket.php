@@ -13,7 +13,8 @@ $db = new Database();
 $pdo = $db->getConnection();
 
 // Проверяем AJAX-запрос
-$is_ajax = isset($_GET['ajax']);
+$is_ajax = isset($_GET['ajax']) || isset($_POST['ajax']) || 
+           (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
 
 // Получаем статистику тикетов для карточек (упрощенная версия)
 function getTicketStats($pdo) {
@@ -93,7 +94,7 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $ticket_id = (int)$_POST['ticket_id'];
-        $response = ['success' => false];
+        $response = ['success' => false, 'message' => ''];
 
         // Определяем тип действия
         if (isset($_POST['change_priority'])) {
@@ -111,7 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$status, $ticket_id]);
 
             // Отправляем уведомление пользователю об изменении статуса
-            sendNotificationToUser($ticket_id, null, $status);
+            if (function_exists('sendNotificationToUser')) {
+                sendNotificationToUser($ticket_id, null, $status);
+            }
 
             $response = ['success' => true, 'message' => 'Статус обновлен'];
         }
@@ -132,7 +135,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$status, $ticket_id]);
 
             // Отправляем уведомление пользователю
-            sendNotificationToUser($ticket_id, $message);
+            if (function_exists('sendNotificationToUser')) {
+                sendNotificationToUser($ticket_id, $message);
+            }
 
             $response = ['success' => true, 'message' => 'Ответ отправлен'];
         }
@@ -148,13 +153,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
 
     } catch (Exception $e) {
+        $error_message = $e->getMessage();
         if ($is_ajax) {
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            echo json_encode(['success' => false, 'error' => $error_message]);
             exit;
         }
 
-        $_SESSION['error'] = $e->getMessage();
+        $_SESSION['error'] = $error_message;
         header("Location: ticket.php" . (isset($ticket_id) ? "?ticket_id=" . $ticket_id : ''));
         exit;
     }
@@ -163,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Получаем данные тикета для AJAX или обычного запроса (как в оригинале)
 if (isset($_GET['ticket_id'])) {
     $ticket_id = (int)$_GET['ticket_id'];
-    
+
     try {
         $ticket_stmt = $pdo->prepare("SELECT t.*, u.email, u.full_name
                                     FROM tickets t
@@ -1548,7 +1554,7 @@ function closeModal() {
 // Загрузка данных тикета
 function loadTicketData(ticketId) {
     const modalBody = document.getElementById('ticketModalBody');
-    
+
     modalBody.innerHTML = `
         <div class="ticket-loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
@@ -1761,6 +1767,7 @@ function generateTicketHTML(data) {
                     <form class="ticket-form-wrapper ticket-priority-form" data-action="change_priority">
                         <input type="hidden" name="ticket_id" value="${ticket.id}">
                         <input type="hidden" name="change_priority" value="1">
+                        <input type="hidden" name="ajax" value="1">
 
                         <h5><i class="fas fa-exclamation-circle"></i> Изменить приоритет</h5>
                         <div class="ticket-form-group">
@@ -1780,6 +1787,7 @@ function generateTicketHTML(data) {
                     <form class="ticket-form-wrapper ticket-status-form" data-action="change_status">
                         <input type="hidden" name="ticket_id" value="${ticket.id}">
                         <input type="hidden" name="change_status" value="1">
+                        <input type="hidden" name="ajax" value="1">
 
                         <h5><i class="fas fa-exchange-alt"></i> Изменить статус</h5>
                         <div class="ticket-form-group">
@@ -1800,6 +1808,7 @@ function generateTicketHTML(data) {
                 <form class="ticket-form-wrapper ticket-reply-form" data-action="reply_ticket">
                     <input type="hidden" name="ticket_id" value="${ticket.id}">
                     <input type="hidden" name="reply_ticket" value="1">
+                    <input type="hidden" name="ajax" value="1">
 
                     <h5><i class="fas fa-reply"></i> Ответить на тикет</h5>
 
@@ -1860,7 +1869,7 @@ function submitTicketForm(form) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('Ошибка сети');
+            throw new Error('Ошибка сети: ' + response.status);
         }
         return response.json();
     })
@@ -1883,7 +1892,7 @@ function submitTicketForm(form) {
     })
     .catch(error => {
         console.error('Ошибка:', error);
-        showNotification('error', 'Произошла ошибка при отправке формы');
+        showNotification('error', 'Произошла ошибка при отправке формы: ' + error.message);
     })
     .finally(() => {
         submitBtn.disabled = false;

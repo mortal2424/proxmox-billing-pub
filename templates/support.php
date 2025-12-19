@@ -721,6 +721,26 @@ $title = "Техническая поддержка | HomeVlad Cloud";
             box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
         }
 
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #64748b;
+        }
+
+        body.dark-theme .btn-outline {
+            color: #94a3b8;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-outline:hover {
+            background: rgba(148, 163, 184, 0.1);
+        }
+
         /* Список тикетов */
         .tickets-list {
             display: flex;
@@ -735,7 +755,6 @@ $title = "Техническая поддержка | HomeVlad Cloud";
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
             border: 1px solid rgba(148, 163, 184, 0.1);
             transition: all 0.3s ease;
-            cursor: pointer;
         }
 
         body.dark-theme .ticket-item {
@@ -759,13 +778,41 @@ $title = "Техническая поддержка | HomeVlad Cloud";
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 16px;
+            cursor: pointer;
+        }
+
+        .ticket-header-content {
+            flex: 1;
+        }
+
+        .ticket-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-ticket-btn {
+            background: rgba(0, 188, 212, 0.1);
+            border: 1px solid rgba(0, 188, 212, 0.2);
+            color: #00bcd4;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .view-ticket-btn:hover {
+            background: rgba(0, 188, 212, 0.2);
+            transform: translateY(-1px);
         }
 
         .ticket-title {
             font-size: 16px;
             font-weight: 600;
             color: #1e293b;
-            flex: 1;
         }
 
         body.dark-theme .ticket-title {
@@ -1066,6 +1113,10 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                 gap: 8px;
             }
 
+            .ticket-actions {
+                align-self: flex-end;
+            }
+
             .ticket-meta {
                 flex-wrap: wrap;
             }
@@ -1187,22 +1238,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
             margin-top: 20px;
         }
 
-        .btn-outline {
-            background: transparent;
-            border: 1px solid rgba(148, 163, 184, 0.3);
-            color: #64748b;
-        }
-
-        body.dark-theme .btn-outline {
-            color: #94a3b8;
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-outline:hover {
-            background: rgba(148, 163, 184, 0.1);
-        }
         /* === ОБЩИЙ ФУТЕР === */
-        /* Исправляем футер для правильного отображения */
         .modern-footer {
             background: var(--primary-gradient);
             padding: 80px 0 30px;
@@ -1436,8 +1472,8 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                         <?php foreach ($tickets as $ticket): ?>
                             <div class="ticket-item <?= (isset($_GET['ticket_id']) && $_GET['ticket_id'] == $ticket['id']) ? 'expanded' : '' ?>"
                                  data-ticket-id="<?= $ticket['id'] ?>">
-                                <div class="ticket-header" onclick="toggleTicket(this.parentElement)">
-                                    <div>
+                                <div class="ticket-header">
+                                    <div class="ticket-header-content" onclick="toggleTicket(this.closest('.ticket-item'))">
                                         <h3 class="ticket-title">
                                             #<?= $ticket['id'] ?>: <?= htmlspecialchars($ticket['subject']) ?>
                                         </h3>
@@ -1447,9 +1483,14 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                                             <span><i class="fas fa-calendar-alt"></i> <?= date('d.m.Y H:i', strtotime($ticket['created_at'])) ?></span>
                                         </div>
                                     </div>
-                                    <span class="ticket-status status-<?= $ticket['status'] ?>">
-                                        <?= getStatusText($ticket['status']) ?>
-                                    </span>
+                                    <div class="ticket-actions">
+                                        <span class="ticket-status status-<?= $ticket['status'] ?>">
+                                            <?= getStatusText($ticket['status']) ?>
+                                        </span>
+                                        <button class="view-ticket-btn" data-ticket-id="<?= $ticket['id'] ?>">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="ticket-content">
@@ -1481,11 +1522,15 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                                         ?>
 
                                         <?php foreach ($replies as $reply): ?>
-                                            <div class="message <?= $reply['is_admin'] ? 'admin-message' : 'user-message' ?>">
+                                            <?php
+                                            // Определяем, является ли ответ от текущего пользователя
+                                            $is_current_user = ($reply['user_id'] == $user_id);
+                                            ?>
+                                            <div class="message <?= $is_current_user ? 'user-message' : 'admin-message' ?>">
                                                 <div class="message-header">
                                                     <span class="message-user">
-                                                        <i class="fas <?= $reply['is_admin'] ? 'fa-user-shield' : 'fa-user' ?>"></i>
-                                                        <?= $reply['is_admin'] ? 'Поддержка' : 'Вы' ?>
+                                                        <i class="fas <?= $is_current_user ? 'fa-user' : 'fa-user-shield' ?>"></i>
+                                                        <?= $is_current_user ? 'Вы' : 'Поддержка' ?>
                                                     </span>
                                                     <span class="message-date">
                                                         <?= date('d.m.Y H:i', strtotime($reply['created_at'])) ?>
@@ -1684,12 +1729,14 @@ $title = "Техническая поддержка | HomeVlad Cloud";
 
                     // Обновляем URL
                     const url = new URL(window.location);
-                    url.searchParams.delete('ticket_id');
+                    if (tabId !== 'my-tickets') {
+                        url.searchParams.delete('ticket_id');
+                    }
                     window.history.pushState(null, '', url);
                 });
             });
 
-            // Переключение тикетов
+            // Функция для переключения тикета (только разворачивает/сворачивает)
             function toggleTicket(element) {
                 // Закрываем все другие открытые тикеты
                 document.querySelectorAll('.ticket-item.expanded').forEach(item => {
@@ -1699,6 +1746,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                 });
 
                 // Переключаем текущий тикет
+                const wasExpanded = element.classList.contains('expanded');
                 element.classList.toggle('expanded');
 
                 // Обновляем URL если тикет открыт
@@ -1707,14 +1755,54 @@ $title = "Техническая поддержка | HomeVlad Cloud";
 
                 if (element.classList.contains('expanded')) {
                     url.searchParams.set('ticket_id', ticketId);
-                    // Переключаемся на вкладку "Мои тикеты"
-                    document.querySelector('[data-tab="my-tickets"]').click();
+                    // Переключаемся на вкладку "Мои тикеты" только если текущая вкладка не "my-tickets"
+                    const currentTab = document.querySelector('.support-tab.active').dataset.tab;
+                    if (currentTab !== 'my-tickets') {
+                        document.querySelector('[data-tab="my-tickets"]').click();
+                    }
                 } else {
                     url.searchParams.delete('ticket_id');
                 }
 
                 window.history.pushState(null, '', url);
             }
+
+            // Функция для открытия тикета (гарантированно открывает и переключает вкладку)
+            function openTicket(ticketId) {
+                // Закрываем все открытые тикеты
+                document.querySelectorAll('.ticket-item.expanded').forEach(item => {
+                    item.classList.remove('expanded');
+                });
+                
+                // Открываем нужный тикет
+                const ticketElement = document.querySelector(`.ticket-item[data-ticket-id="${ticketId}"]`);
+                if (ticketElement) {
+                    ticketElement.classList.add('expanded');
+                    
+                    // Переключаемся на вкладку "Мои тикеты"
+                    document.querySelector('[data-tab="my-tickets"]').click();
+                    
+                    // Обновляем URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('ticket_id', ticketId);
+                    window.history.pushState(null, '', url);
+                    
+                    // Прокручиваем к тикету
+                    setTimeout(() => {
+                        ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            }
+
+            // Обработчики для кнопок открытия тикетов
+            document.querySelectorAll('.view-ticket-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const ticketId = this.dataset.ticketId;
+                    openTicket(ticketId);
+                });
+            });
 
             // При загрузке страницы открываем тикет из URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -1726,6 +1814,11 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                     ticketElement.classList.add('expanded');
                     // Переключаемся на вкладку "Мои тикеты"
                     document.querySelector('[data-tab="my-tickets"]').click();
+                    
+                    // Прокручиваем к тикету
+                    setTimeout(() => {
+                        ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
                 }
             }
 

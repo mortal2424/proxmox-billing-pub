@@ -54,13 +54,13 @@ $error_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Проверка текущего пароля для любых изменений
-        if (!empty($_POST['current_password'])) {
+        /*if (!empty($_POST['current_password'])) {
             if (!password_verify($_POST['current_password'], $user['password_hash'])) {
                 throw new Exception("Неверный текущий пароль");
             }
         } else {
             throw new Exception("Текущий пароль обязателен для подтверждения изменений");
-        }
+        }*/
 
         // Подготовка данных для обновления
         $update_data = ['id' => $user_id];
@@ -945,7 +945,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             transform: translateY(-5px);
             box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
         }
-        
+
         /* === ОБЩИЙ ФУТЕР === */
         /* Исправляем футер для правильного отображения */
         .modern-footer {
@@ -994,7 +994,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .strength-weak { background: var(--danger-gradient); }
         .strength-medium { background: var(--warning-gradient); }
         .strength-strong { background: var(--success-gradient); }
-    
+
     </style>
 </head>
 <body>
@@ -1458,7 +1458,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    
+
     <?php
     // Подключаем общий футер из файла - ТОЛЬКО если файл существует
     $footer_file = __DIR__ . '/../templates/headers/user_footer.php';

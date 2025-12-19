@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = trim($_POST['full_name']);
         $balance = (float)$_POST['balance'];
         $is_admin = isset($_POST['is_admin']) ? 1 : 0;
+        $is_active = isset($_POST['is_active']) ? 1 : 0; // Получаем значение чекбокса активации
         $user_type = $_POST['user_type'];
         $inn = trim($_POST['inn'] ?? '');
         $kpp = trim($_POST['kpp'] ?? '');
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 full_name = ?,
                 balance = ?,
                 is_admin = ?,
+                is_active = ?,  -- Добавляем обновление поля is_active
                 user_type = ?,
                 inn = ?,
                 kpp = ?,
@@ -80,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $full_name,
                 $balance,
                 $is_admin,
+                $is_active,  // Добавляем параметр is_active
                 $user_type,
                 $inn,
                 $kpp,
@@ -1394,6 +1397,15 @@ if (!$user && $user_id > 0) {
                         Предоставить права администратора
                     </label>
                     <small class="form-hint">Администраторы имеют полный доступ к панели управления</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" name="is_active" id="is_active" <?= $user['is_active'] ? 'checked' : '' ?>>
+                        <span class="checkmark"></span>
+                        Активировать пользователя
+                    </label>
+                    <small class="form-hint">Предоставить пользователю доступ к личному кабинету</small>
                 </div>
             </div>
 

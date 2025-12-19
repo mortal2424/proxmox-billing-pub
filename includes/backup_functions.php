@@ -2,9 +2,13 @@
 /**
  * Общие функции для резервного копирования
  */
-
+//session_start();
 require_once __DIR__ . '/db.php';
+//require_once __DIR__ . '/auth.php';
+//require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/../admin/admin_functions.php';
+
+//checkAuth();
 
 // Глобальные константы для бэкапа
 define('BACKUP_DIR', realpath(__DIR__ . '/../admin/backups/') . '/');
