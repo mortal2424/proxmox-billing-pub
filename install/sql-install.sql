@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: localhost:3306
--- Время создания: Дек 23 2025 г., 14:18
+-- Время создания: Дек 23 2025 г., 15:12
 -- Версия сервера: 10.11.14-MariaDB-0+deb12u2
 -- Версия PHP: 8.2.29
 
@@ -117,17 +117,6 @@ CREATE TABLE `docs` (
   `published_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Дамп данных таблицы `docs`
---
-
-INSERT INTO `docs` (`id`, `category_id`, `title`, `slug`, `content`, `excerpt`, `meta_keywords`, `meta_description`, `author_id`, `editor_id`, `status`, `view_count`, `is_featured`, `is_pinned`, `allow_comments`, `version`, `last_version_id`, `created_at`, `updated_at`, `published_at`) VALUES
-(1, 8, 'Как применить обновление', 'r', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:28:12', '2025-12-22 01:28:13', NULL),
-(3, 1, 'Как применить обновление', 'update', 'Для применения обновления панели нужно&nbsp;', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:29:02', '2025-12-22 01:29:02', NULL),
-(14, 8, 'Как применить обновление панели', 'k', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:46:40', '2025-12-22 01:46:40', NULL),
-(15, 8, 'Как применить обновление панели', 'kakprimenitobnovleniepaneli', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:46:57', '2025-12-22 01:46:57', NULL),
-(16, 8, 'Как применить обновление панели', 'kakprimenitobnovleniepaneli1', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', '', '', 1, 1, 'published', 8, 0, 0, 0, 8, NULL, '2025-12-22 01:47:24', '2025-12-22 01:50:17', '2025-12-22 01:47:24');
-
 -- --------------------------------------------------------
 
 --
@@ -161,20 +150,6 @@ CREATE TABLE `doc_categories` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Дамп данных таблицы `doc_categories`
---
-
-INSERT INTO `doc_categories` (`id`, `name`, `slug`, `description`, `parent_id`, `icon`, `color`, `sort_order`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 'Основное', 'getting-started', 'Начало работы с платформой', NULL, 'fa-rocket', '#00bcd4', 1, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(2, 'Виртуальные машины', 'virtual-machines', 'Управление виртуальными машинами', NULL, 'fa-server', '#2196f3', 2, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(3, 'Сеть', 'networking', 'Настройка сети и безопасности', NULL, 'fa-network-wired', '#4caf50', 3, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(4, 'Хранение данных', 'storage', 'Работа с дисками и хранилищем', NULL, 'fa-hdd', '#ff9800', 4, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(5, 'Безопасность', 'security', 'Настройка безопасности', NULL, 'fa-shield-alt', '#f44336', 5, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(6, 'API', 'api', 'Работа с API', NULL, 'fa-code', '#9c27b0', 6, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(7, 'FAQ', 'faq', 'Часто задаваемые вопросы', NULL, 'fa-question-circle', '#607d8b', 7, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
-(8, 'Обновления', 'changelog', 'История изменений и обновлений', NULL, 'fa-history', '#795548', 8, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53');
 
 -- --------------------------------------------------------
 
@@ -239,17 +214,6 @@ CREATE TABLE `doc_statistics` (
   `view_count` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Дамп данных таблицы `doc_statistics`
---
-
-INSERT INTO `doc_statistics` (`id`, `doc_id`, `view_date`, `view_count`) VALUES
-(1, 1, '2025-12-22', 1),
-(2, 3, '2025-12-22', 1),
-(3, 14, '2025-12-22', 1),
-(4, 15, '2025-12-22', 1),
-(5, 16, '2025-12-22', 8);
-
 -- --------------------------------------------------------
 
 --
@@ -309,19 +273,6 @@ CREATE TABLE `doc_versions` (
   `change_reason` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Дамп данных таблицы `doc_versions`
---
-
-INSERT INTO `doc_versions` (`id`, `doc_id`, `version`, `title`, `content`, `excerpt`, `author_id`, `change_reason`, `created_at`) VALUES
-(1, 16, 2, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно папку с номером релиза выше чем существующая поместить в admin/updates<br>проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:19'),
-(2, 16, 3, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates<br>проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:32'),
-(3, 16, 4, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:50'),
-(4, 16, 5, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД,&nbsp;</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:49:11'),
-(5, 16, 6, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД,&nbsp;</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:49:23'),
-(6, 16, 7, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:50:15'),
-(7, 16, 8, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:50:17');
 
 -- --------------------------------------------------------
 
@@ -1433,7 +1384,7 @@ ALTER TABLE `cluster_logs`
 -- AUTO_INCREMENT для таблицы `docs`
 --
 ALTER TABLE `docs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `doc_bookmarks`
@@ -1445,7 +1396,7 @@ ALTER TABLE `doc_bookmarks`
 -- AUTO_INCREMENT для таблицы `doc_categories`
 --
 ALTER TABLE `doc_categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `doc_comments`
@@ -1469,7 +1420,7 @@ ALTER TABLE `doc_searches`
 -- AUTO_INCREMENT для таблицы `doc_statistics`
 --
 ALTER TABLE `doc_statistics`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `doc_tags`
@@ -1481,7 +1432,7 @@ ALTER TABLE `doc_tags`
 -- AUTO_INCREMENT для таблицы `doc_versions`
 --
 ALTER TABLE `doc_versions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT для таблицы `features`

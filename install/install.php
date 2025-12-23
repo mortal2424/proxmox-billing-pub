@@ -294,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
 
                 // Добавляем информационное сообщение о успешном импорте
                 $success_msg = "Успешно выполнено $success_count из $total_queries SQL запросов.";
-                // Можем добавить в сессию, чтобы показать на следующем шаге
+                // Можем добавить в сессии, чтобы показать на следующем шаге
                 $_SESSION['import_success'] = $success_msg;
             }
 
@@ -383,13 +383,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 $verification_code = substr(md5(uniqid()), 0, 10);
                 $full_name = $sys_config['admin_first_name'] . ' ' . $sys_config['admin_last_name'];
 
+                // ДОБАВЛЕНО: Поле is_active со значением 1
                 $stmt = $pdo->prepare("
                     INSERT INTO users
                     (email, phone, full_name, password_hash, first_name, last_name,
                      balance, is_admin, created_at, user_type, company_name,
-                     email_verified, updated_at, bonus_balance, telegram_username,
+                     email_verified, is_active, updated_at, bonus_balance, telegram_username,
                      verification_code, verification_sent_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, NOW(), ?, ?, ?, NOW())
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, NOW(), ?, ?, ?, NOW())
                 ");
 
                 $balance = 10000.00;
@@ -397,6 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 $user_type = 'individual';
                 $company_name = '';
                 $email_verified = 1;
+                $is_active = 1; // ДОБАВЛЕНО: Активируем аккаунт администратора
                 $bonus_balance = 500.00;
                 $telegram_username = 'admin';
 
@@ -412,6 +414,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                     $user_type,
                     $company_name,
                     $email_verified,
+                    $is_active, // ДОБАВЛЕНО: Передаем значение для is_active
                     $bonus_balance,
                     $telegram_username,
                     $verification_code
@@ -454,8 +457,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             // 4. Заполняем таблицу с настройками SMTP
             try {
                 $stmt = $pdo->prepare("
-                    INSERT INTO smtp_settings 
-                    (host, port, user, pass, from_email, from_name, secure) 
+                    INSERT INTO smtp_settings
+                    (host, port, user, pass, from_email, from_name, secure)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
                 $stmt->execute([
@@ -1839,7 +1842,7 @@ foreach ($requirements as $req) {
                             <i class="fas fa-info-circle"></i> Важные действия:
                         </h4>
                         <ol style="text-align: left; padding-left: 20px; color: var(--text-secondary);">
-                            <li style="margin-bottom: 8px;">Создайте или зарегестрируйте пользователя системы</li>
+                            <li style="margin-bottom: 8px;">Создайте или зарегистрируйте пользователя системы</li>
                             <li style="margin-bottom: 8px;">Удалите папку /install/ для безопасности</li>
                             <li style="margin-bottom: 8px;">Настройки Telegram ботов и SMTP сохранены в базу данных</li>
                             <li>Добавьте настройки Proxmox в файл config.php</li>
@@ -1871,6 +1874,7 @@ foreach ($requirements as $req) {
                         <div style="color: var(--text-secondary);">
                             <p><strong>Email:</strong> <?= htmlspecialchars($_SESSION['install_config']['admin_email'] ?? 'admin@example.com') ?></p>
                             <p><strong>Пароль:</strong> указанный при установке</p>
+                            <p><strong>Статус аккаунта:</strong> <span style="color: var(--success); font-weight: 600;">Активный</span> (is_active = 1)</p>
                         </div>
                     </div>
                 </div>
