@@ -12,14 +12,14 @@ function getTelegramBotData() {
         $stmt = $db->getConnection()->prepare("SELECT bot_token, bot_name FROM telegram_support_bot ORDER BY id ASC LIMIT 1");
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($result && !empty($result['bot_token'])) {
             // Убираем символ @ из начала bot_name, если он есть
             $bot_name = $result['bot_name'];
             if (strpos($bot_name, '@') === 0) {
                 $bot_name = substr($bot_name, 1);
             }
-            
+
             return [
                 'token' => $result['bot_token'],
                 'name' => $bot_name
@@ -38,7 +38,7 @@ function getTelegramBotData() {
 function verifyTelegramAuthorization($auth_data) {
     // Получаем данные бота из базы данных
     $bot_data = getTelegramBotData();
-    
+
     if (!$bot_data || empty($bot_data['token'])) {
         error_log("Telegram bot token is not available");
         return false;
@@ -126,14 +126,6 @@ if (isset($_POST['auth_date'])) {
     }
 }
 
-// Генерация новой капчи при каждой загрузке страницы
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['auth_date'])) {
-    $num1 = rand(1, 10);
-    $num2 = rand(1, 10);
-    $_SESSION['captcha'] = $num1 + $num2;
-    $_SESSION['captcha_question'] = "$num1 + $num2";
-}
-
 // Обработка обычного входа (только если не было Telegram авторизации)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
     $email = trim($_POST['email']);
@@ -149,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
         $error = "Введите пароль";
     } elseif (empty($captcha_answer)) {
         $error = "Введите ответ капчи";
-    } elseif ($captcha_answer !== $_SESSION['captcha']) {
+    } elseif (!isset($_SESSION['captcha']) || $captcha_answer !== $_SESSION['captcha']) {
         $error = "Неправильный ответ капчи!";
     } else {
         $db = new Database();
@@ -168,6 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                 unset($_SESSION['captcha']);
                 unset($_SESSION['captcha_question']);
 
+                // Очищаем предыдущие ошибки
+                unset($_SESSION['login_error']);
+                unset($_SESSION['error']);
+
                 header('Location: /templates/dashboard.php');
                 exit;
             }
@@ -178,6 +174,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
 
     if ($error) {
         $_SESSION['login_error'] = $error;
+
+        // Генерируем новую капчу только при ошибке входа
+        $num1 = rand(1, 10);
+        $num2 = rand(1, 10);
+        $_SESSION['captcha'] = $num1 + $num2;
+        $_SESSION['captcha_question'] = "$num1 + $num2";
+
+        // Сохраняем введенный email для удобства пользователя
+        $_SESSION['login_email'] = $email;
+    }
+}
+
+// Генерация новой капчи при первой загрузке страницы (не POST или если это GET запрос)
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SERVER['REQUEST_METHOD'] === 'POST')) {
+    // Генерируем капчу только если ее еще нет в сессии
+    if (!isset($_SESSION['captcha'])) {
+        $num1 = rand(1, 10);
+        $num2 = rand(1, 10);
+        $_SESSION['captcha'] = $num1 + $num2;
+        $_SESSION['captcha_question'] = "$num1 + $num2";
     }
 }
 ?>
@@ -553,6 +569,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
             text-align: center;
             font-size: 18px;
             font-weight: 600;
+        }
+
+        .captcha-refresh {
+            background: none;
+            border: none;
+            color: #00bcd4;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .captcha-refresh:hover {
+            color: #0097a7;
+            transform: translateY(-2px);
         }
 
         /* Кнопки */
@@ -989,9 +1023,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                             <i class="fas fa-envelope"></i> Email
                         </label>
                         <input type="email" id="email" name="email" class="form-control" required
-                               value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
+                               value="<?= htmlspecialchars($_SESSION['login_email'] ?? '') ?>"
                                placeholder="your@email.com"
                                autocomplete="email">
+                        <?php unset($_SESSION['login_email']); ?>
                     </div>
 
                     <!-- Пароль -->
@@ -1008,11 +1043,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                     <div class="captcha-box">
                         <div>Сколько будет?</div>
                         <div style="font-size: 24px; font-weight: 700; margin: 8px 0; color: #00bcd4;">
-                            <?= $_SESSION['captcha_question'] ?> = ?
+                            <?= $_SESSION['captcha_question'] ?? 'Обновите страницу' ?> = ?
                         </div>
                         <input type="number" name="captcha" class="form-control" required
                                placeholder="Введите ответ"
                                min="1" max="20">
+                        <button type="button" class="captcha-refresh" onclick="refreshCaptcha()">
+                            <i class="fas fa-redo"></i> Обновить капчу
+                        </button>
                     </div>
 
                     <!-- Вспомогательные ссылки -->
@@ -1129,6 +1167,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                 this.style.transform = 'translateY(0)';
             });
         });
+
+        // Обновление капчи
+        function refreshCaptcha() {
+            fetch('/login/refresh_captcha.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const captchaDiv = document.querySelector('.captcha-box div:nth-child(2)');
+                        if (captchaDiv) {
+                            captchaDiv.textContent = data.question;
+                            captchaDiv.style.animation = 'fadeInUp 0.5s ease';
+
+                            // Сбросить поле ввода
+                            const captchaInput = document.querySelector('input[name="captcha"]');
+                            if (captchaInput) {
+                                captchaInput.value = '';
+                                captchaInput.focus();
+                            }
+
+                            // Обновить вопрос в сессии на стороне клиента (только для отображения)
+                            setTimeout(() => {
+                                captchaDiv.style.animation = '';
+                            }, 500);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing captcha:', error);
+                    alert('Не удалось обновить капчу. Попробуйте перезагрузить страницу.');
+                });
+        }
 
         // Обработка данных из Telegram Widget
         function onTelegramAuth(user) {

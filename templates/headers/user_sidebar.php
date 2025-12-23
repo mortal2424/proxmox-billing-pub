@@ -153,12 +153,12 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     <i class="fas fa-headset"></i>
                     <span>Поддержка</span>
                 </a>
-                <a href="/templates/notifications.php" class="quick-action-btn info">
-                    <i class="fas fa-bell"></i>
-                    <span>Уведомления</span>
-                    <?php if (isset($user['unread_notifications']) && $user['unread_notifications'] > 0): ?>
+                <a href="/docs/docs.php" class="quick-action-btn info">
+                    <i class="fas fa-book"></i>
+                    <span>Документация</span>
+                    <!--<?php if (isset($user['unread_notifications']) && $user['unread_notifications'] > 0): ?>
                         <span class="notification-badge"><?= $user['unread_notifications'] ?></span>
-                    <?php endif; ?>
+                    <?php endif; ?>-->
                 </a>
             </div>
         </div>
@@ -413,7 +413,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     <span class="version-status"></span>
                 </div>
                 <div class="footer-links">
-                    <a href="/docs/" class="footer-link" title="Документация">
+                    <a href="/docs/docs.php" class="footer-link" title="Документация">
                         <i class="fas fa-book"></i>
                     </a>
                     <a href="/status/" class="footer-link" title="Статус системы">
@@ -432,7 +432,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 <style>
 /* ========== ИНФОРМАТИВНЫЙ САЙДБАР (СКРОЛЛИТСЯ С КОНТЕНТОМ) ========== */
 .admin-sidebar {
-    position: absolute; /* Меняем на absolute */
+    position: absolute; /* Для десктопа */
     left: 0;
     top: 70px;
     width: 280px;
@@ -1097,26 +1097,133 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     box-shadow: 0 4px 12px rgba(255, 71, 87, 0.1);
 }
 
-/* Адаптивность */
+/* ========== АДАПТИВНОСТЬ ========== */
 @media (max-width: 992px) {
     .admin-sidebar {
-        position: fixed;
+        position: fixed; /* На мобильных fixed чтобы был поверх контента */
         width: 280px;
-        transform: translateX(-100%);
+        left: 0;
         top: 70px;
-        height: calc(100vh - 70px);
-        overflow-y: auto;
-        z-index: 1001;
-        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        height: calc(100vh - 70px); /* Занимает всю высоту экрана */
+        transform: translateX(-100%);
         transition: transform 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        border-radius: 0;
+        overflow-y: auto; /* Собственный скролл если контент не помещается */
+        -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
     }
 
     .admin-sidebar.mobile-open {
         transform: translateX(0);
     }
 
+    .sidebar-content {
+        min-height: auto;
+        padding-bottom: 20px;
+        height: 100%;
+    }
+
     .sidebar-toggle {
-        display: none;
+        display: none; /* Скрываем кнопку сворачивания на мобильных */
+    }
+
+    /* Адаптируем внутренние элементы для мобильных */
+    .sidebar-profile {
+        padding: 15px;
+    }
+
+    .sidebar-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+    }
+
+    .sidebar-user-name {
+        font-size: 14px;
+    }
+
+    .sidebar-user-email {
+        font-size: 11px;
+    }
+
+    .sidebar-quick-actions,
+    .sidebar-resources,
+    .sidebar-nav,
+    .sidebar-status {
+        padding: 15px;
+    }
+
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .quick-action-btn {
+        flex-direction: column;
+        padding: 8px;
+        font-size: 10px;
+        gap: 5px;
+    }
+
+    .quick-action-btn span {
+        font-size: 9px;
+    }
+
+    .resource-item {
+        margin-bottom: 12px;
+    }
+
+    .resource-label {
+        font-size: 12px;
+    }
+
+    .resource-value {
+        font-size: 11px;
+    }
+
+    .sidebar-menu-item {
+        margin: 2px 10px;
+    }
+
+    .sidebar-menu-link {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .menu-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 14px;
+        margin-right: 10px;
+    }
+
+    .menu-badge {
+        font-size: 9px;
+        padding: 1px 6px;
+    }
+
+    .balance-item,
+    .status-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .balance-label,
+    .status-label {
+        font-size: 11px;
+    }
+
+    .balance-value,
+    .status-value {
+        font-size: 12px;
+    }
+
+    .footer-info {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
     }
 
     /* Затемнение фона при открытом сайдбаре */
@@ -1127,7 +1234,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         right: 0;
         bottom: 0;
         background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
+        z-index: 999;
         display: none;
     }
 
@@ -1136,68 +1243,98 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     }
 }
 
-/* Для компактного режима */
-.admin-sidebar.compact {
-    width: 70px;
+/* Для очень маленьких экранов (iPhone и подобные) */
+@media (max-width: 480px) and (max-height: 850px) {
+    .admin-sidebar {
+        width: 100%;
+        max-width: 280px;
+        height: 100vh; /* Полная высота экрана */
+        top: 0; /* Начинается с самого верха */
+        padding-top: 70px; /* Отступ для шапки */
+        box-sizing: border-box;
+    }
+    
+    .admin-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .sidebar-content {
+        height: calc(100vh - 70px); /* Минус отступ для шапки */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 20px;
+    }
+    
+    /* Делаем контент сайдбара скроллируемым */
+    .admin-sidebar {
+        overflow-y: auto;
+    }
 }
 
-.admin-sidebar.compact .sidebar-title,
-.admin-sidebar.compact .sidebar-user-info,
-.admin-sidebar.compact .sidebar-user-stats,
-.admin-sidebar.compact .quick-actions-title,
-.admin-sidebar.compact .quick-action-btn span,
-.admin-sidebar.compact .resources-title,
-.admin-sidebar.compact .resource-header,
-.admin-sidebar.compact .progress-percent,
-.admin-sidebar.compact .menu-text,
-.admin-sidebar.compact .menu-badge,
-.admin-sidebar.compact .balance-info,
-.admin-sidebar.compact .system-status,
-.admin-sidebar.compact .footer-info,
-.admin-sidebar.compact .logout-btn span {
-    display: none;
-}
+/* Для компактного режима (только на десктопе) */
+@media (min-width: 993px) {
+    .admin-sidebar.compact {
+        width: 70px;
+    }
 
-.admin-sidebar.compact .sidebar-logo {
-    justify-content: center;
-}
+    .admin-sidebar.compact .sidebar-title,
+    .admin-sidebar.compact .sidebar-user-info,
+    .admin-sidebar.compact .sidebar-user-stats,
+    .admin-sidebar.compact .quick-actions-title,
+    .admin-sidebar.compact .quick-action-btn span,
+    .admin-sidebar.compact .resources-title,
+    .admin-sidebar.compact .resource-header,
+    .admin-sidebar.compact .progress-percent,
+    .admin-sidebar.compact .menu-text,
+    .admin-sidebar.compact .menu-badge,
+    .admin-sidebar.compact .balance-info,
+    .admin-sidebar.compact .system-status,
+    .admin-sidebar.compact .footer-info,
+    .admin-sidebar.compact .logout-btn span {
+        display: none;
+    }
 
-.admin-sidebar.compact .sidebar-profile {
-    justify-content: center;
-    padding: 15px;
-}
+    .admin-sidebar.compact .sidebar-logo {
+        justify-content: center;
+    }
 
-.admin-sidebar.compact .sidebar-avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-}
+    .admin-sidebar.compact .sidebar-profile {
+        justify-content: center;
+        padding: 15px;
+    }
 
-.admin-sidebar.compact .quick-actions-grid {
-    grid-template-columns: 1fr;
-}
+    .admin-sidebar.compact .sidebar-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
 
-.admin-sidebar.compact .quick-action-btn {
-    justify-content: center;
-    padding: 12px;
-}
+    .admin-sidebar.compact .quick-actions-grid {
+        grid-template-columns: 1fr;
+    }
 
-.admin-sidebar.compact .sidebar-menu-link {
-    justify-content: center;
-    padding: 12px;
-}
+    .admin-sidebar.compact .quick-action-btn {
+        justify-content: center;
+        padding: 12px;
+    }
 
-.admin-sidebar.compact .menu-icon {
-    margin-right: 0;
-}
+    .admin-sidebar.compact .sidebar-menu-link {
+        justify-content: center;
+        padding: 12px;
+    }
 
-.admin-sidebar.compact .sidebar-toggle i {
-    transform: rotate(180deg);
-}
+    .admin-sidebar.compact .menu-icon {
+        margin-right: 0;
+    }
 
-.admin-sidebar.compact .logout-btn {
-    justify-content: center;
-    padding: 12px;
+    .admin-sidebar.compact .sidebar-toggle i {
+        transform: rotate(180deg);
+    }
+
+    .admin-sidebar.compact .logout-btn {
+        justify-content: center;
+        padding: 12px;
+    }
 }
 </style>
 
@@ -1205,9 +1342,10 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.querySelector('.admin-sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    const body = document.body;
 
-    // Функционал сворачивания/разворачивания сайдбара
-    if (sidebarToggle) {
+    // Функционал сворачивания/разворачивания сайдбара (только на десктопе)
+    if (sidebarToggle && window.innerWidth > 992) {
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.toggle('compact');
 
@@ -1230,7 +1368,7 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('sidebarCompact', sidebar.classList.contains('compact'));
         });
 
-        // Восстанавливаем состояние
+        // Восстанавливаем состояние только на десктопе
         const isCompact = localStorage.getItem('sidebarCompact') === 'true';
         if (isCompact) {
             sidebar.classList.add('compact');
@@ -1256,37 +1394,52 @@ document.addEventListener('DOMContentLoaded', function() {
         const headerCenter = document.querySelector('.header-center');
         if (headerCenter) {
             if (!document.getElementById('mobileMenuBtn')) {
+                // Создаем кнопку меню для мобильных
                 const mobileMenuBtn = document.createElement('button');
                 mobileMenuBtn.id = 'mobileMenuBtn';
                 mobileMenuBtn.className = 'mobile-menu-btn';
                 mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
-                mobileMenuBtn.style.cssText = 'width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;';
+                mobileMenuBtn.style.cssText = 'width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 10px;';
 
                 headerCenter.insertBefore(mobileMenuBtn, headerCenter.firstChild);
 
+                // Создаем backdrop для закрытия сайдбара
                 const backdrop = document.createElement('div');
                 backdrop.className = 'sidebar-backdrop';
                 document.body.appendChild(backdrop);
 
-                mobileMenuBtn.addEventListener('click', function() {
+                // Открытие сайдбара
+                mobileMenuBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     sidebar.classList.add('mobile-open');
                     backdrop.classList.add('active');
-                    document.body.style.overflow = 'hidden';
+                    body.style.overflow = 'hidden'; // Блокируем скролл страницы
                 });
 
+                // Закрытие сайдбара по клику на backdrop
                 backdrop.addEventListener('click', function() {
                     sidebar.classList.remove('mobile-open');
                     backdrop.classList.remove('active');
-                    document.body.style.overflow = '';
+                    body.style.overflow = ''; // Разблокируем скролл страницы
                 });
 
+                // Закрытие сайдбара при клике на ссылку в меню (на мобильных)
                 document.querySelectorAll('.sidebar-menu-link, .quick-action-btn, .logout-btn').forEach(link => {
                     link.addEventListener('click', function() {
                         sidebar.classList.remove('mobile-open');
                         backdrop.classList.remove('active');
-                        document.body.style.overflow = '';
+                        body.style.overflow = '';
                     });
                 });
+
+                // Закрытие сайдбара при клике на кнопку toggle (если видна)
+                if (sidebarToggle) {
+                    sidebarToggle.addEventListener('click', function() {
+                        sidebar.classList.remove('mobile-open');
+                        backdrop.classList.remove('active');
+                        body.style.overflow = '';
+                    });
+                }
             }
         }
     }
@@ -1318,38 +1471,115 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обновление при изменении размера окна
     window.addEventListener('resize', function() {
         if (window.innerWidth > 992) {
+            // На десктопе
             sidebar.style.transform = 'translateX(0)';
+            sidebar.classList.remove('mobile-open');
+            
+            // Удаляем backdrop если есть
             const backdrop = document.querySelector('.sidebar-backdrop');
             if (backdrop) backdrop.remove();
-
+            
+            // Удаляем кнопку меню если есть
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            if (mobileMenuBtn) mobileMenuBtn.remove();
+            
             // Восстанавливаем отступы
             if (sidebar.classList.contains('compact')) {
                 updateMainContentMargin(70);
             } else {
                 updateMainContentMargin(280);
             }
+            
+            // Разблокируем скролл
+            body.style.overflow = '';
         } else {
+            // На мобильных
             sidebar.style.transform = 'translateX(-100%)';
             sidebar.classList.remove('mobile-open');
-            sidebar.style.position = 'fixed';
-            sidebar.style.top = '70px';
-
+            
             // Сбрасываем отступы
             const mainContent = document.querySelector('.main-content');
             if (mainContent) mainContent.style.marginLeft = '0';
+            
+            // Разблокируем скролл
+            body.style.overflow = '';
+            
+            // Удаляем backdrop если есть (он будет создан заново при клике)
+            const backdrop = document.querySelector('.sidebar-backdrop');
+            if (backdrop) backdrop.remove();
+            
+            // Создаем кнопку меню если нужно
+            const headerCenter = document.querySelector('.header-center');
+            if (headerCenter && !document.getElementById('mobileMenuBtn')) {
+                const mobileMenuBtn = document.createElement('button');
+                mobileMenuBtn.id = 'mobileMenuBtn';
+                mobileMenuBtn.className = 'mobile-menu-btn';
+                mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
+                mobileMenuBtn.style.cssText = 'width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.15); color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 10px;';
+                
+                headerCenter.insertBefore(mobileMenuBtn, headerCenter.firstChild);
+                
+                // Добавляем backdrop
+                const backdrop = document.createElement('div');
+                backdrop.className = 'sidebar-backdrop';
+                document.body.appendChild(backdrop);
+                
+                // Добавляем обработчики
+                mobileMenuBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    sidebar.classList.add('mobile-open');
+                    backdrop.classList.add('active');
+                    body.style.overflow = 'hidden';
+                });
+                
+                backdrop.addEventListener('click', function() {
+                    sidebar.classList.remove('mobile-open');
+                    backdrop.classList.remove('active');
+                    body.style.overflow = '';
+                });
+            }
+        }
+        
+        // На мобильных скрываем кнопку toggle
+        if (sidebarToggle && window.innerWidth <= 992) {
+            sidebarToggle.style.display = 'none';
+        } else if (sidebarToggle && window.innerWidth > 992) {
+            sidebarToggle.style.display = 'flex';
         }
     });
 
-    // На десктопе сайдбар скроллится с контентом автоматически (position: absolute)
-    // На мобильных - fixed
-
     // Инициализация при загрузке
-    if (window.innerWidth > 992) {
+    if (window.innerWidth <= 992) {
+        // На мобильных: сбрасываем отступы и скрываем кнопку toggle
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.style.marginLeft = '0';
+        }
+        if (sidebarToggle) {
+            sidebarToggle.style.display = 'none';
+        }
+    } else {
+        // На десктопе: устанавливаем отступы
         if (sidebar.classList.contains('compact')) {
             updateMainContentMargin(70);
         } else {
             updateMainContentMargin(280);
         }
+    }
+
+    // Определяем является ли устройство мобильным с маленьким экраном
+    function isSmallMobile() {
+        return window.innerWidth <= 480 && window.innerHeight <= 850;
+    }
+
+    // На очень маленьких экранах делаем сайдбар с собственным скроллом
+    if (isSmallMobile()) {
+        // Убедимся что сайдбар имеет скролл
+        sidebar.style.overflowY = 'auto';
+        sidebar.style.webkitOverflowScrolling = 'touch';
+        
+        // На маленьких экранах делаем сайдбар на всю высоту
+        sidebar.style.height = '100vh';
     }
 });
 </script>

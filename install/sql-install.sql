@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: localhost:3306
--- Время создания: Дек 19 2025 г., 15:11
+-- Время создания: Дек 23 2025 г., 14:18
 -- Версия сервера: 10.11.14-MariaDB-0+deb12u2
 -- Версия PHP: 8.2.29
 
@@ -87,6 +87,241 @@ CREATE TABLE `cluster_logs` (
   `details` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `docs`
+--
+
+CREATE TABLE `docs` (
+  `id` int(11) NOT NULL,
+  `category_id` int(11) DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `content` longtext NOT NULL,
+  `excerpt` text DEFAULT NULL,
+  `meta_keywords` text DEFAULT NULL,
+  `meta_description` text DEFAULT NULL,
+  `author_id` int(11) NOT NULL,
+  `editor_id` int(11) DEFAULT NULL,
+  `status` enum('draft','published','archived') DEFAULT 'draft',
+  `view_count` int(11) DEFAULT 0,
+  `is_featured` tinyint(1) DEFAULT 0,
+  `is_pinned` tinyint(1) DEFAULT 0,
+  `allow_comments` tinyint(1) DEFAULT 1,
+  `version` int(11) DEFAULT 1,
+  `last_version_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `published_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Дамп данных таблицы `docs`
+--
+
+INSERT INTO `docs` (`id`, `category_id`, `title`, `slug`, `content`, `excerpt`, `meta_keywords`, `meta_description`, `author_id`, `editor_id`, `status`, `view_count`, `is_featured`, `is_pinned`, `allow_comments`, `version`, `last_version_id`, `created_at`, `updated_at`, `published_at`) VALUES
+(1, 8, 'Как применить обновление', 'r', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:28:12', '2025-12-22 01:28:13', NULL),
+(3, 1, 'Как применить обновление', 'update', 'Для применения обновления панели нужно&nbsp;', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:29:02', '2025-12-22 01:29:02', NULL),
+(14, 8, 'Как применить обновление панели', 'k', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:46:40', '2025-12-22 01:46:40', NULL),
+(15, 8, 'Как применить обновление панели', 'kakprimenitobnovleniepaneli', '\r\n                                            ', '', '', '', 1, NULL, 'draft', 1, 0, 0, 1, 1, NULL, '2025-12-22 01:46:57', '2025-12-22 01:46:57', NULL),
+(16, 8, 'Как применить обновление панели', 'kakprimenitobnovleniepaneli1', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', '', '', 1, 1, 'published', 8, 0, 0, 0, 8, NULL, '2025-12-22 01:47:24', '2025-12-22 01:50:17', '2025-12-22 01:47:24');
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_bookmarks`
+--
+
+CREATE TABLE `doc_bookmarks` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `doc_id` int(11) NOT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_categories`
+--
+
+CREATE TABLE `doc_categories` (
+  `id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `slug` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  `icon` varchar(50) DEFAULT 'fa-file',
+  `color` varchar(20) DEFAULT '#00bcd4',
+  `sort_order` int(11) DEFAULT 0,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Дамп данных таблицы `doc_categories`
+--
+
+INSERT INTO `doc_categories` (`id`, `name`, `slug`, `description`, `parent_id`, `icon`, `color`, `sort_order`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'Основное', 'getting-started', 'Начало работы с платформой', NULL, 'fa-rocket', '#00bcd4', 1, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(2, 'Виртуальные машины', 'virtual-machines', 'Управление виртуальными машинами', NULL, 'fa-server', '#2196f3', 2, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(3, 'Сеть', 'networking', 'Настройка сети и безопасности', NULL, 'fa-network-wired', '#4caf50', 3, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(4, 'Хранение данных', 'storage', 'Работа с дисками и хранилищем', NULL, 'fa-hdd', '#ff9800', 4, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(5, 'Безопасность', 'security', 'Настройка безопасности', NULL, 'fa-shield-alt', '#f44336', 5, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(6, 'API', 'api', 'Работа с API', NULL, 'fa-code', '#9c27b0', 6, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(7, 'FAQ', 'faq', 'Часто задаваемые вопросы', NULL, 'fa-question-circle', '#607d8b', 7, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53'),
+(8, 'Обновления', 'changelog', 'История изменений и обновлений', NULL, 'fa-history', '#795548', 8, 1, '2025-12-21 10:05:53', '2025-12-21 10:05:53');
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_comments`
+--
+
+CREATE TABLE `doc_comments` (
+  `id` int(11) NOT NULL,
+  `doc_id` int(11) NOT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  `user_id` int(11) NOT NULL,
+  `content` text NOT NULL,
+  `is_admin` tinyint(1) DEFAULT 0,
+  `is_resolved` tinyint(1) DEFAULT 0,
+  `likes` int(11) DEFAULT 0,
+  `dislikes` int(11) DEFAULT 0,
+  `is_approved` tinyint(1) DEFAULT 1,
+  `reported_count` int(11) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_ratings`
+--
+
+CREATE TABLE `doc_ratings` (
+  `id` int(11) NOT NULL,
+  `doc_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `rating` tinyint(4) NOT NULL CHECK (`rating` >= 1 and `rating` <= 5),
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_searches`
+--
+
+CREATE TABLE `doc_searches` (
+  `id` int(11) NOT NULL,
+  `query` varchar(255) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `results_count` int(11) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_statistics`
+--
+
+CREATE TABLE `doc_statistics` (
+  `id` int(11) NOT NULL,
+  `doc_id` int(11) NOT NULL,
+  `view_date` date NOT NULL,
+  `view_count` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Дамп данных таблицы `doc_statistics`
+--
+
+INSERT INTO `doc_statistics` (`id`, `doc_id`, `view_date`, `view_count`) VALUES
+(1, 1, '2025-12-22', 1),
+(2, 3, '2025-12-22', 1),
+(3, 14, '2025-12-22', 1),
+(4, 15, '2025-12-22', 1),
+(5, 16, '2025-12-22', 8);
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_tags`
+--
+
+CREATE TABLE `doc_tags` (
+  `id` int(11) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `slug` varchar(50) NOT NULL,
+  `color` varchar(20) DEFAULT '#6c757d',
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Дамп данных таблицы `doc_tags`
+--
+
+INSERT INTO `doc_tags` (`id`, `name`, `slug`, `color`, `created_at`) VALUES
+(1, 'Начало работы', 'getting-started', '#00bcd4', '2025-12-21 10:05:53'),
+(2, 'VM', 'vm', '#2196f3', '2025-12-21 10:05:53'),
+(3, 'Windows', 'windows', '#0078d7', '2025-12-21 10:05:53'),
+(4, 'Linux', 'linux', '#f05133', '2025-12-21 10:05:53'),
+(5, 'Сеть', 'networking', '#4caf50', '2025-12-21 10:05:53'),
+(6, 'Безопасность', 'security', '#f44336', '2025-12-21 10:05:53'),
+(7, 'API', 'api', '#9c27b0', '2025-12-21 10:05:53'),
+(8, 'База данных', 'database', '#ff9800', '2025-12-21 10:05:53'),
+(9, 'Резервное копирование', 'backup', '#795548', '2025-12-21 10:05:53'),
+(10, 'Мониторинг', 'monitoring', '#607d8b', '2025-12-21 10:05:53');
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_tag_relations`
+--
+
+CREATE TABLE `doc_tag_relations` (
+  `doc_id` int(11) NOT NULL,
+  `tag_id` int(11) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Структура таблицы `doc_versions`
+--
+
+CREATE TABLE `doc_versions` (
+  `id` int(11) NOT NULL,
+  `doc_id` int(11) NOT NULL,
+  `version` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `content` longtext NOT NULL,
+  `excerpt` text DEFAULT NULL,
+  `author_id` int(11) NOT NULL,
+  `change_reason` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Дамп данных таблицы `doc_versions`
+--
+
+INSERT INTO `doc_versions` (`id`, `doc_id`, `version`, `title`, `content`, `excerpt`, `author_id`, `change_reason`, `created_at`) VALUES
+(1, 16, 2, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно папку с номером релиза выше чем существующая поместить в admin/updates<br>проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:19'),
+(2, 16, 3, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates<br>проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:32'),
+(3, 16, 4, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД, потом перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:48:50'),
+(4, 16, 5, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД,&nbsp;</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:49:11'),
+(5, 16, 6, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД,&nbsp;</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:49:23'),
+(6, 16, 7, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:50:15'),
+(7, 16, 8, 'Как применить обновление панели', '\r\n                        <p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">Для применения обновления панели нужно <br>1. В папку с номером релиза выше чем существующая поместить в admin/updates</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br>2. Проверить что содержимое папки обновления содержит папку files в ней лежат папки с путями которые будет обновлены, в корне номерной папки если есть файл sql то будет обновлены таблицы в БД</span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\"><br></span></p><p class=\"p1\" style=\"margin: 0px; font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; line-height: normal; font-family: Helvetica; color: rgb(25, 28, 31); -webkit-text-stroke-color: rgb(25, 28, 31); background-color: rgb(246, 247, 249);\"><span class=\"s1\" style=\"font-kerning: none;\">3. Перейти в админ панели в меню обновления через иконку в шапке, если все сделано правильно система увидит обновление и будет возможно применить его</span></p>\r\n                                                                ', 'Обновление панели', 1, 'Редактирование', '2025-12-22 01:50:17');
 
 -- --------------------------------------------------------
 
@@ -411,7 +646,7 @@ CREATE TABLE `system_versions` (
 --
 
 INSERT INTO `system_versions` (`id`, `version`, `release_date`, `description`, `created_at`) VALUES
-(1, '2.5.1-beta2', '2025-12-11', 'Initial system version', '2025-12-11 06:39:39');
+(1, '2.5.1-beta3', '2025-12-11', 'Initial system version', '2025-12-11 06:39:39');
 
 -- --------------------------------------------------------
 
@@ -828,6 +1063,95 @@ ALTER TABLE `cluster_logs`
   ADD KEY `idx_created_at` (`created_at`);
 
 --
+-- Индексы таблицы `docs`
+--
+ALTER TABLE `docs`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `slug` (`slug`),
+  ADD KEY `editor_id` (`editor_id`),
+  ADD KEY `idx_slug` (`slug`),
+  ADD KEY `idx_category` (`category_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_author` (`author_id`),
+  ADD KEY `idx_featured` (`is_featured`),
+  ADD KEY `idx_pinned` (`is_pinned`);
+ALTER TABLE `docs` ADD FULLTEXT KEY `idx_search` (`title`,`content`,`excerpt`);
+
+--
+-- Индексы таблицы `doc_bookmarks`
+--
+ALTER TABLE `doc_bookmarks`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_doc` (`user_id`,`doc_id`),
+  ADD KEY `doc_id` (`doc_id`);
+
+--
+-- Индексы таблицы `doc_categories`
+--
+ALTER TABLE `doc_categories`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `slug` (`slug`),
+  ADD KEY `idx_slug` (`slug`),
+  ADD KEY `idx_parent` (`parent_id`),
+  ADD KEY `idx_sort` (`sort_order`);
+
+--
+-- Индексы таблицы `doc_comments`
+--
+ALTER TABLE `doc_comments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_doc` (`doc_id`),
+  ADD KEY `idx_user` (`user_id`),
+  ADD KEY `idx_parent` (`parent_id`);
+
+--
+-- Индексы таблицы `doc_ratings`
+--
+ALTER TABLE `doc_ratings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_doc_user` (`doc_id`,`user_id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Индексы таблицы `doc_searches`
+--
+ALTER TABLE `doc_searches`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_query` (`query`),
+  ADD KEY `idx_user` (`user_id`);
+
+--
+-- Индексы таблицы `doc_statistics`
+--
+ALTER TABLE `doc_statistics`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_doc_date` (`doc_id`,`view_date`),
+  ADD KEY `idx_date` (`view_date`);
+
+--
+-- Индексы таблицы `doc_tags`
+--
+ALTER TABLE `doc_tags`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `name` (`name`),
+  ADD UNIQUE KEY `slug` (`slug`);
+
+--
+-- Индексы таблицы `doc_tag_relations`
+--
+ALTER TABLE `doc_tag_relations`
+  ADD PRIMARY KEY (`doc_id`,`tag_id`),
+  ADD KEY `tag_id` (`tag_id`);
+
+--
+-- Индексы таблицы `doc_versions`
+--
+ALTER TABLE `doc_versions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `author_id` (`author_id`),
+  ADD KEY `idx_doc_version` (`doc_id`,`version`);
+
+--
 -- Индексы таблицы `features`
 --
 ALTER TABLE `features`
@@ -1106,6 +1430,60 @@ ALTER TABLE `cluster_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT для таблицы `docs`
+--
+ALTER TABLE `docs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_bookmarks`
+--
+ALTER TABLE `doc_bookmarks`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_categories`
+--
+ALTER TABLE `doc_categories`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_comments`
+--
+ALTER TABLE `doc_comments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_ratings`
+--
+ALTER TABLE `doc_ratings`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_searches`
+--
+ALTER TABLE `doc_searches`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_statistics`
+--
+ALTER TABLE `doc_statistics`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_tags`
+--
+ALTER TABLE `doc_tags`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT для таблицы `doc_versions`
+--
+ALTER TABLE `doc_versions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
 -- AUTO_INCREMENT для таблицы `features`
 --
 ALTER TABLE `features`
@@ -1199,7 +1577,7 @@ ALTER TABLE `system_updates`
 -- AUTO_INCREMENT для таблицы `system_versions`
 --
 ALTER TABLE `system_versions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT для таблицы `tariffs`
@@ -1324,6 +1702,68 @@ ALTER TABLE `balance_history`
 --
 ALTER TABLE `cluster_logs`
   ADD CONSTRAINT `cluster_logs_ibfk_1` FOREIGN KEY (`cluster_id`) REFERENCES `proxmox_clusters` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `docs`
+--
+ALTER TABLE `docs`
+  ADD CONSTRAINT `docs_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `doc_categories` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `docs_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `docs_ibfk_3` FOREIGN KEY (`editor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_bookmarks`
+--
+ALTER TABLE `doc_bookmarks`
+  ADD CONSTRAINT `doc_bookmarks_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_bookmarks_ibfk_2` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_categories`
+--
+ALTER TABLE `doc_categories`
+  ADD CONSTRAINT `doc_categories_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `doc_categories` (`id`) ON DELETE SET NULL;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_comments`
+--
+ALTER TABLE `doc_comments`
+  ADD CONSTRAINT `doc_comments_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_comments_ibfk_2` FOREIGN KEY (`parent_id`) REFERENCES `doc_comments` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_comments_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_ratings`
+--
+ALTER TABLE `doc_ratings`
+  ADD CONSTRAINT `doc_ratings_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_ratings_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_searches`
+--
+ALTER TABLE `doc_searches`
+  ADD CONSTRAINT `doc_searches_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_statistics`
+--
+ALTER TABLE `doc_statistics`
+  ADD CONSTRAINT `doc_statistics_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_tag_relations`
+--
+ALTER TABLE `doc_tag_relations`
+  ADD CONSTRAINT `doc_tag_relations_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_tag_relations_ibfk_2` FOREIGN KEY (`tag_id`) REFERENCES `doc_tags` (`id`) ON DELETE CASCADE;
+
+--
+-- Ограничения внешнего ключа таблицы `doc_versions`
+--
+ALTER TABLE `doc_versions`
+  ADD CONSTRAINT `doc_versions_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `doc_versions_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Ограничения внешнего ключа таблицы `node_checks`

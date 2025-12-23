@@ -618,6 +618,20 @@ $backups = getBackupList();
 $schedules = getScheduledBackups();
 $ftp_backups = getFTPBackups();
 
+// Вычисляем размеры бэкапов для статистики
+$total_backup_size = 0;
+$last_backup_size = 0;
+
+if (!empty($backups)) {
+    // Размер последнего бэкапа (первый в отсортированном массиве)
+    $last_backup_size = $backups[0]['size'];
+    
+    // Общий размер всех бэкапов
+    foreach ($backups as $backup) {
+        $total_backup_size += $backup['size'];
+    }
+}
+
 $title = "Резервное копирование | Админ панель | HomeVlad Cloud";
 require 'admin_header.php';
 ?>
@@ -1550,51 +1564,69 @@ require 'admin_header.php';
         </div>
     <?php endif; ?>
 
-    <!-- Карточки статистики -->
-    <div class="backup-stats-grid">
-        <div class="backup-stat-card">
-            <div class="backup-stat-icon backup-stat-icon-success">
-                <i class="fas fa-file-archive"></i>
-            </div>
-            <div class="backup-stat-value"><?= count($backups) ?></div>
-            <p class="backup-stat-label">Всего бэкапов</p>
+<!-- Карточки статистики -->
+<div class="backup-stats-grid">
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon backup-stat-icon-success">
+            <i class="fas fa-file-archive"></i>
         </div>
-
-        <div class="backup-stat-card">
-            <div class="backup-stat-icon backup-stat-icon-info">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="backup-stat-value"><?= count($schedules) ?></div>
-            <p class="backup-stat-label">Активных расписаний</p>
-        </div>
-
-        <div class="backup-stat-card">
-            <div class="backup-stat-icon backup-stat-icon-warning">
-                <i class="fas fa-history"></i>
-            </div>
-            <div class="backup-stat-value">
-                <?php
-                    if (!empty($backups)) {
-                        $latest = $backups[0];
-                        echo date('d.m.Y', $latest['modified']);
-                    } else {
-                        echo 'Нет';
-                    }
-                ?>
-            </div>
-            <p class="backup-stat-label">Последний бэкап</p>
-        </div>
-
-        <div class="backup-stat-card">
-            <div class="backup-stat-icon backup-stat-icon-danger">
-                <i class="fas fa-server"></i>
-            </div>
-            <div class="backup-stat-value">
-                <?= formatBytesss(disk_free_space($backup_dir)) ?>
-            </div>
-            <p class="backup-stat-label">Свободно места</p>
-        </div>
+        <div class="backup-stat-value"><?= count($backups) ?></div>
+        <p class="backup-stat-label">Всего бэкапов</p>
     </div>
+
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon backup-stat-icon-info">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="backup-stat-value"><?= count($schedules) ?></div>
+        <p class="backup-stat-label">Активных расписаний</p>
+    </div>
+
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon backup-stat-icon-warning">
+            <i class="fas fa-history"></i>
+        </div>
+        <div class="backup-stat-value">
+            <?php
+                if (!empty($backups)) {
+                    $latest = $backups[0];
+                    echo date('d.m.Y', $latest['modified']);
+                } else {
+                    echo 'Нет';
+                }
+            ?>
+        </div>
+        <p class="backup-stat-label">Последний бэкап</p>
+    </div>
+
+    <!-- НОВАЯ КАРТОЧКА: Размер последнего бэкапа -->
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+            <i class="fas fa-weight-hanging"></i>
+        </div>
+        <div class="backup-stat-value"><?= formatBytesss($last_backup_size) ?></div>
+        <p class="backup-stat-label">Размер последнего бэкапа</p>
+    </div>
+
+    <!-- НОВАЯ КАРТОЧКА: Общий размер бэкапов -->
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <i class="fas fa-database"></i>
+        </div>
+        <div class="backup-stat-value"><?= formatBytesss($total_backup_size) ?></div>
+        <p class="backup-stat-label">Общий размер бэкапов</p>
+    </div>
+
+    <div class="backup-stat-card">
+        <div class="backup-stat-icon backup-stat-icon-danger">
+            <i class="fas fa-server"></i>
+        </div>
+        <div class="backup-stat-value">
+            <?= formatBytesss(disk_free_space($backup_dir)) ?>
+        </div>
+        <p class="backup-stat-label">Свободно места</p>
+    </div>
+</div>
 
     <div class="backup-form-section" id="current-operations-section" style="margin-bottom: 30px; display: none;">
     <h3 class="section-title">
@@ -2838,4 +2870,25 @@ document.getElementById('scheduleModal').addEventListener('shown.bs.modal', func
         }
     }, 100);
 });
+
+// Функция обновления статистики бэкапов
+function updateBackupStats() {
+    fetch('/admin/ajax/get_backup_stats.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Обновляем значения на странице
+                document.querySelectorAll('.backup-stat-value')[2].textContent = 
+                    formatBytesss(data.last_backup_size);
+                document.querySelectorAll('.backup-stat-value')[3].textContent = 
+                    formatBytesss(data.total_backup_size);
+                document.querySelectorAll('.backup-stat-value')[5].textContent = 
+                    formatBytesss(data.free_space);
+            }
+        })
+        .catch(error => console.error('Ошибка обновления статистики:', error));
+}
+
+// Обновлять статистику каждые 30 секунд
+setInterval(updateBackupStats, 30000);
 </script>

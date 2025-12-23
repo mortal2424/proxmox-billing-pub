@@ -29,12 +29,12 @@ function createRequiredDirectories() {
     if (!file_exists(UPDATES_PATH)) {
         mkdir(UPDATES_PATH, 0755, true);
     }
-    
+
     // Создаем папку для бэкапов
     if (!file_exists(BACKUPS_PATH)) {
         mkdir(BACKUPS_PATH, 0755, true);
     }
-    
+
     // Создаем папку для бэкапов обновлений
     $backup_updates_dir = BACKUPS_PATH . '/updates';
     if (!file_exists($backup_updates_dir)) {
@@ -44,8 +44,8 @@ function createRequiredDirectories() {
 
 createRequiredDirectories();
 
-// Создаем необходимые таблицы, если их нет
-function createSystemTables($pdo) {
+// Создаем необходимые таблицы, если их нет (раскоментировать если нужно)
+/*function createSystemTables($pdo) {
     try {
         // Таблица для хранения информации о версиях
         $pdo->exec("
@@ -85,9 +85,9 @@ function createSystemTables($pdo) {
     } catch (Exception $e) {
         error_log("Ошибка при создании таблиц системы: " . $e->getMessage());
     }
-}
+}*/
 
-createSystemTables($pdo);
+//createSystemTables($pdo); (раскоментировать если раскоментировали функцию выше)
 
 // Получаем текущую версию системы
 function getCurrentVersion($pdo) {
@@ -129,20 +129,20 @@ function getAvailableUpdates($pdo) {
 
     foreach ($items as $item) {
         $item_path = UPDATES_PATH . '/' . $item;
-        
+
         // Проверяем, что это папка и соответствует формату версии X.Y.Z
         if ($item != '.' && $item != '..' && is_dir($item_path) && preg_match('/^\d+\.\d+\.\d+$/', $item)) {
             $version = $item;
-            
+
             // Проверяем наличие хотя бы одного файла обновления
             $has_sql = file_exists($item_path . '/update.sql');
             $has_files = file_exists($item_path . '/files') && count(scandir($item_path . '/files')) > 2;
-            
+
             // Если нет ни SQL ни файлов - пропускаем
             if (!$has_sql && !$has_files) {
                 continue;
             }
-            
+
             // Определяем тип обновления
             $comparison = compareVersions($version, $current_version);
             if ($comparison > 0) {
@@ -193,12 +193,12 @@ function getUpdateDescription($update_path) {
             return trim($desc);
         }
     }
-    
+
     $sql_file = $update_path . '/update.sql';
     if (file_exists($sql_file)) {
         $content = file_get_contents($sql_file);
         $lines = explode("\n", $content);
-        
+
         foreach ($lines as $line) {
             $line = trim($line);
             if (strpos($line, '-- Description:') === 0) {
@@ -212,7 +212,7 @@ function getUpdateDescription($update_path) {
             }
         }
     }
-    
+
     return 'Обновление системы';
 }
 
@@ -997,7 +997,7 @@ require_once 'admin_header.php';
                             </div>
                             <div class="update-item-actions">
                                 <?php if (!$update['applied']): ?>
-                                <button type="button" onclick="applyUpdate('<?= htmlspecialchars($version) ?>')" 
+                                <button type="button" onclick="applyUpdate('<?= htmlspecialchars($version) ?>')"
                                         class="update-item-btn update-item-btn-primary">
                                     <i class="fas fa-play"></i> Применить
                                 </button>
@@ -1154,11 +1154,11 @@ function applyUpdate(version) {
         alert('Обновление уже выполняется. Пожалуйста, дождитесь завершения.');
         return;
     }
-    
+
     if (!confirm(`Применить обновление до версии ${version}?\n\nПеред продолжением убедитесь, что создана резервная копия системы!`)) {
         return;
     }
-    
+
     updateInProgress = true;
     logEntries = [];
     document.getElementById('logLoader').style.display = 'flex';
@@ -1166,9 +1166,9 @@ function applyUpdate(version) {
     document.getElementById('closeBtn').style.display = 'none';
     document.getElementById('reloadBtn').style.display = 'none';
     document.getElementById('updateProgressBar').style.width = '0%';
-    
+
     showUpdateLog();
-    
+
     // Начинаем загрузку лога
     fetchUpdateLog(version);
 }
@@ -1176,7 +1176,7 @@ function applyUpdate(version) {
 function fetchUpdateLog(version) {
     const formData = new FormData();
     formData.append('version', version);
-    
+
     fetch('ajax_apply_update.php', {
         method: 'POST',
         body: formData
@@ -1192,14 +1192,14 @@ function fetchUpdateLog(version) {
             document.getElementById('updateProgressBar').style.width = '100%';
             document.getElementById('closeBtn').style.display = 'inline-block';
         }
-        
+
         // Отображаем весь лог
         if (data.log && data.log.length > 0) {
             data.log.forEach(entry => {
                 addLogEntry(entry.type, `[${entry.time}] ${entry.message}`);
             });
         }
-        
+
         updateInProgress = false;
         document.getElementById('logLoader').style.display = 'none';
     })
@@ -1219,24 +1219,24 @@ function addLogEntry(type, message) {
         message: message,
         time: new Date().toLocaleTimeString()
     };
-    
+
     logEntries.push(entry);
-    
+
     const logEntriesDiv = document.getElementById('logEntries');
     const entryDiv = document.createElement('div');
     entryDiv.className = `log-entry log-type-${type}`;
     entryDiv.id = `log-${entry.id}`;
-    
+
     entryDiv.innerHTML = `
         <div class="log-time">${entry.time}</div>
         <div class="log-message">${escapeHtml(message)}</div>
     `;
-    
+
     logEntriesDiv.appendChild(entryDiv);
-    
+
     // Прокручиваем к последнему сообщению
     entryDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    
+
     // Обновляем прогресс бар (простая имитация прогресса)
     if (logEntries.length > 0) {
         const progress = Math.min(90, (logEntries.length / 30) * 90);

@@ -39,7 +39,7 @@
                     <div class="notifications-menu" id="notificationsMenu">
                         <div class="notifications-header">
                             <h4>Уведомления</h4>
-                            <a href="/templates/notifications.php" class="view-all">Все</a>
+                            <a href="/docs/docs.php" class="view-all">Все</a>
                         </div>
                         <div class="notifications-list">
                             <div class="notification-empty">
@@ -108,7 +108,6 @@
                                         <i class="fas fa-check-circle"></i> Проверен
                                     </span>
                                 <?php endif; ?>
-                            </div>
                         </div>
                     </div>
 
@@ -1067,27 +1066,152 @@ html {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Переключатель темы
+    // Элементы управления
     const themeToggle = document.getElementById('themeToggle');
-    const savedTheme = localStorage.getItem('theme') || 'light';
+    const header = document.querySelector('.admin-header.centered-header.modern-header');
 
-    if (savedTheme === 'dark') {
-        themeToggle.checked = true;
-        document.body.classList.add('dark-theme');
+    // Время для автоматического переключения
+    const DARK_START_HOUR = 21; // 21:00
+    const DARK_END_HOUR = 8;   // 8:00
+
+    // Ключи для localStorage
+    const THEME_KEY = 'theme';
+    const MANUAL_THEME_KEY = 'manual_theme';
+    const LAST_AUTO_CHANGE_KEY = 'last_auto_theme_date';
+    const MANUAL_OVERRIDE_KEY = 'manual_override_active';
+    const OVERRIDE_EXPIRES_KEY = 'override_expires_at';
+
+    // Функция для получения текущего часа
+    function getCurrentHour() {
+        return new Date().getHours();
     }
 
-    themeToggle.addEventListener('change', function() {
-        if (this.checked) {
+    // Функция для проверки, нужно ли включать темную тему по времени
+    function shouldUseDarkThemeByTime() {
+        const currentHour = getCurrentHour();
+        return currentHour >= DARK_START_HOUR || currentHour < DARK_END_HOUR;
+    }
+
+    // Функция для получения текущей даты в формате YYYY-MM-DD
+    function getTodayDate() {
+        const now = new Date();
+        return now.toISOString().split('T')[0];
+    }
+
+    // Функция для установки темы
+    function setTheme(isDark) {
+        if (isDark) {
             document.body.classList.add('dark-theme');
-            localStorage.setItem('theme', 'dark');
+            if (themeToggle) themeToggle.checked = true;
+            localStorage.setItem(THEME_KEY, 'dark');
         } else {
             document.body.classList.remove('dark-theme');
-            localStorage.setItem('theme', 'light');
+            if (themeToggle) themeToggle.checked = false;
+            localStorage.setItem(THEME_KEY, 'light');
         }
-    });
+    }
+
+    // Функция для установки ручной темы
+    function setManualTheme(isDark) {
+        setTheme(isDark);
+        localStorage.setItem(MANUAL_THEME_KEY, isDark ? 'dark' : 'light');
+        localStorage.setItem(LAST_AUTO_CHANGE_KEY, getTodayDate());
+
+        // Если пользователь вручную переключает тему в период 21:00-8:00,
+        // устанавливаем флаг, что ручное переопределение активно до следующего дня 21:00
+        if (shouldUseDarkThemeByTime() && !isDark) {
+            // Пользователь включил светлую тему в темное время
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(DARK_START_HOUR, 0, 0, 0);
+
+            localStorage.setItem(MANUAL_OVERRIDE_KEY, 'true');
+            localStorage.setItem(OVERRIDE_EXPIRES_KEY, tomorrow.getTime());
+        } else if (!shouldUseDarkThemeByTime() && isDark) {
+            // Пользователь включил темную тему в светлое время
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+
+            localStorage.setItem(MANUAL_OVERRIDE_KEY, 'true');
+            localStorage.setItem(OVERRIDE_EXPIRES_KEY, tomorrow.getTime());
+        } else {
+            // Сбрасываем переопределение, если пользователь выбрал тему по умолчанию для времени суток
+            localStorage.removeItem(MANUAL_OVERRIDE_KEY);
+            localStorage.removeItem(OVERRIDE_EXPIRES_KEY);
+        }
+    }
+
+    // Функция для проверки, активно ли ручное переопределение
+    function isManualOverrideActive() {
+        const overrideActive = localStorage.getItem(MANUAL_OVERRIDE_KEY) === 'true';
+        const expiresAt = localStorage.getItem(OVERRIDE_EXPIRES_KEY);
+
+        if (!overrideActive || !expiresAt) {
+            return false;
+        }
+
+        const now = new Date().getTime();
+        const expiresTime = parseInt(expiresAt);
+
+        // Если время истекло, сбрасываем переопределение
+        if (now >= expiresTime) {
+            localStorage.removeItem(MANUAL_OVERRIDE_KEY);
+            localStorage.removeItem(OVERRIDE_EXPIRES_KEY);
+            return false;
+        }
+
+        return true;
+    }
+
+    // Функция для применения автоматической темы по времени
+    function applyAutoTheme() {
+        const shouldBeDark = shouldUseDarkThemeByTime();
+        setTheme(shouldBeDark);
+        localStorage.setItem(LAST_AUTO_CHANGE_KEY, getTodayDate());
+    }
+
+    // Инициализация темы при загрузке страницы
+    function initTheme() {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        const manualTheme = localStorage.getItem(MANUAL_THEME_KEY);
+        const lastAutoChangeDate = localStorage.getItem(LAST_AUTO_CHANGE_KEY);
+        const todayDate = getTodayDate();
+
+        // Проверяем, активно ли ручное переопределение
+        const overrideActive = isManualOverrideActive();
+
+        if (overrideActive && manualTheme) {
+            // Если активно ручное переопределение, используем сохраненную ручную тему
+            setTheme(manualTheme === 'dark');
+        } else {
+            // Проверяем, меняли ли тему сегодня автоматически
+            if (lastAutoChangeDate === todayDate) {
+                // Если уже меняли сегодня, используем сохраненную тему
+                if (savedTheme) {
+                    setTheme(savedTheme === 'dark');
+                } else {
+                    applyAutoTheme();
+                }
+            } else {
+                // Если не меняли сегодня или нет сохраненной темы, применяем автоматическую
+                applyAutoTheme();
+            }
+        }
+    }
+
+    // Инициализируем тему
+    initTheme();
+
+    // Обработчик переключения темы
+    if (themeToggle) {
+        themeToggle.addEventListener('change', function() {
+            const isDark = this.checked;
+            setManualTheme(isDark);
+        });
+    }
 
     // Эффект при скролле
-    const header = document.querySelector('.admin-header.centered-header.modern-header');
     if (header) {
         if (window.scrollY > 20) {
             header.classList.add('scrolled');
@@ -1201,5 +1325,23 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
         });
     }
+
+    // Проверяем изменение времени каждую минуту
+    setInterval(function() {
+        const overrideActive = isManualOverrideActive();
+
+        if (!overrideActive) {
+            // Только если нет активного ручного переопределения
+            const currentHour = getCurrentHour();
+            const savedTheme = localStorage.getItem(THEME_KEY);
+            const shouldBeDark = shouldUseDarkThemeByTime();
+            const isCurrentlyDark = savedTheme === 'dark';
+
+            // Если текущая тема не соответствует времени суток, меняем ее
+            if (shouldBeDark !== isCurrentlyDark) {
+                applyAutoTheme();
+            }
+        }
+    }, 60000); // Проверяем каждую минуту
 });
 </script>

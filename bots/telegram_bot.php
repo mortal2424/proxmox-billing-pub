@@ -25,9 +25,9 @@ class DatabaseManager {
     public function __construct() {
         $this->dbConfig = [
             'host' => 'localhost',
-            'dbname' => 'имя бд',
-            'user' => 'пользователь бд',
-            'pass' => 'пароль бд'
+            'dbname' => '',
+            'user' => '',
+            'pass' => ''
         ];
         $this->connect();
     }
@@ -1362,7 +1362,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
 }
 
 // Конфигурация и запуск
-$botToken = 'токен бота который будед давать информацию';
+$botToken = '';
 
 try {
     logMessage('=== BOT STARTED ===');

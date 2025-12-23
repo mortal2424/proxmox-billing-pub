@@ -153,6 +153,138 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $avg_monthly_cost = $stmt->fetchColumn() * 30;
 
+// Получаем данные для графиков за 30 дней
+$stmt = $pdo->prepare("
+    SELECT
+        DATE(created_at) as date,
+        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as debits,
+        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as credits
+    FROM transactions
+    WHERE user_id = ?
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY DATE(created_at)
+    ORDER BY date ASC
+");
+$stmt->execute([$user_id]);
+$daily_transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Получаем данные для графиков по часам (последние 24 часа)
+$stmt = $pdo->prepare("
+    SELECT
+        DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00') as hour,
+        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as debits
+    FROM transactions
+    WHERE user_id = ?
+        AND type = 'debit'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00')
+    ORDER BY hour ASC
+");
+$stmt->execute([$user_id]);
+$hourly_debits = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Получаем детализацию списаний по ресурсам за последние 7 дней
+$stmt = $pdo->prepare("
+    SELECT
+        DATE(created_at) as date,
+        metadata
+    FROM transactions
+    WHERE user_id = ?
+        AND type = 'debit'
+        AND metadata IS NOT NULL
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    ORDER BY created_at ASC
+");
+$stmt->execute([$user_id]);
+$resource_transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Анализируем метаданные для получения данных по ресурсам
+$resource_data = [
+    'cpu' => ['dates' => [], 'values' => []],
+    'ram' => ['dates' => [], 'values' => []],
+    'disk' => ['dates' => [], 'values' => []]
+];
+
+foreach ($resource_transactions as $transaction) {
+    $date = date('d.m', strtotime($transaction['date']));
+    $metadata = json_decode($transaction['metadata'], true);
+
+    if ($metadata) {
+        if (isset($metadata['cpu'])) {
+            if (!in_array($date, $resource_data['cpu']['dates'])) {
+                $resource_data['cpu']['dates'][] = $date;
+                $resource_data['cpu']['values'][] = 0;
+            }
+            $lastIndex = count($resource_data['cpu']['values']) - 1;
+            $resource_data['cpu']['values'][$lastIndex] += ($metadata['cpu'] * ($metadata['cpu_price'] ?? 0));
+        }
+
+        if (isset($metadata['memory'])) {
+            if (!in_array($date, $resource_data['ram']['dates'])) {
+                $resource_data['ram']['dates'][] = $date;
+                $resource_data['ram']['values'][] = 0;
+            }
+            $lastIndex = count($resource_data['ram']['values']) - 1;
+            $resource_data['ram']['values'][$lastIndex] += ($metadata['memory'] * ($metadata['memory_price'] ?? 0));
+        }
+
+        if (isset($metadata['disk'])) {
+            if (!in_array($date, $resource_data['disk']['dates'])) {
+                $resource_data['disk']['dates'][] = $date;
+                $resource_data['disk']['values'][] = 0;
+            }
+            $lastIndex = count($resource_data['disk']['values']) - 1;
+            $resource_data['disk']['values'][$lastIndex] += ($metadata['disk'] * ($metadata['disk_price'] ?? 0));
+        }
+    }
+}
+
+// Получаем данные для графика платежей
+$stmt = $pdo->prepare("
+    SELECT
+        DATE(created_at) as date,
+        SUM(amount) as payments
+    FROM payments
+    WHERE user_id = ?
+        AND status = 'completed'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY DATE(created_at)
+    ORDER BY date ASC
+");
+$stmt->execute([$user_id]);
+$daily_payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Подготавливаем данные для JavaScript
+$chart_labels = [];
+$chart_debits = [];
+$chart_credits = [];
+$chart_payments = [];
+
+// Данные за 30 дней
+foreach ($daily_transactions as $day) {
+    $chart_labels[] = date('d.m', strtotime($day['date']));
+    $chart_debits[] = (float)$day['debits'];
+    $chart_credits[] = (float)$day['credits'];
+}
+
+// Данные по часам
+$hourly_labels = [];
+$hourly_values = [];
+foreach ($hourly_debits as $hour) {
+    $hourly_labels[] = date('H:00', strtotime($hour['hour']));
+    $hourly_values[] = (float)$hour['debits'];
+}
+
+$payments_map = [];
+foreach ($daily_payments as $payment) {
+    $payments_map[date('d.m', strtotime($payment['date']))] = (float)$payment['payments'];
+}
+
+// Синхронизируем платежи с датами транзакций
+foreach ($chart_labels as $label) {
+    $chart_payments[] = $payments_map[$label] ?? 0;
+}
+
 $errors = [];
 $success = false;
 $payment_method = '';
@@ -512,6 +644,7 @@ $title = "Биллинг | HomeVlad Cloud";
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/css/themes.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -1233,6 +1366,183 @@ $title = "Биллинг | HomeVlad Cloud";
             color: #1e293b;
         }
 
+        /* Модальное окно графиков */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            overflow-y: auto;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 95%;
+            max-width: 1200px;
+            max-height: 95vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-theme .modal-content {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        body.dark-theme .modal-title {
+            color: #f1f5f9;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #64748b;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-modal:hover {
+            color: #ef4444;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        body.dark-theme .chart-container {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        body.dark-theme .chart-title {
+            color: #f1f5f9;
+        }
+
+        .chart-wrapper {
+            height: 300px;
+            position: relative;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .chart-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        /* Табы для переключения графиков */
+        .graph-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-theme .graph-tabs {
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .graph-tab {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.3s ease;
+        }
+
+        .graph-tab:hover {
+            background: rgba(0, 188, 212, 0.1);
+            color: #00bcd4;
+        }
+
+        .graph-tab.active {
+            background: var(--secondary-gradient);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+        }
+
+        .graph-content {
+            display: none;
+        }
+
+        .graph-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
         /* Адаптивность */
         @media (max-width: 1200px) {
             .stats-grid {
@@ -1280,6 +1590,19 @@ $title = "Биллинг | HomeVlad Cloud";
             .payment-methods-grid {
                 grid-template-columns: 1fr;
             }
+
+            .modal-content {
+                width: 95%;
+                margin: 10px;
+            }
+
+            .chart-wrapper {
+                height: 250px;
+            }
+
+            .graph-tabs {
+                flex-direction: column;
+            }
         }
 
         /* Анимации */
@@ -1291,6 +1614,15 @@ $title = "Биллинг | HomeVlad Cloud";
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
             }
         }
 
@@ -1345,6 +1677,151 @@ $title = "Биллинг | HomeVlad Cloud";
         <i class="fas fa-chevron-up"></i>
     </a>
 
+    <!-- Модальное окно с графиками -->
+    <div class="modal" id="graphModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-chart-line"></i> Аналитика потребления платформы
+                </h2>
+                <button class="close-modal" id="closeGraphModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Табы для переключения между типами графиков -->
+                <div class="graph-tabs">
+                    <div class="graph-tab active" data-graph="hourly">По часам</div>
+                    <div class="graph-tab" data-graph="daily">По дням</div>
+                    <div class="graph-tab" data-graph="monthly">За месяц</div>
+                    <div class="graph-tab" data-graph="resources">По ресурсам</div>
+                </div>
+
+                <!-- График по часам -->
+                <div class="graph-content active" id="hourly-graph">
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-clock"></i> Списания за последние 24 часа
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="hourlyChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #ef4444;"></span>
+                                <span>Списания за час</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- График по дням -->
+                <div class="graph-content" id="daily-graph">
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-calendar-day"></i> Списания за 30 дней
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="dailyChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #ef4444;"></span>
+                                <span>Списания за день</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- График за месяц -->
+                <div class="graph-content" id="monthly-graph">
+                    <!-- График списаний за 30 дней -->
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-money-bill-wave"></i> Суточные списания
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="debitsChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #ef4444;"></span>
+                                <span>Списания (расходы)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- График платежей за 30 дней -->
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-credit-card"></i> Пополнения баланса
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="paymentsChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #10b981;"></span>
+                                <span>Пополнения</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- График баланса -->
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-balance-scale"></i> Динамика баланса
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="balanceChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #3b82f6;"></span>
+                                <span>Баланс</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- График по ресурсам -->
+                <div class="graph-content" id="resources-graph">
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            <i class="fas fa-microchip"></i> Распределение затрат по ресурсам (7 дней)
+                        </h3>
+                        <div class="chart-wrapper">
+                            <canvas id="resourcesChart"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #ef4444;"></span>
+                                <span>CPU</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #10b981;"></span>
+                                <span>RAM</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background-color: #3b82f6;"></span>
+                                <span>Диск</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-actions">
+                    <button class="btn btn-primary" onclick="downloadCharts()">
+                        <i class="fas fa-download"></i> Скачать графики
+                    </button>
+                    <button class="btn btn-secondary" onclick="printCharts()">
+                        <i class="fas fa-print"></i> Печать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="main-container">
         <?php
         // Подключаем обновленный сайдбар
@@ -1357,7 +1834,10 @@ $title = "Биллинг | HomeVlad Cloud";
                 <h1 class="page-title">
                     <i class="fas fa-credit-card"></i> Биллинг и платежи
                 </h1>
-                <div class="header-actions">
+                <div class="header-actions" style="display: flex; gap: 12px;">
+                    <button class="btn btn-primary" id="showGraphBtn">
+                        <i class="fas fa-chart-line"></i> Потребление платформы
+                    </button>
                     <button class="btn btn-primary" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Обновить
                     </button>
@@ -1833,6 +2313,25 @@ $title = "Биллинг | HomeVlad Cloud";
     </div>
 
     <script>
+        // Данные для графиков из PHP
+        const chartData = {
+            labels: <?= json_encode($chart_labels) ?>,
+            debits: <?= json_encode($chart_debits) ?>,
+            credits: <?= json_encode($chart_credits) ?>,
+            payments: <?= json_encode($chart_payments) ?>,
+            hourlyLabels: <?= json_encode($hourly_labels) ?>,
+            hourlyValues: <?= json_encode($hourly_values) ?>,
+            resourceData: <?= json_encode($resource_data) ?>
+        };
+
+        // Переменные для хранения экземпляров графиков
+        let hourlyChart = null;
+        let dailyChart = null;
+        let debitsChart = null;
+        let paymentsChart = null;
+        let balanceChart = null;
+        let resourcesChart = null;
+
         document.addEventListener('DOMContentLoaded', function() {
             // Анимация прогресс-баров при загрузке
             const statCards = document.querySelectorAll('.stat-card');
@@ -1943,7 +2442,636 @@ $title = "Биллинг | HomeVlad Cloud";
                 showNotification("<?= addslashes($_SESSION['message']) ?>", "<?= $_SESSION['message_type'] ?? 'info' ?>");
                 <?php unset($_SESSION['message'], $_SESSION['message_type']); ?>
             <?php endif; ?>
+
+            // Инициализация модального окна графиков
+            const graphModal = document.getElementById('graphModal');
+            const showGraphBtn = document.getElementById('showGraphBtn');
+            const closeGraphModal = document.getElementById('closeGraphModal');
+
+            // Открытие модального окна
+            showGraphBtn.addEventListener('click', function() {
+                graphModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                renderCharts();
+            });
+
+            // Закрытие модального окна
+            closeGraphModal.addEventListener('click', function() {
+                graphModal.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            });
+
+            // Закрытие при клике вне модального окна
+            graphModal.addEventListener('click', function(e) {
+                if (e.target === graphModal) {
+                    graphModal.classList.remove('show');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+
+            // Закрытие по Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && graphModal.classList.contains('show')) {
+                    graphModal.classList.remove('show');
+                    document.body.style.overflow = 'auto';
+                }
+            });
+
+            // Переключение между табами графиков
+            const graphTabs = document.querySelectorAll('.graph-tab');
+            const graphContents = document.querySelectorAll('.graph-content');
+
+            graphTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Убираем активный класс у всех табов
+                    graphTabs.forEach(t => t.classList.remove('active'));
+                    // Добавляем активный класс текущему табу
+                    this.classList.add('active');
+
+                    // Скрываем все контенты
+                    graphContents.forEach(c => c.classList.remove('active'));
+                    // Показываем нужный контент
+                    const graphId = this.dataset.graph;
+                    document.getElementById(`${graphId}-graph`).classList.add('active');
+                });
+            });
         });
+
+        // Функция для отрисовки всех графиков
+        function renderCharts() {
+            // Уничтожаем старые графики, если они существуют
+            if (hourlyChart) hourlyChart.destroy();
+            if (dailyChart) dailyChart.destroy();
+            if (debitsChart) debitsChart.destroy();
+            if (paymentsChart) paymentsChart.destroy();
+            if (balanceChart) balanceChart.destroy();
+            if (resourcesChart) resourcesChart.destroy();
+
+            // График по часам
+            const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+            hourlyChart = new Chart(hourlyCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.hourlyLabels,
+                    datasets: [{
+                        label: 'Списания за час',
+                        data: chartData.hourlyValues,
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(239, 68, 68, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Списания: ${context.raw.toFixed(6)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(6) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // График по дням (списания за 30 дней)
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            dailyChart = new Chart(dailyCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Списания за день',
+                        data: chartData.debits,
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Списания: ${context.raw.toFixed(2)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // График списаний за 30 дней (для вкладки "За месяц")
+            const debitsCtx = document.getElementById('debitsChart').getContext('2d');
+            debitsChart = new Chart(debitsCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Списания (расходы)',
+                        data: chartData.debits,
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Списания: ${context.raw.toFixed(2)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // График платежей за 30 дней
+            const paymentsCtx = document.getElementById('paymentsChart').getContext('2d');
+            paymentsChart = new Chart(paymentsCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Пополнения',
+                        data: chartData.payments,
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Пополнения: ${context.raw.toFixed(2)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // График баланса (разница между платежами и списаниями)
+            const balanceData = [];
+            let runningBalance = 0;
+
+            for (let i = 0; i < chartData.labels.length; i++) {
+                runningBalance += (chartData.payments[i] - chartData.debits[i]);
+                balanceData.push(runningBalance);
+            }
+
+            const balanceCtx = document.getElementById('balanceChart').getContext('2d');
+            balanceChart = new Chart(balanceCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Баланс',
+                        data: balanceData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Баланс: ${context.raw.toFixed(2)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // График распределения по ресурсам
+            const resourcesCtx = document.getElementById('resourcesChart').getContext('2d');
+            const resourceLabels = chartData.resourceData.cpu.dates;
+
+            resourcesChart = new Chart(resourcesCtx, {
+                type: 'bar',
+                data: {
+                    labels: resourceLabels,
+                    datasets: [
+                        {
+                            label: 'CPU',
+                            data: chartData.resourceData.cpu.values,
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'RAM',
+                            data: chartData.resourceData.ram.values,
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Диск',
+                            data: chartData.resourceData.disk.values,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toFixed(6)} ₽`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(6) + ' ₽';
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        },
+                        x: {
+                            stacked: false,
+                            grid: {
+                                color: 'rgba(148, 163, 184, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция для скачивания графиков
+        function downloadCharts() {
+            // Получаем активный таб
+            const activeTab = document.querySelector('.graph-tab.active').dataset.graph;
+            let activeChart = null;
+
+            // Выбираем активный график
+            switch(activeTab) {
+                case 'hourly':
+                    activeChart = hourlyChart;
+                    break;
+                case 'daily':
+                    activeChart = dailyChart;
+                    break;
+                case 'monthly':
+                    // Для месячного таба создаем комбинированный график
+                    createCombinedChart();
+                    return;
+                case 'resources':
+                    activeChart = resourcesChart;
+                    break;
+            }
+
+            if (activeChart) {
+                const link = document.createElement('a');
+                link.download = `График_${activeTab}_${new Date().toISOString().split('T')[0]}.png`;
+                link.href = activeChart.toBase64Image();
+                link.click();
+
+                showNotification('График успешно скачан', 'success');
+            }
+        }
+
+        // Функция для создания комбинированного графика (для скачивания)
+        function createCombinedChart() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 2400;
+            const ctx = canvas.getContext('2d');
+
+            // Фон
+            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#0f172a' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Заголовок
+            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#f1f5f9' : '#1e293b';
+            ctx.font = 'bold 24px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Аналитика потребления платформы', canvas.width / 2, 50);
+
+            ctx.font = '14px Inter';
+            ctx.fillText('Пользователь: <?= htmlspecialchars($user['full_name']) ?>', canvas.width / 2, 80);
+            ctx.fillText('Период: последние 30 дней', canvas.width / 2, 100);
+            ctx.fillText(`Дата генерации: ${new Date().toLocaleDateString('ru-RU')}`, canvas.width / 2, 120);
+
+            // Вставляем все три графика
+            ctx.drawImage(debitsChart.canvas, 100, 150, 1000, 400);
+            ctx.drawImage(paymentsChart.canvas, 100, 600, 1000, 400);
+            ctx.drawImage(balanceChart.canvas, 100, 1050, 1000, 400);
+
+            // Создаем ссылку для скачивания
+            const link = document.createElement('a');
+            link.download = `Аналитика_платформы_${new Date().toISOString().split('T')[0]}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            showNotification('Графики успешно скачаны', 'success');
+        }
+
+        // Функция для печати графиков
+        function printCharts() {
+            const activeTab = document.querySelector('.graph-tab.active').dataset.graph;
+            let chartToPrint = null;
+            let title = '';
+
+            switch(activeTab) {
+                case 'hourly':
+                    chartToPrint = hourlyChart;
+                    title = 'Списания за последние 24 часа';
+                    break;
+                case 'daily':
+                    chartToPrint = dailyChart;
+                    title = 'Списания за 30 дней';
+                    break;
+                case 'resources':
+                    chartToPrint = resourcesChart;
+                    title = 'Распределение затрат по ресурсам';
+                    break;
+                case 'monthly':
+                    // Для месячного таба печатаем все три графика
+                    printMonthlyCharts();
+                    return;
+            }
+
+            if (chartToPrint) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${title}</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                padding: 20px;
+                            }
+                            .print-header {
+                                text-align: center;
+                                margin-bottom: 30px;
+                                border-bottom: 2px solid #333;
+                                padding-bottom: 10px;
+                            }
+                            img {
+                                max-width: 100%;
+                                height: auto;
+                            }
+                            @media print {
+                                .no-print {
+                                    display: none;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="print-header">
+                            <h1>${title}</h1>
+                            <p>Пользователь: <?= htmlspecialchars($user['full_name']) ?></p>
+                            <p>Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
+                        </div>
+
+                        <div>
+                            <img src="${chartToPrint.toBase64Image()}">
+                        </div>
+
+                        <script>
+                            window.onload = function() {
+                                window.print();
+                                setTimeout(function() {
+                                    window.close();
+                                }, 1000);
+                            }
+                        <\/script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+        }
+
+        // Функция для печати всех месячных графиков
+        function printMonthlyCharts() {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Аналитика потребления платформы</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                        }
+                        .print-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #333;
+                            padding-bottom: 10px;
+                        }
+                        .chart-container {
+                            margin-bottom: 40px;
+                            page-break-inside: avoid;
+                        }
+                        .chart-title {
+                            font-size: 18px;
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                            color: #333;
+                        }
+                        img {
+                            max-width: 100%;
+                            height: auto;
+                        }
+                        @media print {
+                            .no-print {
+                                display: none;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>Аналитика потребления платформы</h1>
+                        <p>Пользователь: <?= htmlspecialchars($user['full_name']) ?></p>
+                        <p>Период: последние 30 дней</p>
+                        <p>Дата: ${new Date().toLocaleDateString('ru-RU')}</p>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Суточные списания</div>
+                        <img src="${debitsChart.toBase64Image()}">
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Пополнения баланса</div>
+                        <img src="${paymentsChart.toBase64Image()}">
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-title">Динамика баланса</div>
+                        <img src="${balanceChart.toBase64Image()}">
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                            setTimeout(function() {
+                                window.close();
+                            }, 1000);
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
 
         // Функция для показа уведомлений
         function showNotification(message, type = 'info') {

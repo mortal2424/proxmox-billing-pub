@@ -66,7 +66,7 @@ function getDatabaseStats($pdo) {
                 $size = getTableSize($pdo, $table);
                 $stats[$table] = [
                     'count' => (int)$count,
-                    'size' => formatBytes($size),
+                    'size' => formatBytess($size),
                     'size_bytes' => $size
                 ];
                 $total_size += $size;
@@ -84,7 +84,7 @@ function getDatabaseStats($pdo) {
         // Общая статистика
         $stats['total'] = [
             'tables' => count($tables),
-            'total_size' => formatBytes($total_size),
+            'total_size' => formatBytess($total_size),
             'total_size_bytes' => $total_size,
             'avg_rows_per_table' => count($tables) > 0 ? round(array_sum(array_column($stats, 'count')) / count($tables), 2) : 0
         ];
@@ -692,9 +692,9 @@ function getServerStats() {
         $disk_used = $disk_total - $disk_free;
 
         $stats['disk'] = [
-            'total' => formatBytes($disk_total),
-            'free' => formatBytes($disk_free),
-            'used' => formatBytes($disk_used),
+            'total' => formatBytess($disk_total),
+            'free' => formatBytess($disk_free),
+            'used' => formatBytess($disk_used),
             'percent' => $disk_total > 0 ? round(($disk_used / $disk_total) * 100, 2) : 0,
             'total_bytes' => $disk_total,
             'free_bytes' => $disk_free,
@@ -726,18 +726,18 @@ function getServerStats() {
                 $mem_used = $mem_total - $mem_available;
 
                 $stats['memory'] = [
-                    'total' => formatBytes($mem_total),
-                    'free' => formatBytes($mem_free),
-                    'available' => formatBytes($mem_available),
-                    'used' => formatBytes($mem_used),
+                    'total' => formatBytess($mem_total),
+                    'free' => formatBytess($mem_free),
+                    'available' => formatBytess($mem_available),
+                    'used' => formatBytess($mem_used),
                     'percent' => $mem_total > 0 ? round(($mem_used / $mem_total) * 100, 2) : 0,
                     'total_bytes' => $mem_total,
                     'used_bytes' => $mem_used
                 ];
             } else {
                 $stats['memory'] = [
-                    'total' => formatBytes(memory_get_peak_usage(true)),
-                    'used' => formatBytes(memory_get_usage(true)),
+                    'total' => formatBytess(memory_get_peak_usage(true)),
+                    'used' => formatBytess(memory_get_usage(true)),
                     'percent' => 0,
                     'info' => 'Ограниченная информация (работает на хостинге)'
                 ];
@@ -790,7 +790,7 @@ function getServerStats() {
             $uptime = file_get_contents('/proc/uptime');
             if ($uptime !== false) {
                 $uptime = explode(' ', $uptime);
-                $stats['uptime'] = formatUptime($uptime[0]);
+                $stats['uptime'] = formatUptimee($uptime[0]);
             } else {
                 $stats['uptime'] = 'N/A';
             }
@@ -868,8 +868,8 @@ function getNetworkStats() {
 
                 if ($rx_bytes !== false && $tx_bytes !== false) {
                     $stats[$iface] = [
-                        'rx' => formatBytes($rx_bytes),
-                        'tx' => formatBytes($tx_bytes),
+                        'rx' => formatBytess($rx_bytes),
+                        'tx' => formatBytess($tx_bytes),
                         'rx_bytes' => (int)$rx_bytes,
                         'tx_bytes' => (int)$tx_bytes
                     ];
@@ -897,7 +897,7 @@ function detectWebServer() {
     }
 }
 
-function formatBytes($bytes, $precision = 2) {
+function formatBytess($bytes, $precision = 2) {
     if ($bytes <= 0) return '0 B';
 
     $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
@@ -909,7 +909,7 @@ function formatBytes($bytes, $precision = 2) {
     return round($bytes, $precision) . ' ' . $units[$pow];
 }
 
-function formatUptime($seconds) {
+function formatUptimee($seconds) {
     $days = floor($seconds / 86400);
     $hours = floor(($seconds % 86400) / 3600);
     $minutes = floor(($seconds % 3600) / 60);
@@ -1865,7 +1865,7 @@ require 'admin_header.php';
                                         <td>
                                             <div style="font-size: 12px; color: var(--db-text-muted);">
                                                 <?= $db_stats['total']['tables'] ?> таблиц,
-                                                Средний размер: <?= formatBytes($db_stats['total']['total_size_bytes'] / max($db_stats['total']['tables'], 1)) ?>
+                                                Средний размер: <?= formatBytess($db_stats['total']['total_size_bytes'] / max($db_stats['total']['tables'], 1)) ?>
                                             </div>
                                         </td>
                                     </tr>
