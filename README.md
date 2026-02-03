@@ -14,6 +14,7 @@ The first public release of the billing panel for Proxmox, the code is still und
 Installation is simple:
 Copy all the contents of the repository to your hosting, add the sql dump to the database
 Create cron jobs 
+You can also run the installer install/install.php
 
 
 1. Debiting (billing work) once per hour or per month if you need both then you need to create two tasks
@@ -60,7 +61,7 @@ The code is under development and may contain errors. If you want to help with t
 6. Реализован мониторинг узла Proxmox
 7. Реализована система тикетов для поддержки с уведомлениями по электронной почте и telegram
 
-Установка проста: Скопируйте все содержимое репозитория на свой хостинг, добавьте sql-дамп в базу данных, создайте cron-задания
+Установка проста: Скопируйте все содержимое репозитория на свой хостинг, добавьте sql-дамп в базу данных, создайте cron-задания, так же можно запустить инсталятор install/install.php
 
 1. Списание средств (выставление счетов) раз в час или в месяц, если вам нужно и то, и другое, то вам нужно создать две задачи
 /admin/cron_charge.php
