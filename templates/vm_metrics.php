@@ -1249,7 +1249,7 @@ class TelegramBot {
 }
 
 // Конфигурация и запуск
-$botToken = '8012352785:AAGhltMkgd8xk0ShFrnTwl_2p8_n5gwOpTI';
+$botToken = 'ваш бот для показа метрик';
 
 try {
     logMessage('=== BOT STARTED ===');
