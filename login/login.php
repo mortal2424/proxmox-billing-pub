@@ -928,7 +928,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SE
         <div class="container">
             <div class="header-content">
                 <a href="/" class="logo">
-                    <img src="../img/logo.png" alt="HomeVlad" class="logo-image">
+                    <!--<img src="../img/logo.png" alt="HomeVlad" class="logo-image">-->
                     <span class="logo-text">HomeVlad Cloud</span>
                 </a>
 

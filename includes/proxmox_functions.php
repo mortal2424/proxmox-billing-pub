@@ -1026,41 +1026,30 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
 
     public function getNodeResources() {
     try {
-        // Получаем данные о памяти и диске через pvesh
-        $pveshCommand = "pvesh get /nodes/{$this->nodeName}/status --output-format json";
-        $pveshResponse = $this->execSSHCommand($pveshCommand);
-
-        if (empty($pveshResponse)) {
-            throw new Exception("Empty response from pvesh command");
-        }
-
-        $pveshData = json_decode($pveshResponse, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("JSON decode error: " . json_last_error_msg());
-        }
-
-        // Получаем загрузку CPU через top
+        // CPU через top
         $topCommand = "LC_ALL=C top -b -n 1 | grep '^%Cpu'";
         $topResponse = $this->execSSHCommand($topCommand);
-
-        if (empty($topResponse)) {
-            throw new Exception("Empty response from top command");
-        }
-
-        // Парсим строку с информацией о CPU
-        // Пример строки: %Cpu(s):  5.3 us,  0.5 sy,  0.0 ni, 94.0 id,  0.2 wa,  0.0 hi,  0.0 si,  0.0 st
         $cpuUsage = 0;
         if (preg_match('/%Cpu\(s\):\s+([\d.]+)\s+us/', $topResponse, $matches)) {
             $cpuUsage = (float)$matches[1];
         }
 
+        // Память через free
+        $totalMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $2}'"));
+        $availMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $7}'"));
+        if ($availMemMB == 0) {
+            $freeMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $4}'"));
+            $availMemMB = $freeMemMB;
+        }
+
+        // Получаем список хранилищ (дисков) – переиспользуем метод getNodeStorages()
+        $storages = $this->getNodeStorages();
+
         return [
-            'memory' => $pveshData['memory']['total'] ?? 0,
-            'free_memory' => $pveshData['memory']['free'] ?? 0,
-            'disk' => $pveshData['rootfs']['total'] ?? 0,
-            'free_disk' => $pveshData['rootfs']['free'] ?? 0,
-            'cpu_usage' => $cpuUsage
+            'total_memory' => round($totalMemMB / 1024, 2),   // GB
+            'free_memory'  => round($availMemMB / 1024, 2),   // GB
+            'cpu_usage'    => round($cpuUsage, 2),            // %
+            'storages'     => $storages                       // массив хранилищ
         ];
     } catch (Exception $e) {
         error_log("Error getting node resources: " . $e->getMessage());

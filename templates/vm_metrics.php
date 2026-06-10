@@ -25,9 +25,9 @@ class DatabaseManager {
     public function __construct() {
         $this->dbConfig = [
             'host' => 'localhost',
-            'dbname' => 'homevlad_ru',
-            'user' => 'homevlad_ru',
-            'pass' => 'VvYO1BYAuB74Rbhz'
+            'dbname' => '',
+            'user' => '',
+            'pass' => ''
         ];
         $this->connect();
     }

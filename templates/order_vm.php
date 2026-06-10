@@ -1246,6 +1246,118 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
         }
+        /* Стили для выпадающего списка хранилищ */
+.storages-select {
+    background-color: var(--node-card-bg);
+    color: var(--node-text);
+    border: 2px solid var(--node-border);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+}
+
+.storages-select option {
+    padding: 6px 10px;
+    background-color: var(--node-card-bg);
+    color: var(--node-text);
+    white-space: normal;
+    word-break: break-word;
+}
+
+.storages-select option:hover {
+    background-color: var(--node-accent-light);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .storages-select {
+        font-size: 13px;
+    }
+}
+/* Стили для кликабельной карточки хранилищ */
+.stat-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--node-shadow-hover);
+}
+#storage-stats-card {
+    cursor: pointer;
+    position: relative;
+}
+#storage-stats-card::after {
+    content: '▼';
+    font-size: 12px;
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    opacity: 0.6;
+    transition: transform 0.3s;
+}
+#storage-stats-card.active::after {
+    transform: rotate(180deg);
+}
+
+/* Стили для сетки хранилищ */
+.storages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+    animation: fadeInUp 0.3s ease;
+}
+.storage-item {
+    background: var(--node-hover);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid var(--node-border);
+    transition: all 0.2s;
+}
+.storage-item:hover {
+    background: var(--node-accent-light);
+    transform: translateX(4px);
+}
+.storage-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.storage-header i {
+    color: #8b5cf6;
+    font-size: 18px;
+}
+.storage-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--node-text);
+}
+.storage-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+.storage-details {
+    font-size: 13px;
+    color: var(--node-text-secondary);
+}
+.storage-details strong {
+    color: var(--node-text);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
     </style>
 </head>
 <body>
@@ -1795,21 +1907,72 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
                     updateNodeProgress(50, 'Загрузка информации о ресурсах...');
 
-                    // Обновляем информацию о ресурсах ноды
-                    const nodeResources = document.getElementById('node-resources');
-                    if (nodeResources) {
-                        nodeResources.innerHTML = `
-                            <div class="form-group">
-                                <label class="form-label">Доступные ресурсы:</label>
-                                <div class="resources-info">
-                                    <p><i class="fas fa-memory"></i> ${data.resources?.free_memory || 0} GB свободной памяти</p>
-                                    <p><i class="fas fa-hdd"></i> ${data.resources?.free_disk || 0} GB свободного места</p>
-                                    <p><i class="fas fa-microchip"></i> ${data.resources?.cpu_usage || 0}% загрузки CPU</p>
+                    // Обновляем информацию о ресурсах ноды (плитки CPU, RAM и кликабельные хранилища)
+const nodeResources = document.getElementById('node-resources');
+if (nodeResources) {
+    const storages = data.resources?.storages || [];
+    const hasStorages = storages.length > 0;
+
+    const resourcesHtml = `
+        <div class="form-group">
+            <label class="form-label">Доступные ресурсы:</label>
+            <div class="resources-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <!-- Плитка CPU -->
+                <div class="stat-card" style="background: rgba(59,130,246,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(59,130,246,0.2);">
+                    <i class="fas fa-microchip" style="font-size: 24px; color: #3b82f6;"></i>
+                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${data.resources?.cpu_usage || 0}%</div>
+                    <div style="font-size: 14px; color: var(--node-text-secondary);">Загрузка CPU</div>
+                </div>
+                <!-- Плитка RAM -->
+                <div class="stat-card" style="background: rgba(16,185,129,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(16,185,129,0.2);">
+                    <i class="fas fa-memory" style="font-size: 24px; color: #10b981;"></i>
+                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${data.resources?.free_memory || 0} GB</div>
+                    <div style="font-size: 14px; color: var(--node-text-secondary);">Свободная память</div>
+                </div>
+                <!-- Плитка Хранилищ (кликабельная) -->
+                <div id="storage-stats-card" class="stat-card" style="background: rgba(139,92,246,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(139,92,246,0.2);">
+                    <i class="fas fa-database" style="font-size: 24px; color: #8b5cf6;"></i>
+                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${storages.length}</div>
+                    <div style="font-size: 14px; color: var(--node-text-secondary);">Доступных хранилищ</div>
+                </div>
+            </div>
+            <!-- Блок для отображения списка хранилищ (изначально скрыт) -->
+            <div id="storages-list" style="display: none;">
+                ${hasStorages ? `
+                    <label class="form-label" style="margin-top: 15px;">Детальная информация о хранилищах:</label>
+                    <div class="storages-grid">
+                        ${storages.map(storage => `
+                            <div class="storage-item">
+                                <div class="storage-header">
+                                    <i class="fas fa-hdd"></i>
+                                    <div class="storage-name">${storage.name}</div>
+                                    <div class="storage-type">${storage.type}</div>
+                                </div>
+                                <div class="storage-details">
+                                    📀 Свободно: <strong>${storage.available} GB</strong>${storage.total > 0 ? ` из ${storage.total} GB` : ''}
                                 </div>
                             </div>
-                        `;
-                        nodeResources.style.display = 'block';
-                    }
+                        `).join('')}
+                    </div>
+                ` : '<p class="text-muted" style="margin-top: 15px;">Нет доступных хранилищ</p>'}
+            </div>
+        </div>
+    `;
+    nodeResources.innerHTML = resourcesHtml;
+    nodeResources.style.display = 'block';
+
+    // Добавляем обработчик клика на карточку хранилищ
+    const storageCard = document.getElementById('storage-stats-card');
+    const storagesListDiv = document.getElementById('storages-list');
+    if (storageCard && storagesListDiv) {
+        storageCard.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isVisible = storagesListDiv.style.display === 'block';
+            storagesListDiv.style.display = isVisible ? 'none' : 'block';
+            this.classList.toggle('active');
+        });
+    }
+}
 
                     updateNodeProgress(70, 'Загрузка хранилищ...');
 

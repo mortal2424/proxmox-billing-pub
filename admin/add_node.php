@@ -14,288 +14,166 @@ $pdo = $db->getConnection();
 
 $clusters = $pdo->query("SELECT id, name FROM proxmox_clusters WHERE is_active = 1 ORDER BY name")->fetchAll();
 
-// Обработка POST запроса
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Проверяем наличие кнопки добавления или скрытого поля
-    if (isset($_POST['add_node']) || isset($_POST['node_form'])) {
-        try {
-            $cluster_id = intval($_POST['cluster_id']);
-            $node_name = trim($_POST['node_name']);
-            $hostname = trim($_POST['hostname']);
-            $api_port = intval($_POST['api_port'] ?? 8006);
-            $ssh_port = intval($_POST['ssh_port'] ?? 22);
-            $username = trim($_POST['username'] ?? '');
-            $password = trim($_POST['password'] ?? '');
-            $is_active = isset($_POST['is_active']) ? 1 : 0;
-            $description = trim($_POST['description'] ?? '');
-            $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
-            $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset($_POST['node_form']))) {
+    try {
+        $cluster_id = intval($_POST['cluster_id']);
+        $node_name = trim($_POST['node_name']);
+        $hostname = trim($_POST['hostname']);
+        $api_port = intval($_POST['api_port'] ?? 8006);
+        $ssh_port = intval($_POST['ssh_port'] ?? 22);
+        $username = trim($_POST['username'] ?? '');
+        $password = trim($_POST['password'] ?? '');
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
+        $description = trim($_POST['description'] ?? '');
+        $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
+        $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
+        $ignore_ssl = isset($_POST['ignore_ssl']) ? 1 : 0;
 
-            // Валидация
-            if (empty($cluster_id)) {
-                throw new Exception("Кластер должен быть выбран");
-            }
+        if (empty($cluster_id)) throw new Exception("Кластер должен быть выбран");
+        if (empty($node_name)) throw new Exception("Имя ноды обязательно");
+        if (empty($hostname)) throw new Exception("Адрес сервера обязателен");
 
-            if (empty($node_name)) {
-                throw new Exception("Имя ноды обязательно");
-            }
-
-            if (empty($hostname)) {
-                throw new Exception("Адрес сервера обязателен");
-            }
-
-            // Проверяем, что для кластера нет уже главной ноды
-            if ($is_cluster_master) {
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                                     WHERE cluster_id = ? AND is_cluster_master = 1");
-                $stmt->execute([$cluster_id]);
-                if ($stmt->fetchColumn() > 0) {
-                    throw new Exception("В этом кластере уже есть главная нода");
-                }
-            }
-
-            // Проверка уникальности имени ноды в кластере
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                                  WHERE cluster_id = ? AND node_name = ?");
-            $stmt->execute([$cluster_id, $node_name]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Нода с таким именем уже существует в этом кластере");
-            }
-
-            // Проверка уникальности хоста и порта
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                                  WHERE hostname = ? AND api_port = ?");
-            $stmt->execute([$hostname, $api_port]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Нода с таким адресом и портом уже существует");
-            }
-
-            $verification_result = null;
-            $status = 'unknown';
-            
-            // Проверяем доступность ноды, если не пропущена
-            if (!$skip_verification) {
-                $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port);
-                if (!$verification_result['success']) {
-                    throw new Exception("Проверка доступности не пройдена: " . $verification_result['message']);
-                }
-
-                // Если проверка прошла, устанавливаем ноду как активную
-                $is_active = 1;
-                $status = 'online';
-            }
-
-            // Подготавливаем SQL запрос
-            $sql = "INSERT INTO proxmox_nodes
-                   (cluster_id, node_name, hostname, api_port, ssh_port, username,
-                    password, is_active, description, is_cluster_master, last_check, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-
-            $stmt = $pdo->prepare($sql);
-            
-            if (!$stmt) {
-                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
-            }
-            
-            // Шифруем пароль (если нужно)
-            $encrypted_password = $password; // В реальной системе здесь должно быть шифрование
-            
-            // Выполнение запроса
-            $result = $stmt->execute([
-                $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
-                $username, $encrypted_password, $is_active, $description, 
-                $is_cluster_master, $status
-            ]);
-            
-            if (!$result) {
-                $errorInfo = $stmt->errorInfo();
-                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
-            }
-
-            $node_id = $pdo->lastInsertId();
-            
-            // Логируем успешное создание
-            error_log("Нода создана: ID = $node_id, Name = $node_name, Cluster = $cluster_id");
-
-            // Если проверка прошла успешно, записываем результат
-            if (!$skip_verification && $verification_result) {
-                try {
-                    $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                          VALUES (?, 'full', 'success', ?, ?, NOW())");
-                    $stmt->execute([$node_id, $verification_result['response_time'], json_encode($verification_result)]);
-                } catch (Exception $e) {
-                    // Игнорируем ошибку записи лога
-                    error_log("Не удалось записать лог проверки: " . $e->getMessage());
-                }
-            }
-
-            $_SESSION['success'] = "Нода '{$node_name}' успешно добавлена" . ($skip_verification ? " (проверка пропущена)" : " (проверка пройдена)");
-            header("Location: nodes.php");
-            exit;
-        } catch (Exception $e) {
-            $_SESSION['error'] = $e->getMessage();
-            // Логирование ошибки
-            error_log("Ошибка при добавлении ноды: " . $e->getMessage());
+        if ($is_cluster_master) {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE cluster_id = ? AND is_cluster_master = 1");
+            $stmt->execute([$cluster_id]);
+            if ($stmt->fetchColumn() > 0) throw new Exception("В этом кластере уже есть главная нода");
         }
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE cluster_id = ? AND node_name = ?");
+        $stmt->execute([$cluster_id, $node_name]);
+        if ($stmt->fetchColumn() > 0) throw new Exception("Нода с таким именем уже существует в этом кластере");
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE hostname = ? AND api_port = ?");
+        $stmt->execute([$hostname, $api_port]);
+        if ($stmt->fetchColumn() > 0) throw new Exception("Нода с таким адресом и портом уже существует");
+
+        $verification_result = null;
+        $status = 'unknown';
+
+        if (!$skip_verification) {
+            $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port, $ignore_ssl);
+            if (!$verification_result['success']) {
+                throw new Exception("Проверка доступности не пройдена: " . $verification_result['message']);
+            }
+            $is_active = 1;
+            $status = 'online';
+        }
+
+        $sql = "INSERT INTO proxmox_nodes
+               (cluster_id, node_name, hostname, api_port, ssh_port, username,
+                password, is_active, description, is_cluster_master, last_check, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+
+        $stmt = $pdo->prepare($sql);
+        $encrypted_password = $password;
+        $stmt->execute([
+            $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
+            $username, $encrypted_password, $is_active, $description,
+            $is_cluster_master, $status
+        ]);
+
+        $node_id = $pdo->lastInsertId();
+        error_log("Нода создана: ID = $node_id, Name = $node_name, Cluster = $cluster_id");
+
+        if (!$skip_verification && $verification_result) {
+            try {
+                $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
+                                      VALUES (?, 'full', 'success', ?, ?, NOW())");
+                $stmt->execute([$node_id, $verification_result['response_time'], json_encode($verification_result)]);
+            } catch (Exception $e) {}
+        }
+
+        $_SESSION['success'] = "Нода '{$node_name}' успешно добавлена" . ($skip_verification ? " (проверка пропущена)" : " (проверка пройдена)");
+        header("Location: nodes.php");
+        exit;
+    } catch (Exception $e) {
+        $_SESSION['error'] = $e->getMessage();
+        error_log("Ошибка при добавлении ноды: " . $e->getMessage());
     }
 }
 
-/**
- * Функция проверки доступности ноды (без exec)
- */
-function verifyNodeAvailability($hostname, $ssh_port = 22, $api_port = 8006) {
-    $result = [
-        'success' => false,
-        'message' => '',
-        'response_time' => 0,
-        'checks' => []
-    ];
-
+function verifyNodeAvailability($hostname, $ssh_port = 22, $api_port = 8006, $ignore_ssl = false) {
+    $result = ['success' => false, 'message' => '', 'response_time' => 0, 'checks' => []];
     $start_time = microtime(true);
-
     try {
-        // 1. Проверка DNS разрешения
-        $dns_result = checkDNSResolution($hostname);
-        $result['checks']['dns'] = $dns_result;
+        $dns = checkDNSResolution($hostname);
+        $result['checks']['dns'] = $dns;
+        if (!$dns['success']) throw new Exception("Не удалось разрешить DNS имя хоста");
 
-        if (!$dns_result['success']) {
-            $result['message'] = "Не удалось разрешить DNS имя хоста";
-            return $result;
+        $ping = checkHostAvailability($hostname);
+        $result['checks']['ping'] = $ping;
+        if (!$ping['success']) throw new Exception("Хост не отвечает на стандартные порты");
+
+        $ssh = checkPort($hostname, $ssh_port);
+        $result['checks']['ssh'] = $ssh;
+        if (!$ssh['success']) throw new Exception("SSH порт ($ssh_port) недоступен");
+
+        $api = checkPort($hostname, $api_port);
+        $result['checks']['api'] = $api;
+        if (!$api['success']) throw new Exception("API порт ($api_port) недоступен");
+
+        $https = checkHTTPS($hostname, $api_port, $ignore_ssl);
+        $result['checks']['https'] = $https;
+        if ($ignore_ssl && !$https['success'] && $api['success']) {
+            $https['success'] = true;
+            $https['warning'] = "SSL проверка пропущена (самоподписанный сертификат)";
+            $result['checks']['https'] = $https;
         }
-
-        // 2. Проверка доступности через стандартные порты
-        $ping_result = checkHostAvailability($hostname);
-        $result['checks']['ping'] = $ping_result;
-
-        if (!$ping_result['success']) {
-            $result['message'] = "Хост не отвечает на стандартные порты";
-            return $result;
-        }
-
-        // 3. Проверка SSH порта
-        $ssh_result = checkPort($hostname, $ssh_port);
-        $result['checks']['ssh'] = $ssh_result;
-
-        if (!$ssh_result['success']) {
-            $result['message'] = "SSH порт ($ssh_port) недоступен";
-            return $result;
-        }
-
-        // 4. Проверка API порта Proxmox (основной критерий)
-        $api_result = checkPort($hostname, $api_port);
-        $result['checks']['api'] = $api_result;
-
-        if (!$api_result['success']) {
-            $result['message'] = "API порт ($api_port) недоступен";
-            return $result;
-        }
-
-        // 5. Проверка HTTPS соединения
-        $https_result = checkHTTPS($hostname, $api_port);
-        $result['checks']['https'] = $https_result;
-
-        if (!$https_result['success']) {
-            $result['message'] = "HTTPS соединение не установлено";
-            return $result;
-        }
+        if (!$https['success']) throw new Exception("HTTPS не отвечает");
 
         $result['success'] = true;
         $result['message'] = "Все проверки пройдены успешно";
-
     } catch (Exception $e) {
-        $result['message'] = "Ошибка при проверке: " . $e->getMessage();
+        $result['message'] = $e->getMessage();
     }
-
-    $result['response_time'] = round((microtime(true) - $start_time) * 1000, 2); // в мс
-
+    $result['response_time'] = round((microtime(true) - $start_time) * 1000, 2);
     return $result;
 }
 
-/**
- * Проверка DNS разрешения имени хоста
- */
 function checkDNSResolution($hostname) {
     $result = ['success' => false, 'ip' => null];
-
-    // Проверяем, является ли строка IP-адресом
     if (filter_var($hostname, FILTER_VALIDATE_IP)) {
         $result['success'] = true;
         $result['ip'] = $hostname;
         return $result;
     }
-
-    // Пробуем разрешить DNS имя
     $ip = gethostbyname($hostname);
-
     if ($ip !== $hostname) {
         $result['success'] = true;
         $result['ip'] = $ip;
     } else {
-        // Пробуем через dns_get_record
-        $dns_records = @dns_get_record($hostname, DNS_A);
-        if (!empty($dns_records)) {
+        $dns = @dns_get_record($hostname, DNS_A);
+        if (!empty($dns)) {
             $result['success'] = true;
-            $result['ip'] = $dns_records[0]['ip'] ?? null;
+            $result['ip'] = $dns[0]['ip'] ?? null;
         }
     }
-
     return $result;
 }
 
-/**
- * Проверка доступности хоста через стандартные порты
- */
 function checkHostAvailability($hostname, $timeout = 2) {
-    $result = ['success' => false, 'latency' => 0];
-
-    // Пробуем подключиться к нескольким стандартным портам
-    $ports = [
-        80 => 'http',
-        443 => 'https',
-        22 => 'ssh',
-        8006 => 'proxmox'
-    ];
-
-    foreach ($ports as $port => $service) {
-        $start_time = microtime(true);
-
-        // Для HTTPS портов используем ssl://
-        $protocol = in_array($port, [443, 8443, 8006]) ? "ssl://" : "";
-
+    $result = ['success' => false];
+    $ports = [80, 443, 22, 8006];
+    foreach ($ports as $port) {
+        $protocol = in_array($port, [443, 8006]) ? "ssl://" : "";
         $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-
         if ($socket) {
             $result['success'] = true;
-            $result['latency'] = round((microtime(true) - $start_time) * 1000, 2);
-            $result['service'] = $service;
-            $result['port'] = $port;
             fclose($socket);
             break;
         }
     }
-
     return $result;
 }
 
-/**
- * Проверка доступности порта
- */
 function checkPort($hostname, $port, $timeout = 3) {
     $result = ['success' => false];
-
-    // Для HTTPS портов используем ssl://
     $protocol = (in_array($port, [443, 8443, 8006])) ? "ssl://" : "";
-
     $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-
     if ($socket) {
         $result['success'] = true;
         fclose($socket);
     } else {
-        $result['error'] = $errstr;
-        $result['errno'] = $errno;
-
-        // Попытка без SSL для порта 8006
         if ($port == 8006 && $protocol === "ssl://") {
             $socket2 = @fsockopen($hostname, $port, $errno2, $errstr2, $timeout);
             if ($socket2) {
@@ -305,19 +183,12 @@ function checkPort($hostname, $port, $timeout = 3) {
             }
         }
     }
-
     return $result;
 }
 
-/**
- * Проверка HTTPS соединения
- */
-function checkHTTPS($hostname, $port, $timeout = 5) {
+function checkHTTPS($hostname, $port, $ignore_ssl = false, $timeout = 5) {
     $result = ['success' => false];
-
     $url = "https://{$hostname}:{$port}";
-
-    // Используем curl если доступен
     if (function_exists('curl_init')) {
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -325,60 +196,40 @@ function checkHTTPS($hostname, $port, $timeout = 5) {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => $timeout,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_NOBODY => true, // HEAD запрос
+            CURLOPT_SSL_VERIFYPEER => !$ignore_ssl,
+            CURLOPT_SSL_VERIFYHOST => $ignore_ssl ? 0 : 2,
+            CURLOPT_NOBODY => true,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER => [
-                'User-Agent: Mozilla/5.0 (Proxmox Check)'
-            ]
+            CURLOPT_HTTPHEADER => ['User-Agent: Mozilla/5.0']
         ]);
-
         @curl_exec($ch);
-
         if (!curl_errno($ch)) {
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            // Proxmox возвращает 401 для неавторизованных запросов, что нормально
-            if ($http_code == 200 || $http_code == 401 || $http_code == 403) {
-                $result['success'] = true;
-                $result['http_code'] = $http_code;
-            }
-        } else {
-            $result['error'] = curl_error($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($code == 200 || $code == 401 || $code == 403) $result['success'] = true;
         }
-
         curl_close($ch);
     } else {
-        // Альтернатива через stream_context
         $context = stream_context_create([
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
+                'verify_peer' => !$ignore_ssl,
+                'verify_peer_name' => !$ignore_ssl,
+                'allow_self_signed' => $ignore_ssl
             ],
-            'http' => [
-                'timeout' => $timeout,
-                'ignore_errors' => true,
-                'header' => "User-Agent: Mozilla/5.0 (Proxmox Check)\r\n"
-            ]
+            'http' => ['timeout' => $timeout, 'ignore_errors' => true]
         ]);
-
         $headers = @get_headers($url, 0, $context);
-
         if ($headers && is_array($headers)) {
             foreach ($headers as $header) {
-                if (strpos($header, 'HTTP/') === 0) {
-                    $response_code = substr($header, 9, 3);
-                    if ($response_code == '200' || $response_code == '401' || $response_code == '403') {
+                if (strpos($header, 'HTTP/') === 0 && preg_match('/\d{3}/', $header, $m)) {
+                    $code = $m[0];
+                    if ($code == 200 || $code == 401 || $code == 403) {
                         $result['success'] = true;
-                        $result['http_code'] = $response_code;
                         break;
                     }
                 }
             }
         }
     }
-
     return $result;
 }
 
@@ -394,10 +245,10 @@ require 'admin_header.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
-        <style>
+    <style>
         <?php include __DIR__ . '/../admin/css/admin_style.css'; ?>
 
-        /* ========== СТИЛИ ДЛЯ ФОРМЫ ДОБАВЛЕНИЯ НОДЫ ========== */
+        /* ========== СТИЛИ ДЛЯ ФОРМЫ ДОБАВЛЕНИЯ НОДЫ (оригинальные) ========== */
         :root {
             --node-bg: #f8fafc;
             --node-card-bg: #ffffff;
@@ -492,12 +343,18 @@ require 'admin_header.php';
             gap: 10px;
         }
 
-        /* ========== СЕТКА ФОРМЫ ========== */
+        /* ========== СЕТКА ФОРМЫ (оригинальная 4 колонки) ========== */
         .node-form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 24px;
             margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .node-form-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .form-section {
@@ -587,7 +444,7 @@ require 'admin_header.php';
             padding-right: 40px;
         }
 
-        /* ========== КНОПКА ПРОВЕРКИ ========== */
+        /* ========== КНОПКА ПРОВЕРКИ (оригинальные стили) ========== */
         .verification-section {
             background: linear-gradient(135deg, var(--node-info), #2563eb);
             color: white;
@@ -615,6 +472,13 @@ require 'admin_header.php';
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
+        @media (max-width: 768px) {
+            .verification-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
         .verification-icon {
             width: 40px;
             height: 40px;
@@ -640,6 +504,29 @@ require 'admin_header.php';
         .verification-details {
             font-size: 12px;
             opacity: 0.9;
+            margin-bottom: 6px;
+        }
+
+        /* Оригинальный класс для статуса (теперь используем verification-status-text) */
+        .verification-status-text {
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+        .verification-status-text.pending {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--node-text-muted);
+        }
+        .verification-status-text.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--node-success);
+        }
+        .verification-status-text.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--node-danger);
         }
 
         .verification-actions {
@@ -664,42 +551,17 @@ require 'admin_header.php';
             font-family: inherit;
             flex: 1;
             justify-content: center;
-        }
-
-        .verification-btn-primary {
             background: rgba(255, 255, 255, 0.2);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        .verification-btn-primary:hover {
+        .verification-btn:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
         }
 
-        .verification-btn-success {
-            background: rgba(16, 185, 129, 0.9);
-            color: white;
-            border: none;
-        }
-
-        .verification-btn-success:hover {
-            background: rgba(16, 185, 129, 1);
-            transform: translateY(-2px);
-        }
-
-        .verification-btn-warning {
-            background: rgba(245, 158, 11, 0.9);
-            color: white;
-            border: none;
-        }
-
-        .verification-btn-warning:hover {
-            background: rgba(245, 158, 11, 1);
-            transform: translateY(-2px);
-        }
-
-        /* ========== ЧЕКБОКСЫ ========== */
+        /* ========== ЧЕКБОКСЫ (оригинальные) ========== */
         .checkbox-container {
             display: flex;
             align-items: flex-start;
@@ -766,7 +628,7 @@ require 'admin_header.php';
             margin-top: 4px;
         }
 
-        /* ========== КНОПКИ ФОРМЫ ========== */
+        /* ========== КНОПКИ ФОРМЫ (оригинальные) ========== */
         .form-actions {
             display: flex;
             gap: 16px;
@@ -816,18 +678,6 @@ require 'admin_header.php';
             box-shadow: var(--node-shadow-hover);
         }
 
-        .form-btn-disabled {
-            background: var(--node-border);
-            color: var(--node-text-muted);
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .form-btn-disabled:hover {
-            transform: none;
-            box-shadow: none;
-        }
-
         .form-btn-icon {
             width: 36px;
             height: 36px;
@@ -840,21 +690,18 @@ require 'admin_header.php';
             transition: all 0.3s ease;
             border: none;
             font-size: 14px;
-        }
-
-        .form-btn-back {
             background: rgba(148, 163, 184, 0.1);
             color: var(--node-text-muted);
             border: 1px solid var(--node-border);
         }
 
-        .form-btn-back:hover {
+        .form-btn-icon:hover {
             background: var(--node-hover);
             color: var(--node-text);
             transform: translateY(-2px);
         }
 
-        /* ========== СТАТУС ПРОВЕРКИ ========== */
+        /* ========== СТАТУС ПРОВЕРКИ (для результатов) ========== */
         .status-indicator {
             display: inline-flex;
             align-items: center;
@@ -889,32 +736,12 @@ require 'admin_header.php';
 
         /* ========== АНИМАЦИИ ========== */
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(0, 188, 212, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(0, 188, 212, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(0, 188, 212, 0);
-            }
+            to { transform: rotate(360deg); }
         }
 
         /* ========== ЗАГРУЗКА ========== */
@@ -987,12 +814,6 @@ require 'admin_header.php';
         }
 
         /* ========== АДАПТИВНОСТЬ ========== */
-        @media (max-width: 1024px) {
-            .node-form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
         @media (max-width: 768px) {
             .node-header {
                 flex-direction: column;
@@ -1075,281 +896,199 @@ require 'admin_header.php';
             font-size: 13px;
             font-weight: 600;
         }
+
+        .result-value.status-success {
+            color: #a7f3d0;
+        }
+
+        .result-value.status-error {
+            color: #fecaca;
+        }
+        
+        /* Кнопка "Вернуться к списку" – иконка с эффектами */
+.form-btn-icon.form-btn-back {
+    width: 40px;
+    height: 40px;
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid var(--node-border);
+    border-radius: 10px;
+    color: var(--node-text-secondary);
+    transition: all 0.2s ease;
+}
+
+.form-btn-icon.form-btn-back:hover {
+    background: var(--node-accent-light);
+    border-color: var(--node-accent);
+    color: var(--node-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Блок "Настройки ноды" – отступы, тени, скругления */
+.form-section:last-child .checkbox-container {
+    background: var(--node-hover);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    transition: all 0.2s;
+}
+
+.form-section:last-child .checkbox-container:hover {
+    background: var(--node-accent-light);
+    transform: translateX(4px);
+}
+
+.form-section:last-child .checkbox-container .checkmark {
+    border-radius: 6px;
+    border-width: 2px;
+}
+
+.form-section:last-child .checkbox-label {
+    font-weight: 500;
+}
+
+.form-section:last-child .checkbox-hint {
+    color: var(--node-text-muted);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Дополнительно – для ровных отступов внутри блока настроек */
+.form-section:last-child .form-section-body {
+    padding: 20px;
+}
     </style>
 </head>
 <body>
-    <!-- Подключаем сайдбар -->
     <?php require 'admin_sidebar.php'; ?>
-
-    <!-- Основной контент -->
     <div class="node-wrapper">
-        <!-- Шапка страницы -->
         <div class="node-header">
             <div class="node-header-left">
                 <h1><i class="fas fa-server"></i> Добавление новой ноды</h1>
                 <p>Добавьте сервер Proxmox для управления виртуальными машинами</p>
             </div>
             <div class="node-header-right">
-                <a href="nodes.php" class="form-btn-icon form-btn-back" title="Вернуться к списку">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
+                <a href="nodes.php" class="form-btn-icon form-btn-back" title="Вернуться к списку"><i class="fas fa-arrow-left"></i></a>
             </div>
         </div>
 
         <?php if (isset($_SESSION['error'])): ?>
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle"></i>
-                <div class="alert-content">
-                    <p><?= htmlspecialchars($_SESSION['error']) ?></p>
-                </div>
-            </div>
+            <div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i><div><?= htmlspecialchars($_SESSION['error']) ?></div></div>
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <!-- Форма добавления ноды -->
-        <form method="POST" class="node-form" id="nodeForm">
-            <!-- Добавляем скрытое поле для идентификации формы -->
+        <form method="POST" id="nodeForm">
             <input type="hidden" name="node_form" value="1">
-            
             <div class="node-form-grid">
                 <!-- Основные параметры -->
                 <div class="form-section">
-                    <div class="form-section-header">
-                        <h2><i class="fas fa-cog"></i> Основные параметры</h2>
-                    </div>
+                    <div class="form-section-header"><h2><i class="fas fa-cog"></i> Основные параметры</h2></div>
                     <div class="form-section-body">
-                        <div class="form-group">
-                            <label class="form-label required">
-                                <i class="fas fa-network-wired"></i> Кластер
-                            </label>
-                            <select name="cluster_id" class="form-input" required id="clusterSelect">
-                                <option value="">-- Выберите кластер --</option>
-                                <?php foreach ($clusters as $cluster): ?>
-                                    <option value="<?= $cluster['id'] ?>"><?= htmlspecialchars($cluster['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">
-                                <i class="fas fa-tag"></i> Имя ноды
-                            </label>
-                            <input type="text"
-                                   name="node_name"
-                                   class="form-input"
-                                   placeholder="node1, proxmox-01 и т.д."
-                                   required
-                                   maxlength="50"
-                                   id="nodeName">
-                            <span class="form-hint">Уникальное имя ноды в рамках кластера</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">
-                                <i class="fas fa-globe"></i> Адрес сервера
-                            </label>
-                            <input type="text"
-                                   name="hostname"
-                                   class="form-input"
-                                   placeholder="192.168.1.100 или proxmox.example.com"
-                                   required
-                                   id="hostname">
-                            <span class="form-hint">IP-адрес или доменное имя сервера</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">
-                                <i class="fas fa-align-left"></i> Описание
-                            </label>
-                            <textarea name="description"
-                                      class="form-input"
-                                      placeholder="Описание сервера, его назначение и т.д."
-                                      rows="3"
-                                      id="description"></textarea>
-                        </div>
+                        <div class="form-group"><label class="form-label required">Кластер</label><select name="cluster_id" class="form-input" id="clusterSelect" required><option value="">-- Выберите кластер --</option><?php foreach ($clusters as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
+                        <div class="form-group"><label class="form-label required">Имя ноды</label><input type="text" name="node_name" class="form-input" id="nodeName" maxlength="50" required><span class="form-hint">Уникальное имя в кластере</span></div>
+                        <div class="form-group"><label class="form-label required">Адрес сервера</label><input type="text" name="hostname" class="form-input" id="hostname" required><span class="form-hint">IP-адрес или домен</span></div>
+                        <div class="form-group"><label class="form-label">Описание</label><textarea name="description" class="form-input" rows="3" id="description"></textarea></div>
                     </div>
                 </div>
 
                 <!-- Параметры подключения -->
                 <div class="form-section">
-                    <div class="form-section-header">
-                        <h2><i class="fas fa-plug"></i> Параметры подключения</h2>
-                    </div>
+                    <div class="form-section-header"><h2><i class="fas fa-plug"></i> Параметры подключения</h2></div>
                     <div class="form-section-body">
-                        <div class="form-group">
-                            <label class="form-label">
-                                <i class="fas fa-network-wired"></i> SSH порт
-                            </label>
-                            <input type="number"
-                                   name="ssh_port"
-                                   class="form-input"
-                                   value="22"
-                                   min="1"
-                                   max="65535"
-                                   id="sshPort">
-                            <span class="form-hint">Порт для SSH подключения (по умолчанию: 22)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">
-                                <i class="fas fa-code"></i> API порт
-                            </label>
-                            <input type="number"
-                                   name="api_port"
-                                   class="form-input"
-                                   value="8006"
-                                   min="1"
-                                   max="65535"
-                                   id="apiPort">
-                            <span class="form-hint">Порт API Proxmox (по умолчанию: 8006)</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">
-                                <i class="fas fa-user"></i> Пользователь
-                            </label>
-                            <input type="text"
-                                   name="username"
-                                   class="form-input"
-                                   placeholder="root"
-                                   id="username">
-                            <span class="form-hint">Имя пользователя для подключения</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">
-                                <i class="fas fa-key"></i> Пароль
-                            </label>
-                            <input type="password"
-                                   name="password"
-                                   class="form-input"
-                                   placeholder="Пароль для подключения"
-                                   id="password">
-                            <span class="form-hint">Пароль пользователя (шифруется при сохранении)</span>
-                        </div>
+                        <div class="form-group"><label class="form-label">SSH порт</label><input type="number" name="ssh_port" class="form-input" value="22" id="sshPort" min="1" max="65535"><span class="form-hint">Порт для SSH</span></div>
+                        <div class="form-group"><label class="form-label">API порт</label><input type="number" name="api_port" class="form-input" value="8006" id="apiPort" min="1" max="65535"><span class="form-hint">Порт API Proxmox</span></div>
+                        <div class="form-group"><label class="form-label">Пользователь</label><input type="text" name="username" class="form-input" id="username" placeholder="root"></div>
+                        <div class="form-group"><label class="form-label">Пароль</label><input type="password" name="password" class="form-input" id="password"><span class="form-hint">Пароль (шифруется)</span></div>
                     </div>
                 </div>
 
-                <!-- Проверка доступности -->
+                <!-- Проверка доступности (с добавленной HTTPS проверкой) -->
                 <div class="form-section verification-section">
-                    <div class="form-section-header verification-header">
-                        <h2><i class="fas fa-check-circle"></i> Проверка доступности</h2>
-                    </div>
+                    <div class="form-section-header verification-header"><h2><i class="fas fa-check-circle"></i> Проверка доступности</h2></div>
                     <div class="form-section-body">
                         <div class="verification-status" id="verificationStatus">
                             <div class="verification-item">
-                                <div class="verification-icon">
-                                    <i class="fas fa-server"></i>
-                                </div>
+                                <div class="verification-icon"><i class="fas fa-server"></i></div>
                                 <div class="verification-content">
                                     <div class="verification-label">Доступность хоста</div>
-                                    <div class="verification-details">Проверка DNS и стандартных портов</div>
+                                    <div class="verification-details">DNS и стандартные порты</div>
+                                    <div class="verification-status-text pending" id="pingStatusText">ожидание</div>
                                 </div>
-                                <span class="status-indicator status-pending" id="pingStatus"></span>
                             </div>
-
                             <div class="verification-item">
-                                <div class="verification-icon">
-                                    <i class="fas fa-terminal"></i>
-                                </div>
+                                <div class="verification-icon"><i class="fas fa-terminal"></i></div>
                                 <div class="verification-content">
                                     <div class="verification-label">Доступность SSH порта</div>
                                     <div class="verification-details">Порт: <span id="sshPortDisplay">22</span></div>
+                                    <div class="verification-status-text pending" id="sshStatusText">ожидание</div>
                                 </div>
-                                <span class="status-indicator status-pending" id="sshStatus"></span>
                             </div>
-
                             <div class="verification-item">
-                                <div class="verification-icon">
-                                    <i class="fas fa-code"></i>
-                                </div>
+                                <div class="verification-icon"><i class="fas fa-code"></i></div>
                                 <div class="verification-content">
                                     <div class="verification-label">Доступность API порта</div>
                                     <div class="verification-details">Порт: <span id="apiPortDisplay">8006</span></div>
+                                    <div class="verification-status-text pending" id="apiStatusText">ожидание</div>
                                 </div>
-                                <span class="status-indicator status-pending" id="apiStatus"></span>
                             </div>
-
+                            <div class="verification-item">
+                                <div class="verification-icon"><i class="fas fa-lock"></i></div>
+                                <div class="verification-content">
+                                    <div class="verification-label">HTTPS соединение</div>
+                                    <div class="verification-details">Порт: <span id="apiPortDisplay">8006</span></div>
+                                    <div class="verification-status-text pending" id="httpsStatusText">ожидание</div>
+                                </div>
+                            </div>
                             <div class="verification-actions">
-                                <button type="button" class="verification-btn verification-btn-primary" id="verifyBtn">
-                                    <i class="fas fa-play"></i> Запустить проверку
-                                </button>
+                                <button type="button" class="verification-btn" id="verifyBtn"><i class="fas fa-play"></i> Запустить проверку</button>
                             </div>
-
                             <div class="verification-results" id="verificationResults" style="display: none;">
-                                <div class="verification-result-item">
-                                    <span class="result-label">Общее время проверки:</span>
-                                    <span class="result-value" id="totalTime">0 мс</span>
-                                </div>
-                                <div class="verification-result-item">
-                                    <span class="result-label">Статус:</span>
-                                    <span class="result-value" id="overallStatus">не проверено</span>
-                                </div>
+                                <div class="verification-result-item"><span class="result-label">Общее время проверки:</span><span class="result-value" id="totalTime">0 мс</span></div>
+                                <div class="verification-result-item"><span class="result-label">Статус:</span><span class="result-value" id="overallStatus">не проверено</span></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Настройки ноды -->
+                <!-- Настройки ноды (добавлен чекбокс ignore SSL) -->
                 <div class="form-section">
-                    <div class="form-section-header">
-                        <h2><i class="fas fa-sliders-h"></i> Настройки ноды</h2>
-                    </div>
+                    <div class="form-section-header"><h2><i class="fas fa-sliders-h"></i> Настройки ноды</h2></div>
                     <div class="form-section-body">
                         <label class="checkbox-container">
                             <input type="checkbox" name="is_active" checked id="isActive">
                             <span class="checkmark"></span>
-                            <span class="checkbox-label">
-                                <i class="fas fa-power-off"></i> Активная нода
-                                <span class="checkbox-hint">Нода будет использоваться для создания новых ВМ</span>
-                            </span>
+                            <span class="checkbox-label">Активная нода <span class="checkbox-hint">Нода будет использоваться для создания новых ВМ</span></span>
                         </label>
-
                         <label class="checkbox-container">
                             <input type="checkbox" name="is_cluster_master" id="isClusterMaster">
                             <span class="checkmark"></span>
-                            <span class="checkbox-label">
-                                <i class="fas fa-crown"></i> Главная нода кластера
-                                <span class="checkbox-hint">Используется для VNC консоли всех нод кластера</span>
-                            </span>
+                            <span class="checkbox-label">Главная нода кластера <span class="checkbox-hint">Используется для VNC консоли всех нод кластера</span></span>
                         </label>
-
                         <label class="checkbox-container">
                             <input type="checkbox" name="skip_verification" id="skipVerification">
                             <span class="checkmark"></span>
-                            <span class="checkbox-label">
-                                <i class="fas fa-forward"></i> Пропустить проверку доступности
-                                <span class="checkbox-hint">Добавить ноду без проверки (не рекомендуется)</span>
-                            </span>
+                            <span class="checkbox-label">Пропустить проверку доступности <span class="checkbox-hint">Добавить ноду без проверки (не рекомендуется)</span></span>
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" name="ignore_ssl" id="ignoreSSL">
+                            <span class="checkmark"></span>
+                            <span class="checkbox-label">Игнорировать SSL ошибки <span class="checkbox-hint">Для самоподписанных сертификатов</span></span>
                         </label>
                     </div>
                 </div>
             </div>
 
-            <!-- Кнопки действий -->
             <div class="form-actions">
-                <button type="submit"
-                        name="add_node"
-                        class="form-btn form-btn-primary"
-                        id="submitBtn">
-                    <i class="fas fa-save"></i> Создать ноду
-                </button>
-                <a href="nodes.php" class="form-btn form-btn-secondary">
-                    <i class="fas fa-times"></i> Отмена
-                </a>
+                <button type="submit" name="add_node" class="form-btn form-btn-primary" id="submitBtn"><i class="fas fa-save"></i> Создать ноду</button>
+                <a href="nodes.php" class="form-btn form-btn-secondary"><i class="fas fa-times"></i> Отмена</a>
             </div>
         </form>
     </div>
 
-    <!-- Оверлей загрузки -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-    </div>
+    <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Элементы формы
-        const nodeForm = document.getElementById('nodeForm');
         const clusterSelect = document.getElementById('clusterSelect');
         const nodeName = document.getElementById('nodeName');
         const hostname = document.getElementById('hostname');
@@ -1360,428 +1099,181 @@ require 'admin_header.php';
         const verifyBtn = document.getElementById('verifyBtn');
         const submitBtn = document.getElementById('submitBtn');
         const skipVerification = document.getElementById('skipVerification');
+        const ignoreSSL = document.getElementById('ignoreSSL');
         const loadingOverlay = document.getElementById('loadingOverlay');
-
-        // Элементы статусов проверки
-        const pingStatus = document.getElementById('pingStatus');
-        const sshStatus = document.getElementById('sshStatus');
-        const apiStatus = document.getElementById('apiStatus');
+        const pingStatusText = document.getElementById('pingStatusText');
+        const sshStatusText = document.getElementById('sshStatusText');
+        const apiStatusText = document.getElementById('apiStatusText');
+        const httpsStatusText = document.getElementById('httpsStatusText');
         const verificationResults = document.getElementById('verificationResults');
-        const totalTime = document.getElementById('totalTime');
-        const overallStatus = document.getElementById('overallStatus');
+        const totalTimeSpan = document.getElementById('totalTime');
+        const overallStatusSpan = document.getElementById('overallStatus');
 
-        // Флаги проверки
         let verificationCompleted = false;
         let verificationInProgress = false;
 
-        // Инициализация статусов
-        initializeStatuses();
-
-        // Обновление отображения портов
         function updatePortDisplays() {
             sshPortDisplay.textContent = sshPort.value;
             apiPortDisplay.textContent = apiPort.value;
         }
-
         sshPort.addEventListener('input', updatePortDisplays);
         apiPort.addEventListener('input', updatePortDisplays);
         updatePortDisplays();
 
-        // Кнопка проверки доступности
-        verifyBtn.addEventListener('click', function() {
-            if (verificationInProgress) return;
-
-            // Валидация полей
-            if (!validateVerificationFields()) {
-                return;
-            }
-
-            startVerification();
-        });
-
-        // Функция валидации полей для проверки
-        function validateVerificationFields() {
-            let isValid = true;
-
-            // Очистка предыдущих ошибок
-            clearFieldErrors();
-
-            // Проверка кластера
-            if (!clusterSelect.value) {
-                showFieldError(clusterSelect, 'Выберите кластер');
-                isValid = false;
-            }
-
-            // Проверка имени ноды
-            if (!nodeName.value.trim()) {
-                showFieldError(nodeName, 'Введите имя ноды');
-                isValid = false;
-            } else if (nodeName.value.trim().length > 50) {
-                showFieldError(nodeName, 'Имя ноды не должно превышать 50 символов');
-                isValid = false;
-            }
-
-            // Проверка хоста
-            if (!hostname.value.trim()) {
-                showFieldError(hostname, 'Введите адрес сервера');
-                isValid = false;
-            } else if (!isValidHostname(hostname.value.trim())) {
-                showFieldError(hostname, 'Введите корректный IP-адрес или доменное имя');
-                isValid = false;
-            }
-
-            // Проверка портов
-            if (!isValidPort(sshPort.value)) {
-                showFieldError(sshPort, 'Введите корректный SSH порт (1-65535)');
-                isValid = false;
-            }
-
-            if (!isValidPort(apiPort.value)) {
-                showFieldError(apiPort, 'Введите корректный API порт (1-65535)');
-                isValid = false;
-            }
-
-            return isValid;
+        function updateStatusText(element, status, text) {
+            if (!element) return;
+            element.className = `verification-status-text ${status}`;
+            element.textContent = text;
         }
 
-        // Инициализация статусов
-        function initializeStatuses() {
-            updateStatusElement(pingStatus, 'pending', 'ожидание');
-            updateStatusElement(sshStatus, 'pending', 'ожидание');
-            updateStatusElement(apiStatus, 'pending', 'ожидание');
-        }
-
-        // Валидация хоста
-        function isValidHostname(hostname) {
-            // Проверка IP-адреса
-            const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-
-            // Проверка доменного имени
-            const domainPattern = /^(?!:\/\/)([a-zA-Z0-9-_]+\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\.[a-zA-Z]{2,11}?$/;
-
-            return ipPattern.test(hostname) || domainPattern.test(hostname) || hostname === 'localhost';
-        }
-
-        // Валидация порта
-        function isValidPort(port) {
-            const portNum = parseInt(port);
-            return !isNaN(portNum) && portNum >= 1 && portNum <= 65535;
-        }
-
-        // Показать ошибку поля
-        function showFieldError(field, message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'field-error';
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-
-            field.parentNode.appendChild(errorDiv);
-            field.style.borderColor = 'var(--node-danger)';
-
-            // Фокусировка на поле с ошибкой
-            field.focus();
-        }
-
-        // Очистка ошибок полей
-        function clearFieldErrors() {
-            document.querySelectorAll('.field-error').forEach(el => el.remove());
-            document.querySelectorAll('.form-input').forEach(input => {
-                input.style.borderColor = '';
-            });
-        }
-
-        // Запуск проверки доступности
-        async function startVerification() {
-            verificationInProgress = true;
+        function resetVerificationStatus() {
+            updateStatusText(pingStatusText, 'pending', 'ожидание');
+            updateStatusText(sshStatusText, 'pending', 'ожидание');
+            updateStatusText(apiStatusText, 'pending', 'ожидание');
+            updateStatusText(httpsStatusText, 'pending', 'ожидание');
+            verificationResults.style.display = 'none';
+            overallStatusSpan.textContent = 'не проверено';
+            overallStatusSpan.className = 'result-value';
+            totalTimeSpan.textContent = '0 мс';
+            submitBtn.disabled = !skipVerification.checked;
             verificationCompleted = false;
+        }
 
-            // Сброс статусов
+        function validateBasicFields() {
+            let valid = true;
+            document.querySelectorAll('.field-error').forEach(el => el.remove());
+            if (!clusterSelect.value) { showError(clusterSelect, 'Выберите кластер'); valid=false; }
+            if (!nodeName.value.trim()) { showError(nodeName, 'Введите имя ноды'); valid=false; }
+            if (!hostname.value.trim()) { showError(hostname, 'Введите адрес сервера'); valid=false; }
+            if (!isValidPort(sshPort.value)) { showError(sshPort, 'Некорректный SSH порт'); valid=false; }
+            if (!isValidPort(apiPort.value)) { showError(apiPort, 'Некорректный API порт'); valid=false; }
+            return valid;
+        }
+
+        function isValidHostname(host) {
+            const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            const domainPattern = /^(?!:\/\/)([a-zA-Z0-9-_]+\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\.[a-zA-Z]{2,11}?$/;
+            return ipPattern.test(host) || domainPattern.test(host) || host === 'localhost';
+        }
+
+        function isValidPort(p) { let n = parseInt(p); return !isNaN(n) && n>=1 && n<=65535; }
+        function showError(field, msg) {
+            let err = document.createElement('div');
+            err.className = 'field-error';
+            err.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+            field.parentNode.appendChild(err);
+            field.style.borderColor = 'var(--node-danger)';
+            setTimeout(() => { if (err.parentNode) err.remove(); field.style.borderColor = ''; }, 3000);
+        }
+        function clearFieldErrors() { document.querySelectorAll('.field-error').forEach(el=>el.remove()); document.querySelectorAll('.form-input').forEach(inp=>inp.style.borderColor=''); }
+
+        async function startVerification() {
+            if (verificationInProgress) return;
+            if (!validateBasicFields()) return;
+            verificationInProgress = true;
             resetVerificationStatus();
-
-            // Показать оверлей загрузки
             loadingOverlay.classList.add('active');
-
-            // Обновление кнопки
             verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
             verifyBtn.disabled = true;
 
             try {
-                const startTime = Date.now();
-
-                // Собираем данные для проверки
-                const verificationData = {
-                    hostname: hostname.value.trim(),
-                    ssh_port: parseInt(sshPort.value),
-                    api_port: parseInt(apiPort.value)
-                };
-
-                // Отправляем запрос на проверку через AJAX
-                // В реальной системе здесь должен быть endpoint для проверки
-                // Для демонстрации используем setTimeout для имитации
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Имитация результата проверки
-                const mockResult = {
-                    success: true,
-                    message: "Все проверки пройдены успешно",
-                    response_time: 1500,
-                    checks: {
-                        ping: { success: true, latency: 50 },
-                        ssh: { success: true },
-                        api: { success: true }
-                    }
-                };
-
-                // В реальной системе замените на:
-                // Отправляем запрос на проверку
+                const start = Date.now();
                 const response = await fetch('check_node_availability.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(verificationData)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hostname: hostname.value.trim(),
+                        ssh_port: parseInt(sshPort.value),
+                        api_port: parseInt(apiPort.value),
+                        ignore_ssl: ignoreSSL.checked
+                    })
                 });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
+                console.log('Результат проверки:', result);
 
-                // Обновляем статусы на основе результата
-                updateVerificationStatus(result);
+                if (result.checks && result.checks.ping) updateStatusText(pingStatusText, result.checks.ping.success ? 'success' : 'error', result.checks.ping.success ? 'доступен' : 'не доступен');
+                if (result.checks && result.checks.ssh) updateStatusText(sshStatusText, result.checks.ssh.success ? 'success' : 'error', result.checks.ssh.success ? 'доступен' : 'не доступен');
+                if (result.checks && result.checks.api) updateStatusText(apiStatusText, result.checks.api.success ? 'success' : 'error', result.checks.api.success ? 'доступен' : 'не доступен');
+                if (result.checks && result.checks.https) updateStatusText(httpsStatusText, result.checks.https.success ? 'success' : 'error', result.checks.https.success ? 'доступен' : 'не доступен');
 
-                // Вычисляем общее время
-                const elapsedTime = Date.now() - startTime;
-                totalTime.textContent = `${elapsedTime} мс`;
-
-                // Показываем результаты
+                const elapsed = Date.now() - start;
+                totalTimeSpan.textContent = `${elapsed} мс`;
                 verificationResults.style.display = 'block';
 
-                // Обновляем общий статус
-                if (result.success) {
-                    overallStatus.textContent = 'Пройдена';
-                    overallStatus.className = 'result-value status-success';
+                const allChecksOk = (result.checks?.ping?.success && result.checks?.ssh?.success && result.checks?.api?.success && result.checks?.https?.success);
+                const explicitOk = (result.success === true || result.success === 'true' || result.success === 1);
+                const isSuccess = allChecksOk || explicitOk;
 
-                    // Активируем кнопку отправки
-                    submitBtn.disabled = false;
+                if (isSuccess) {
+                    overallStatusSpan.textContent = 'Пройдена';
+                    overallStatusSpan.className = 'result-value status-success';
                     verificationCompleted = true;
+                    submitBtn.disabled = false;
                 } else {
-                    overallStatus.textContent = 'Не пройдена';
-                    overallStatus.className = 'result-value status-error';
-
-                    // Показываем предупреждение
-                    if (!skipVerification.checked) {
-                        submitBtn.disabled = true;
-                    }
+                    overallStatusSpan.textContent = 'Не пройдена';
+                    overallStatusSpan.className = 'result-value status-error';
+                    verificationCompleted = false;
+                    if (!skipVerification.checked) submitBtn.disabled = true;
                 }
-
-            } catch (error) {
-                console.error('Ошибка проверки:', error);
-
-                // Показываем ошибку
-                overallStatus.textContent = 'Ошибка проверки';
-                overallStatus.className = 'result-value status-error';
+            } catch (err) {
+                console.error('Ошибка проверки:', err);
+                overallStatusSpan.textContent = 'Ошибка проверки';
+                overallStatusSpan.className = 'result-value status-error';
                 verificationResults.style.display = 'block';
-
-                // Обновляем статусы
-                updateStatusElement(pingStatus, 'error', 'Ошибка');
-                updateStatusElement(sshStatus, 'error', 'Ошибка');
-                updateStatusElement(apiStatus, 'error', 'Ошибка');
-
+                updateStatusText(pingStatusText, 'error', 'ошибка');
+                updateStatusText(sshStatusText, 'error', 'ошибка');
+                updateStatusText(apiStatusText, 'error', 'ошибка');
+                updateStatusText(httpsStatusText, 'error', 'ошибка');
             } finally {
                 verificationInProgress = false;
-
-                // Скрыть оверлей загрузки
                 loadingOverlay.classList.remove('active');
-
-                // Обновить кнопку
                 verifyBtn.innerHTML = '<i class="fas fa-redo"></i> Проверить снова';
                 verifyBtn.disabled = false;
             }
         }
 
-        // Сброс статусов проверки
-        function resetVerificationStatus() {
-            updateStatusElement(pingStatus, 'pending', 'ожидание');
-            updateStatusElement(sshStatus, 'pending', 'ожидание');
-            updateStatusElement(apiStatus, 'pending', 'ожидание');
+        verifyBtn.addEventListener('click', startVerification);
 
-            verificationResults.style.display = 'none';
-            overallStatus.textContent = 'не проверено';
-            overallStatus.className = 'result-value';
-            totalTime.textContent = '0 мс';
-
-            submitBtn.disabled = !skipVerification.checked;
-        }
-
-        // Обновление статуса элемента
-        function updateStatusElement(element, status, text) {
-            element.className = `status-indicator status-${status}`;
-            element.textContent = text;
-
-            // Обновляем иконку в родительском элементе
-            const icon = element.closest('.verification-item').querySelector('.verification-icon i');
-            if (status === 'success') {
-                icon.className = 'fas fa-check-circle';
-            } else if (status === 'error') {
-                icon.className = 'fas fa-times-circle';
-            } else if (status === 'warning') {
-                icon.className = 'fas fa-exclamation-circle';
-            } else {
-                icon.className = 'fas fa-server';
-            }
-        }
-
-        // Обновление статусов на основе результата
-        function updateVerificationStatus(result) {
-            // Обновляем статусы проверок
-            if (result.checks && result.checks.ping) {
-                const pingResult = result.checks.ping;
-                updateStatusElement(pingStatus,
-                    pingResult.success ? 'success' : 'error',
-                    pingResult.success ? `доступен` : 'не доступен'
-                );
-            }
-
-            if (result.checks && result.checks.ssh) {
-                const sshResult = result.checks.ssh;
-                updateStatusElement(sshStatus,
-                    sshResult.success ? 'success' : 'error',
-                    sshResult.success ? 'доступен' : 'не доступен'
-                );
-            }
-
-            if (result.checks && result.checks.api) {
-                const apiResult = result.checks.api;
-                updateStatusElement(apiStatus,
-                    apiResult.success ? 'success' : 'error',
-                    apiResult.success ? 'доступен' : 'не доступен'
-                );
-            }
-        }
-
-        // Обработчик изменения чекбокса пропуска проверки
         skipVerification.addEventListener('change', function() {
             if (this.checked) {
                 submitBtn.disabled = false;
                 verifyBtn.disabled = true;
                 verifyBtn.innerHTML = '<i class="fas fa-forward"></i> Проверка пропущена';
             } else {
-                submitBtn.disabled = !verificationCompleted;
                 verifyBtn.disabled = false;
-                verifyBtn.innerHTML = verificationCompleted ?
-                    '<i class="fas fa-redo"></i> Проверить снова' :
-                    '<i class="fas fa-play"></i> Запустить проверку';
+                verifyBtn.innerHTML = verificationCompleted ? '<i class="fas fa-redo"></i> Проверить снова' : '<i class="fas fa-play"></i> Запустить проверку';
+                submitBtn.disabled = !verificationCompleted;
             }
         });
 
-        // Валидация формы при отправке
-        nodeForm.addEventListener('submit', function(e) {
-            // Не отменяем отправку формы по умолчанию
-            if (!validateForm()) {
-                e.preventDefault();
-                return;
-            }
-
-            // Если проверка не пройдена и не пропущена - показываем предупреждение
+        document.getElementById('nodeForm').addEventListener('submit', function(e) {
+            let valid = true;
+            clearFieldErrors();
+            if (!clusterSelect.value) { showError(clusterSelect, 'Выберите кластер'); valid=false; }
+            if (!nodeName.value.trim()) { showError(nodeName, 'Введите имя ноды'); valid=false; }
+            if (!hostname.value.trim()) { showError(hostname, 'Введите адрес сервера'); valid=false; }
+            if (!isValidPort(sshPort.value)) { showError(sshPort, 'Некорректный SSH порт'); valid=false; }
+            if (!isValidPort(apiPort.value)) { showError(apiPort, 'Некорректный API порт'); valid=false; }
+            if (!valid) { e.preventDefault(); return; }
             if (!verificationCompleted && !skipVerification.checked) {
                 if (!confirm('Проверка доступности ноды не пройдена. Вы уверены, что хотите добавить ноду без проверки?')) {
                     e.preventDefault();
                     return;
                 }
             }
-
-            // Показываем загрузку
             loadingOverlay.classList.add('active');
-            
-            // Форма отправится стандартным способом
         });
 
-        // Общая валидация формы
-        function validateForm() {
-            clearFieldErrors();
-            let isValid = true;
-
-            // Проверка обязательных полей
-            if (!clusterSelect.value) {
-                showFieldError(clusterSelect, 'Выберите кластер');
-                isValid = false;
-            }
-
-            if (!nodeName.value.trim()) {
-                showFieldError(nodeName, 'Введите имя ноды');
-                isValid = false;
-            }
-
-            if (!hostname.value.trim()) {
-                showFieldError(hostname, 'Введите адрес сервера');
-                isValid = false;
-            }
-
-            // Проверка портов
-            if (!isValidPort(sshPort.value)) {
-                showFieldError(sshPort, 'Введите корректный SSH порт');
-                isValid = false;
-            }
-
-            if (!isValidPort(apiPort.value)) {
-                showFieldError(apiPort, 'Введите корректный API порт');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        // Автоматическая проверка при изменении полей
-        let verificationTimeout;
-        const fieldsToWatch = [hostname, sshPort, apiPort];
-
-        fieldsToWatch.forEach(field => {
-            field.addEventListener('input', function() {
-                clearTimeout(verificationTimeout);
-                verificationTimeout = setTimeout(() => {
-                    if (hostname.value.trim() && !verificationInProgress) {
-                        resetVerificationStatus();
-                    }
+        let timeout;
+        [hostname, sshPort, apiPort].forEach(f => {
+            f.addEventListener('input', () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    if (hostname.value.trim() && !verificationInProgress) resetVerificationStatus();
                 }, 1000);
             });
         });
-
-        // Анимация при загрузке страницы
-        const formSections = document.querySelectorAll('.form-section');
-        formSections.forEach((section, index) => {
-            section.style.opacity = '0';
-            section.style.transform = 'translateY(20px)';
-
-            setTimeout(() => {
-                section.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                section.style.opacity = '1';
-                section.style.transform = 'translateY(0)';
-            }, index * 100);
-        });
-
-        // Обновление отступа при изменении размера окна
-        function updateWrapperMargin() {
-            const wrapper = document.querySelector('.node-wrapper');
-            const sidebar = document.querySelector('.admin-sidebar');
-
-            if (window.innerWidth <= 768) {
-                wrapper.style.marginLeft = '0';
-            } else if (sidebar.classList.contains('compact')) {
-                wrapper.style.marginLeft = '70px';
-            } else {
-                wrapper.style.marginLeft = '280px';
-            }
-        }
-
-        window.addEventListener('resize', updateWrapperMargin);
-
-        // Наблюдатель за изменением класса сайдбара
-        const sidebar = document.querySelector('.admin-sidebar');
-        if (sidebar) {
-            const observer = new MutationObserver(updateWrapperMargin);
-            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-        }
     });
     </script>
     <?php require 'admin_footer.php'; ?>

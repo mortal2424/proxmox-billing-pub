@@ -806,7 +806,7 @@ function getDiskUsage() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Обновление статистики в реальном времени
-    function updateSystemStats() {
+    /*function updateSystemStats() {
         fetch('/admin/ajax/system_stats.php')
             .then(response => response.json())
             .then(data => {
@@ -869,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => console.error('Ошибка загрузки статистики:', error));
-    }
+    }*/
 
     function calculateSessionTime(sessionStart) {
         if (!sessionStart) return 'Недоступно';
