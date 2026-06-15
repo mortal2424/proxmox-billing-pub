@@ -90,6 +90,25 @@ The code is under development and may contain errors. If you want to help with t
 
 
 
+Как запустить докер контейнер
+1. Скопируйте все файлы в соответствующие папки репозитория, можно сделать git clone
+
+2. Создайте файл .env из .env.example и укажите реальный домен (если есть) и почту и желаемые данные для подключения в базе.
+
+3. Убедитесь, что скрипты init-ssl.sh, init.sh, cron-scheduler.sh имеют права на выполнение:
+
+Команда chmod +x docker/init-ssl.sh docker/init.sh docker/cron-scheduler.sh
+
+4. Запустите:
+
+docker compose up -d --build
+
+
+Сначала запустится контейнер init-ssl, он создаст сертификаты в томе ssl-certs и завершится. Затем поднимутся nginx, apache, db и certbot-renew. Если домен реальный и Let's Encrypt смог выдать сертификат – сайт будет работать по HTTPS. Если нет – будет использован самоподписанный сертификат (браузер покажет предупреждение, но соединение защищённое).
+
+
+
+
 <img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
 <img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
 <img width="1903" height="926" alt="image" src="https://github.com/user-attachments/assets/d35d88f9-a019-420e-800e-16cb743540cc" />
