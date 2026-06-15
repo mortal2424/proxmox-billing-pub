@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Инициализация SSL-сертификатов (запускается один раз)
   init-ssl:
     image: certbot/certbot
     container_name: proxmox-billing-init-ssl
@@ -17,7 +16,6 @@ services:
     networks:
       - billing-network
 
-  # Веб-сервер (Nginx) – reverse proxy + SSL
   nginx:
     build:
       context: .
@@ -37,7 +35,6 @@ services:
       - billing-network
     restart: unless-stopped
 
-  # Бэкенд (Apache + PHP)
   apache:
     build:
       context: .
@@ -54,12 +51,12 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - billing-network
     restart: unless-stopped
 
-  # База данных MySQL
   db:
     image: mysql:8.0
     container_name: proxmox-billing-db
@@ -72,15 +69,20 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - billing-network
 
-  # Автоматическое обновление Let's Encrypt сертификатов
   certbot-renew:
     image: certbot/certbot
     container_name: proxmox-billing-certbot-renew
     volumes:
+      - ./webroot:/var/www/html
       - ./docker/ssl:/etc/letsencrypt
       - ssl-certs:/etc/nginx/ssl
     environment:

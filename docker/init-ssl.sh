@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SSL_DIR="/etc/nginx/ssl"
+WEBROOT_DIR="/var/www/html"
 mkdir -p "$SSL_DIR"
 
 if [ -f "$SSL_DIR/fullchain.pem" ] && [ -f "$SSL_DIR/privkey.pem" ]; then
@@ -9,8 +10,8 @@ if [ -f "$SSL_DIR/fullchain.pem" ] && [ -f "$SSL_DIR/privkey.pem" ]; then
 fi
 
 if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "localhost" ]; then
-    echo "🔄 Trying to obtain Let's Encrypt certificate for $DOMAIN..."
-    certbot certonly --standalone -d "$DOMAIN" \
+    echo "🔄 Trying to obtain Let's Encrypt certificate for $DOMAIN via webroot..."
+    certbot certonly --webroot -w "$WEBROOT_DIR" -d "$DOMAIN" \
         --non-interactive --agree-tos --email "${EMAIL:-admin@$DOMAIN}" \
         --keep-until-expiring
     if [ $? -eq 0 ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
