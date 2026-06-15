@@ -1,0 +1,48 @@
+# Dockerfile.apache
+FROM php:8.2-apache
+
+RUN apt-get update && apt-get install -y \
+        libzip-dev \
+        libpng-dev \
+        libjpeg-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
+        libssh2-1-dev \
+        libssh2-1 \
+        zip unzip git curl cron \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) pdo_mysql mysqli zip gd mbstring exif pcntl bcmath \
+    && pecl install ssh2-1.4.1 \
+    && docker-php-ext-enable ssh2 \
+    && a2enmod rewrite \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+COPY . /var/www/html/
+
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html \
+    && chmod -R 777 /var/www/html/uploads \
+    && chmod -R 777 /var/www/html/logs \
+    && chmod -R 777 /var/www/html/backups
+
+# Apache будет слушать порт 8080 (за прокси)
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
+    && sed -i 's/:80>/:8080>/' /etc/apache2/sites-available/000-default.conf
+
+# Скрипт инициализации и cron (без изменений)
+COPY docker/crontab.txt /etc/crontab
+RUN crontab /etc/crontab
+COPY docker/cron-scheduler.sh /usr/local/bin/cron-scheduler.sh
+RUN chmod +x /usr/local/bin/cron-scheduler.sh
+
+COPY docker/init.sh /usr/local/bin/init.sh
+RUN chmod +x /usr/local/bin/init.sh
+
+WORKDIR /var/www/html
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "/usr/local/bin/init.sh && cron && apache2-foreground"]

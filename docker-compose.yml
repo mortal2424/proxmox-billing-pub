@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: proxmox-billing-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./uploads:/var/www/html/uploads
+      - ./logs:/var/log/nginx
+      - ssl-certs:/etc/nginx/ssl
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - apache
+    networks:
+      - billing-network
+    restart: unless-stopped
+
+  apache:
+    build:
+      context: .
+      dockerfile: Dockerfile.apache
+    container_name: proxmox-billing-apache
+    volumes:
+      - ./uploads:/var/www/html/uploads
+      - ./logs:/var/www/html/logs
+      - ./backups:/var/www/html/backups
+      - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      - db
+    networks:
+      - billing-network
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: proxmox-billing-certbot
+    volumes:
+      - ./docker/ssl:/etc/letsencrypt
+      - ./webroot:/var/www/html
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/html --quiet; sleep 12h & wait $${!}; done;"
+    depends_on:
+      - nginx
+    networks:
+      - billing-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: proxmox-billing-db
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - billing-network
+
+volumes:
+  db_data:
+  ssl-certs:
+
+networks:
+  billing-network:
+    driver: bridge
