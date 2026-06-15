@@ -1,12 +1,15 @@
 FROM nginx:alpine
 
-RUN apk add --no-cache bash
+RUN apk add --no-cache bash openssl
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 
 RUN mkdir -p /etc/nginx/ssl
 
+COPY docker/wait-for-ssl.sh /usr/local/bin/wait-for-ssl.sh
+RUN chmod +x /usr/local/bin/wait-for-ssl.sh
+
 EXPOSE 80 443
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/usr/local/bin/wait-for-ssl.sh"]

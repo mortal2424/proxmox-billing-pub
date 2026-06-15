@@ -17,6 +17,7 @@ services:
     networks:
       - billing-network
 
+  # Веб-сервер (Nginx) – reverse proxy + SSL
   nginx:
     build:
       context: .
@@ -27,7 +28,7 @@ services:
       - "443:443"
     volumes:
       - ./uploads:/var/www/html/uploads:ro
-      - ssl-certs:/etc/nginx/ssl:ro
+      - ssl-certs:/etc/nginx/ssl
     environment:
       DOMAIN: ${DOMAIN}
     depends_on:
@@ -36,6 +37,7 @@ services:
       - billing-network
     restart: unless-stopped
 
+  # Бэкенд (Apache + PHP)
   apache:
     build:
       context: .
@@ -57,6 +59,7 @@ services:
       - billing-network
     restart: unless-stopped
 
+  # База данных MySQL
   db:
     image: mysql:8.0
     container_name: proxmox-billing-db
@@ -73,7 +76,7 @@ services:
     networks:
       - billing-network
 
-  # Обновление сертификатов (запускается периодически)
+  # Автоматическое обновление Let's Encrypt сертификатов
   certbot-renew:
     image: certbot/certbot
     container_name: proxmox-billing-certbot-renew
