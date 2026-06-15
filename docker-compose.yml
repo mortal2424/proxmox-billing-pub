@@ -1,6 +1,22 @@
 version: '3.8'
 
 services:
+  # Инициализация SSL-сертификатов (запускается один раз)
+  init-ssl:
+    image: certbot/certbot
+    container_name: proxmox-billing-init-ssl
+    volumes:
+      - ssl-certs:/etc/nginx/ssl
+      - ./docker/init-ssl.sh:/init-ssl.sh:ro
+    environment:
+      DOMAIN: ${DOMAIN}
+      EMAIL: ${EMAIL}
+    entrypoint: /bin/sh
+    command: /init-ssl.sh
+    restart: "no"
+    networks:
+      - billing-network
+
   nginx:
     build:
       context: .
@@ -10,12 +26,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./uploads:/var/www/html/uploads
-      - ./logs:/var/log/nginx
-      - ssl-certs:/etc/nginx/ssl
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./uploads:/var/www/html/uploads:ro
+      - ssl-certs:/etc/nginx/ssl:ro
     environment:
-      DOMAIN: ${DOMAIN:-localhost}
+      DOMAIN: ${DOMAIN}
     depends_on:
       - apache
     networks:
@@ -43,19 +57,6 @@ services:
       - billing-network
     restart: unless-stopped
 
-  certbot:
-    image: certbot/certbot
-    container_name: proxmox-billing-certbot
-    volumes:
-      - ./docker/ssl:/etc/letsencrypt
-      - ./webroot:/var/www/html
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/html --quiet; sleep 12h & wait $${!}; done;"
-    depends_on:
-      - nginx
-    networks:
-      - billing-network
-    restart: unless-stopped
-
   db:
     image: mysql:8.0
     container_name: proxmox-billing-db
@@ -71,6 +72,22 @@ services:
     restart: unless-stopped
     networks:
       - billing-network
+
+  # Обновление сертификатов (запускается периодически)
+  certbot-renew:
+    image: certbot/certbot
+    container_name: proxmox-billing-certbot-renew
+    volumes:
+      - ./docker/ssl:/etc/letsencrypt
+      - ssl-certs:/etc/nginx/ssl
+    environment:
+      DOMAIN: ${DOMAIN}
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/html --quiet; sleep 12h & wait $${!}; done;"
+    depends_on:
+      - nginx
+    networks:
+      - billing-network
+    restart: unless-stopped
 
 volumes:
   db_data:
