@@ -6,7 +6,7 @@ echo "⏳ Waiting for database connection..."
 
 MAX_TRIES=30
 COUNT=0
-until mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1" &>/dev/null; do
+until mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" --ssl=0 -e "SELECT 1" &>/dev/null; do
     COUNT=$((COUNT+1))
     if [ $COUNT -ge $MAX_TRIES ]; then
         echo "❌ Database not available after $MAX_TRIES attempts. Exiting."
@@ -18,10 +18,10 @@ done
 
 echo "✅ Database is ready."
 
-TABLE_COUNT=$(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" -D"$DB_NAME" -e "SHOW TABLES" | wc -l)
+TABLE_COUNT=$(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" --ssl=0 -D"$DB_NAME" -e "SHOW TABLES" | wc -l)
 if [ "$TABLE_COUNT" -lt 2 ]; then
     echo "📦 Database is empty. Importing /var/www/html/install/sql-install.sql"
-    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" -D"$DB_NAME" < /var/www/html/install/sql-install.sql
+    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" --ssl=0 -D"$DB_NAME" < /var/www/html/install/sql-install.sql
     echo "✅ Import finished."
 else
     echo "ℹ️ Database already has tables, skipping import."

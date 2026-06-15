@@ -3,6 +3,8 @@
 SSL_DIR="/etc/nginx/ssl"
 WEBROOT_DIR="/var/www/html"
 mkdir -p "$SSL_DIR"
+# --- ИСПРАВЛЕНИЕ: создаём директорию для webroot прямо в контейнере ---
+mkdir -p "$WEBROOT_DIR"
 
 if [ -f "$SSL_DIR/fullchain.pem" ] && [ -f "$SSL_DIR/privkey.pem" ]; then
     echo "✅ SSL certificates already exist, skipping generation."

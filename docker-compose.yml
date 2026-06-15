@@ -58,7 +58,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: mariadb:10.11
     container_name: proxmox-billing-db
     ports:
       - "3306:3306"
