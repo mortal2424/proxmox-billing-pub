@@ -1,20 +1,7 @@
-# Биллинг – каждый час
-0 * * * * /usr/local/bin/php /var/www/html/admin/cron_charge.php >> /var/log/cron.log 2>&1
-
-# Обновление статистики узлов – каждые 5 минут
-*/5 * * * * /usr/local/bin/php /var/www/html/admin/update_node_stats.php >> /var/log/cron.log 2>&1
-
-# Метрики LXC – каждые 5 минут
-*/5 * * * * /usr/local/bin/php /var/www/html/api/collect_lxc_metrics.php >> /var/log/cron.log 2>&1
-
-# Обновление PVETicket – каждые 2 часа
-0 */2 * * * /usr/local/bin/php /var/www/html/api/update_proxmox_tickets.php >> /var/log/cron.log 2>&1
-
-# Сбор IP‑адресов – каждую минуту
-* * * * * /usr/local/bin/php /var/www/html/includes/vm_ip_updater.php >> /var/log/cron.log 2>&1
-
-# Метрики ВМ – каждые 5 минут
-*/5 * * * * /usr/local/bin/php /var/www/html/api/collect_vm_metrics.php >> /var/log/cron.log 2>&1
-
-# Очистка старых метрик – в 3 утра
-0 3 * * * /usr/local/bin/php /var/www/html/api/clean_old_metrics.php >> /var/log/cron.log 2>&1
+0 * * * * root /usr/local/bin/php /var/www/html/admin/cron_charge.php >> /var/log/cron.log 2>&1
+*/5 * * * * root /usr/local/bin/php /var/www/html/admin/update_node_stats.php >> /var/log/cron.log 2>&1
+*/5 * * * * root /usr/local/bin/php /var/www/html/api/collect_lxc_metrics.php >> /var/log/cron.log 2>&1
+0 */2 * * * root /usr/local/bin/php /var/www/html/api/update_proxmox_tickets.php >> /var/log/cron.log 2>&1
+* * * * * root /usr/local/bin/php /var/www/html/includes/vm_ip_updater.php >> /var/log/cron.log 2>&1
+*/5 * * * * root /usr/local/bin/php /var/www/html/api/collect_vm_metrics.php >> /var/log/cron.log 2>&1
+0 3 * * * root /usr/local/bin/php /var/www/html/api/clean_old_metrics.php >> /var/log/cron.log 2>&1
