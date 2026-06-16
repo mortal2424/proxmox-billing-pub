@@ -119,7 +119,9 @@ docker compose up -d
 
 5. Откройте сайт: https://ваш-домен
    
+6. Создайте первого администратора https://ваш-домен/admin/create_admin.php
 
+7. Удалите файл create_admin.php
 
 <img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
 <img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
