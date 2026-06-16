@@ -117,22 +117,7 @@ mkdir -p webroot uploads logs backups
 
 docker compose up -d
 
-5. (Опционально) Если нужен реальный SSL-сертификат Let's Encrypt, выполните:
-
-docker compose stop nginx
-docker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot certonly --standalone -d ваш-домен --non-interactive --agree-tos --email ваша-почта
-docker run --rm -v ssl-certs:/certs -v /etc/letsencrypt:/le:ro alpine sh -c "cp /le/live/ваш-домен/fullchain.pem /certs/ && cp /le/live/ваш-домен/privkey.pem /certs/"
-docker compose up -d
-
-6. Откройте сайт: https://ваш-домен
-
-Структура томов
-db_data – данные MariaDB
-
-ssl-certs – SSL сертификаты
-
-Обновление сертификатов
-Сертификаты Let's Encrypt обновляются автоматически каждые 12 часов через сервис certbot-renew (если он добавлен в compose). Или можно настроить cron на хосте.
+5. Откройте сайт: https://ваш-домен
    
 
 
