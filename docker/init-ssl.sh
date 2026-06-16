@@ -8,6 +8,23 @@ if [ -f "$SSL_DIR/fullchain.pem" ] && [ -f "$SSL_DIR/privkey.pem" ]; then
     exit 0
 fi
 
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "localhost" ]; then
+    echo "🔄 Trying to obtain Let's Encrypt certificate for $DOMAIN via standalone..."
+    certbot certonly --standalone --preferred-challenges http --http-01-port 80 -d "$DOMAIN" \
+        --non-interactive --agree-tos --email "${EMAIL:-admin@$DOMAIN}" \
+        --keep-until-expiring
+    if [ $? -eq 0 ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+        echo "✅ Let's Encrypt certificate obtained."
+        cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$SSL_DIR/"
+        cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$SSL_DIR/"
+        exit 0
+    else
+        echo "⚠️ Failed to obtain Let's Encrypt certificate, falling back to self-signed."
+    fi
+else
+    echo "DOMAIN not set or equals localhost, using self-signed certificate."
+fi
+
 echo "🔐 Generating self-signed SSL certificate for ${DOMAIN:-localhost}"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout "$SSL_DIR/privkey.pem" \

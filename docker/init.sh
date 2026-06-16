@@ -32,4 +32,22 @@ if [ -f /var/www/html/composer.json ]; then
     cd /var/www/html && composer install --no-interaction --no-dev --optimize-autoloader
 fi
 
+CONFIG_FILE=/var/www/html/includes/config.php
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "⚙️ Generating includes/config.php from config.php.simple..."
+    cp /var/www/html/includes/config.php.simple "$CONFIG_FILE"
+    ENCRYPTION_KEY=$(php -r "echo bin2hex(random_bytes(16));")
+    sed -i \
+        -e "s|define('DB_HOST', '')|define('DB_HOST', '${DB_HOST}')|" \
+        -e "s|define('DB_NAME', '')|define('DB_NAME', '${DB_NAME}')|" \
+        -e "s|define('DB_USER', '')|define('DB_USER', '${DB_USER}')|" \
+        -e "s|define('DB_PASS', '')|define('DB_PASS', '${DB_PASSWORD}')|" \
+        -e "s|define('ENCRYPTION_KEY', '')|define('ENCRYPTION_KEY', '${ENCRYPTION_KEY}')|" \
+        "$CONFIG_FILE"
+    chown www-data:www-data "$CONFIG_FILE"
+    echo "✅ includes/config.php created."
+else
+    echo "ℹ️ includes/config.php already exists, skipping generation."
+fi
+
 echo "✅ Init script finished."
