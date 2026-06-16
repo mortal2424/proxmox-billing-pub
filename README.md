@@ -91,22 +91,49 @@ The code is under development and may contain errors. If you want to help with t
 
 
 Как запустить докер контейнер
-1. Скопируйте все файлы в соответствующие папки репозитория, можно сделать git clone
+# Proxmox Billing – Docker Deployment
 
-2. Создайте файл .env из .env.example и укажите реальный домен (если есть) и почту и желаемые данные для подключения в базе.
+## Требования
+- Docker & Docker Compose
+- Git
+- Домен, указывающий на ваш сервер (опционально, для HTTPS)
 
-3. Убедитесь, что скрипты init-ssl.sh, init.sh, cron-scheduler.sh имеют права на выполнение:
+## Быстрый старт
 
-Команда chmod +x docker/init-ssl.sh docker/init.sh docker/cron-scheduler.sh
+1. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/mortal2424/proxmox-billing-pub.git
+   cd proxmox-billing-pub
+   
+2. Создайте файл .env из примера:
+cp .env.example .env
+# отредактируйте DOMAIN, EMAIL, пароли
 
-4. Запустите:
+3. Создайте необходимые папки:
 
-docker compose up -d --build
+mkdir -p webroot uploads logs backups
 
+4. Запустите контейнеры:
 
-Сначала запустится контейнер init-ssl, он создаст сертификаты в томе ssl-certs и завершится. Затем поднимутся nginx, apache, db и certbot-renew. Если домен реальный и Let's Encrypt смог выдать сертификат – сайт будет работать по HTTPS. Если нет – будет использован самоподписанный сертификат (браузер покажет предупреждение, но соединение защищённое).
+docker compose up -d
 
+5. (Опционально) Если нужен реальный SSL-сертификат Let's Encrypt, выполните:
 
+docker compose stop nginx
+docker run --rm -p 80:80 -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot certonly --standalone -d ваш-домен --non-interactive --agree-tos --email ваша-почта
+docker run --rm -v ssl-certs:/certs -v /etc/letsencrypt:/le:ro alpine sh -c "cp /le/live/ваш-домен/fullchain.pem /certs/ && cp /le/live/ваш-домен/privkey.pem /certs/"
+docker compose up -d
+
+6. Откройте сайт: https://ваш-домен
+
+Структура томов
+db_data – данные MariaDB
+
+ssl-certs – SSL сертификаты
+
+Обновление сертификатов
+Сертификаты Let's Encrypt обновляются автоматически каждые 12 часов через сервис certbot-renew (если он добавлен в compose). Или можно настроить cron на хосте.
+   
 
 
 <img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />

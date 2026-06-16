@@ -28,9 +28,6 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 777 /var/www/html/logs \
     && chmod -R 777 /var/www/html/backups
 
-RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
-    && sed -i 's/:80>/:8080>/' /etc/apache2/sites-available/000-default.conf
-
 COPY docker/crontab.txt /etc/crontab
 RUN chmod 0644 /etc/crontab
 
@@ -42,6 +39,6 @@ RUN chmod +x /usr/local/bin/init.sh
 
 WORKDIR /var/www/html
 
-EXPOSE 8080
+EXPOSE 80
 
 CMD ["sh", "-c", "/usr/local/bin/init.sh && cron && apache2-foreground"]

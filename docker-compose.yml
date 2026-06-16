@@ -1,21 +1,6 @@
 version: '3.8'
 
 services:
-  init-ssl:
-    image: certbot/certbot
-    container_name: proxmox-billing-init-ssl
-    volumes:
-      - ssl-certs:/etc/nginx/ssl
-      - ./docker/init-ssl.sh:/init-ssl.sh:ro
-    environment:
-      DOMAIN: ${DOMAIN}
-      EMAIL: ${EMAIL}
-    entrypoint: /bin/sh
-    command: /init-ssl.sh
-    restart: "no"
-    networks:
-      - billing-network
-
   nginx:
     build:
       context: .
@@ -25,7 +10,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./uploads:/var/www/html/uploads:ro
+      - ./webroot:/var/www/html:ro
       - ssl-certs:/etc/nginx/ssl
     environment:
       DOMAIN: ${DOMAIN}
@@ -60,8 +45,6 @@ services:
   db:
     image: mariadb:10.11
     container_name: proxmox-billing-db
-    ports:
-      - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
     environment:
@@ -77,22 +60,6 @@ services:
     restart: unless-stopped
     networks:
       - billing-network
-
-  certbot-renew:
-    image: certbot/certbot
-    container_name: proxmox-billing-certbot-renew
-    volumes:
-      - ./webroot:/var/www/html
-      - ./docker/ssl:/etc/letsencrypt
-      - ssl-certs:/etc/nginx/ssl
-    environment:
-      DOMAIN: ${DOMAIN}
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/html --quiet; sleep 12h & wait $${!}; done;"
-    depends_on:
-      - nginx
-    networks:
-      - billing-network
-    restart: unless-stopped
 
 volumes:
   db_data:

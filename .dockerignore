@@ -1,6 +1,5 @@
 .git
 .gitignore
-.dockerignore
 .env
 docker-compose.yml
 README.md
@@ -8,3 +7,5 @@ node_modules
 logs/*
 uploads/*
 backups/*
+webroot/*
+*.log
