@@ -50,6 +50,7 @@ services:
       - ./logs:/var/www/html/logs
       - ./backups:/var/www/html/backups
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
+    #  - .:/var/www/html
     environment:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
