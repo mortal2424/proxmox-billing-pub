@@ -64,7 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'avatar' => trim($_POST['avatar'] ?? ''),
         'email_verified' => isset($_POST['email_verified']) ? 1 : 0,
         'bonus_balance' => floatval($_POST['bonus_balance'] ?? 0),
-        'is_admin' => 1 // Первый пользователь всегда администратор
+        'is_admin' => 1, // Первый пользователь всегда администратор
+        'is_active' => 1  // <--- ИСПРАВЛЕНИЕ: создаём активным по умолчанию
     ];
 
     // Валидация email
@@ -131,19 +132,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $verification_sent_at = date('Y-m-d H:i:s');
             }
 
-            // Подготавливаем SQL запрос
+            // Подготавливаем SQL запрос с добавленным полем is_active
             $sql = "INSERT INTO users (
-                email, password_hash, is_admin, phone, full_name,
+                email, password_hash, is_admin, is_active, phone, full_name,
                 first_name, last_name, company_name, inn, kpp,
                 email_verified, bonus_balance, telegram_id, avatar, created_at,
                 verification_code, verification_sent_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)";
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $formData['email'],
                 $password_hash,
                 $formData['is_admin'],
+                $formData['is_active'],        // <--- ИСПРАВЛЕНИЕ: передаём значение 1
                 $formData['phone'] ?: null,
                 $formData['full_name'] ?: null,
                 $formData['first_name'] ?: null,
@@ -962,7 +964,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-group">
-                            <label>Телефон<span class="required">*</span></label>
+                            <label>Телефон</label>
                             <input type="tel"
                                    name="phone"
                                    class="form-control <?= isset($errors['phone']) ? 'is-invalid' : '' ?>"
@@ -1039,7 +1041,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-group">
-                            <label>Имя<span class="required">*</span></label>
+                            <label>Имя</label>
                             <input type="text"
                                    name="first_name"
                                    class="form-control"
@@ -1048,7 +1050,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-group">
-                            <label>Фамилия<span class="required">*</span></label>
+                            <label>Фамилия</label>
                             <input type="text"
                                    name="last_name"
                                    class="form-control"
@@ -1179,240 +1181,240 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Обработчик показа пароля
-        const showPasswordCheckbox = document.getElementById('show-password');
-        if (showPasswordCheckbox) {
-            showPasswordCheckbox.addEventListener('change', function() {
-                const passwordField = document.getElementById('password');
-                const confirmField = document.querySelector('input[name="password_confirm"]');
-                const type = this.checked ? 'text' : 'password';
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчик показа пароля
+            const showPasswordCheckbox = document.getElementById('show-password');
+            if (showPasswordCheckbox) {
+                showPasswordCheckbox.addEventListener('change', function() {
+                    const passwordField = document.getElementById('password');
+                    const confirmField = document.querySelector('input[name="password_confirm"]');
+                    const type = this.checked ? 'text' : 'password';
 
-                if (passwordField) passwordField.type = type;
-                if (confirmField) confirmField.type = type;
-            });
-        }
-
-        // Обработчик проверки силы пароля
-        const passwordField = document.getElementById('password');
-        if (passwordField) {
-            passwordField.addEventListener('input', checkPasswordStrength);
-        }
-
-        // Инициализация предпросмотра аватара
-        updateAvatarPreview();
-    });
-
-    // Генерация пароля
-    function generatePassword() {
-        const length = 12;
-        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let password = "";
-
-        // Гарантируем наличие хотя бы одного символа каждого типа
-        password += getRandomChar("abcdefghijklmnopqrstuvwxyz");
-        password += getRandomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-        password += getRandomChar("0123456789");
-        password += getRandomChar("!@#$%^&*");
-
-        // Заполняем оставшуюся часть
-        for (let i = 4; i < length; i++) {
-            password += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-
-        // Перемешиваем пароль
-        password = password.split('').sort(() => Math.random() - 0.5).join('');
-
-        // Устанавливаем пароль в поле
-        const passwordField = document.getElementById('password');
-        passwordField.value = password;
-        passwordField.type = 'text';
-
-        // Устанавливаем подтверждение
-        const confirmField = document.querySelector('input[name="password_confirm"]');
-        confirmField.value = password;
-        confirmField.type = 'text';
-
-        // Обновляем чекбокс показа пароля
-        document.getElementById('show-password').checked = true;
-
-        // Проверяем силу пароля
-        checkPasswordStrength();
-
-        // Показываем уведомление
-        Swal.fire({
-            title: 'Пароль сгенерирован',
-            text: 'Скопируйте его в безопасное место',
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-        });
-    }
-
-    function getRandomChar(charset) {
-        return charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-
-    // Проверка силы пароля
-    function checkPasswordStrength() {
-        const password = document.getElementById('password').value;
-        const strengthBar = document.querySelector('.password-strength-bar');
-        const strengthContainer = document.getElementById('password-strength');
-        const strengthText = document.getElementById('password-strength-text');
-
-        if (!strengthBar || !strengthContainer || !strengthText) return;
-
-        let strength = 0;
-        let text = '';
-        let className = '';
-
-        if (password.length === 0) {
-            strength = 0;
-            text = 'Введите пароль';
-            className = '';
-        } else if (password.length < 8) {
-            strength = 33;
-            text = 'Слабый: слишком короткий';
-            className = 'weak';
-        } else {
-            // Проверяем сложность
-            const hasLower = /[a-z]/.test(password);
-            const hasUpper = /[A-Z]/.test(password);
-            const hasNumbers = /\d/.test(password);
-            const hasSpecial = /[!@#$%^&*]/.test(password);
-
-            const criteria = [hasLower, hasUpper, hasNumbers, hasSpecial];
-            const metCriteria = criteria.filter(Boolean).length;
-
-            if (metCriteria === 1) {
-                strength = 33;
-                text = 'Слабый';
-                className = 'weak';
-            } else if (metCriteria === 2 || metCriteria === 3) {
-                strength = 66;
-                text = 'Средний';
-                className = 'medium';
-            } else if (metCriteria === 4) {
-                strength = 100;
-                text = 'Надежный';
-                className = 'strong';
-            }
-        }
-
-        strengthContainer.className = `password-strength ${className}`;
-        strengthBar.style.width = `${strength}%`;
-        strengthText.textContent = text;
-    }
-
-    // Обновление предпросмотра аватара
-    function updateAvatarPreview() {
-        const avatarUrl = document.getElementById('avatar-url');
-        const previewImg = document.getElementById('avatar-preview');
-        const defaultAvatar = document.getElementById('default-avatar');
-
-        if (!avatarUrl || !previewImg || !defaultAvatar) return;
-
-        if (avatarUrl.value && isValidUrl(avatarUrl.value)) {
-            previewImg.src = avatarUrl.value;
-            previewImg.classList.add('show');
-            defaultAvatar.style.display = 'none';
-        } else {
-            previewImg.classList.remove('show');
-            defaultAvatar.style.display = 'flex';
-        }
-    }
-
-    function isValidUrl(string) {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;
-        }
-    }
-
-    // Обработка отправки формы
-    const form = document.getElementById('create-admin-form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const email = document.querySelector('input[name="email"]').value;
-            const password = document.getElementById('password').value;
-            const emailVerified = document.getElementById('email_verified').checked;
-
-            if (!email || !password) {
-                e.preventDefault();
-                Swal.fire({
-                    title: 'Ошибка',
-                    text: 'Заполните обязательные поля',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
+                    if (passwordField) passwordField.type = type;
+                    if (confirmField) confirmField.type = type;
                 });
-                return;
             }
 
-            // Показываем подтверждение
-            e.preventDefault();
-
-            let message = 'Вы уверены, что хотите создать первого администратора системы?';
-
-            if (!emailVerified) {
-                message += '\n\nНа email будет отправлено письмо с кодом подтверждения.';
-                message += '\nПосле получения письма перейдите по ссылке в письме для подтверждения email.';
+            // Обработчик проверки силы пароля
+            const passwordField = document.getElementById('password');
+            if (passwordField) {
+                passwordField.addEventListener('input', checkPasswordStrength);
             }
 
+            // Инициализация предпросмотра аватара
+            updateAvatarPreview();
+        });
+
+        // Генерация пароля
+        function generatePassword() {
+            const length = 12;
+            const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+            let password = "";
+
+            // Гарантируем наличие хотя бы одного символа каждого типа
+            password += getRandomChar("abcdefghijklmnopqrstuvwxyz");
+            password += getRandomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+            password += getRandomChar("0123456789");
+            password += getRandomChar("!@#$%^&*");
+
+            // Заполняем оставшуюся часть
+            for (let i = 4; i < length; i++) {
+                password += charset.charAt(Math.floor(Math.random() * charset.length));
+            }
+
+            // Перемешиваем пароль
+            password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+            // Устанавливаем пароль в поле
+            const passwordField = document.getElementById('password');
+            passwordField.value = password;
+            passwordField.type = 'text';
+
+            // Устанавливаем подтверждение
+            const confirmField = document.querySelector('input[name="password_confirm"]');
+            confirmField.value = password;
+            confirmField.type = 'text';
+
+            // Обновляем чекбокс показа пароля
+            document.getElementById('show-password').checked = true;
+
+            // Проверяем силу пароля
+            checkPasswordStrength();
+
+            // Показываем уведомление
             Swal.fire({
-                title: 'Создание администратора',
-                html: message.replace(/\n/g, '<br>'),
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Да, создать',
-                cancelButtonText: 'Отмена',
-                confirmButtonColor: '#0ea5e9',
-                cancelButtonColor: '#ef4444'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Показываем загрузку
-                    Swal.fire({
-                        title: 'Создание...',
-                        html: '<div style="text-align: center;"><i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 20px;"></i><p>Создаем учетную запись администратора...</p></div>',
-                        showConfirmButton: false,
-                        allowOutsideClick: false
-                    });
+                title: 'Пароль сгенерирован',
+                text: 'Скопируйте его в безопасное место',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
 
-                    // Отправляем форму
-                    this.submit();
+        function getRandomChar(charset) {
+            return charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+
+        // Проверка силы пароля
+        function checkPasswordStrength() {
+            const password = document.getElementById('password').value;
+            const strengthBar = document.querySelector('.password-strength-bar');
+            const strengthContainer = document.getElementById('password-strength');
+            const strengthText = document.getElementById('password-strength-text');
+
+            if (!strengthBar || !strengthContainer || !strengthText) return;
+
+            let strength = 0;
+            let text = '';
+            let className = '';
+
+            if (password.length === 0) {
+                strength = 0;
+                text = 'Введите пароль';
+                className = '';
+            } else if (password.length < 8) {
+                strength = 33;
+                text = 'Слабый: слишком короткий';
+                className = 'weak';
+            } else {
+                // Проверяем сложность
+                const hasLower = /[a-z]/.test(password);
+                const hasUpper = /[A-Z]/.test(password);
+                const hasNumbers = /\d/.test(password);
+                const hasSpecial = /[!@#$%^&*]/.test(password);
+
+                const criteria = [hasLower, hasUpper, hasNumbers, hasSpecial];
+                const metCriteria = criteria.filter(Boolean).length;
+
+                if (metCriteria === 1) {
+                    strength = 33;
+                    text = 'Слабый';
+                    className = 'weak';
+                } else if (metCriteria === 2 || metCriteria === 3) {
+                    strength = 66;
+                    text = 'Средний';
+                    className = 'medium';
+                } else if (metCriteria === 4) {
+                    strength = 100;
+                    text = 'Надежный';
+                    className = 'strong';
+                }
+            }
+
+            strengthContainer.className = `password-strength ${className}`;
+            strengthBar.style.width = `${strength}%`;
+            strengthText.textContent = text;
+        }
+
+        // Обновление предпросмотра аватара
+        function updateAvatarPreview() {
+            const avatarUrl = document.getElementById('avatar-url');
+            const previewImg = document.getElementById('avatar-preview');
+            const defaultAvatar = document.getElementById('default-avatar');
+
+            if (!avatarUrl || !previewImg || !defaultAvatar) return;
+
+            if (avatarUrl.value && isValidUrl(avatarUrl.value)) {
+                previewImg.src = avatarUrl.value;
+                previewImg.classList.add('show');
+                defaultAvatar.style.display = 'none';
+            } else {
+                previewImg.classList.remove('show');
+                defaultAvatar.style.display = 'flex';
+            }
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        // Обработка отправки формы
+        const form = document.getElementById('create-admin-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const email = document.querySelector('input[name="email"]').value;
+                const password = document.getElementById('password').value;
+                const emailVerified = document.getElementById('email_verified').checked;
+
+                if (!email || !password) {
+                    e.preventDefault();
+                    Swal.fire({
+                        title: 'Ошибка',
+                        text: 'Заполните обязательные поля',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+
+                // Показываем подтверждение
+                e.preventDefault();
+
+                let message = 'Вы уверены, что хотите создать первого администратора системы?';
+
+                if (!emailVerified) {
+                    message += '\n\nНа email будет отправлено письмо с кодом подтверждения.';
+                    message += '\nПосле получения письма перейдите по ссылке в письме для подтверждения email.';
+                }
+
+                Swal.fire({
+                    title: 'Создание администратора',
+                    html: message.replace(/\n/g, '<br>'),
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Да, создать',
+                    cancelButtonText: 'Отмена',
+                    confirmButtonColor: '#0ea5e9',
+                    cancelButtonColor: '#ef4444'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Показываем загрузку
+                        Swal.fire({
+                            title: 'Создание...',
+                            html: '<div style="text-align: center;"><i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 20px;"></i><p>Создаем учетную запись администратора...</p></div>',
+                            showConfirmButton: false,
+                            allowOutsideClick: false
+                        });
+
+                        // Отправляем форму
+                        this.submit();
+                    }
+                });
+            });
+        }
+
+        // Автозаполнение полей на основе email
+        const emailField = document.querySelector('input[name="email"]');
+        if (emailField) {
+            emailField.addEventListener('blur', function() {
+                const email = this.value;
+                const nameField = document.querySelector('input[name="first_name"]');
+                const lastNameField = document.querySelector('input[name="last_name"]');
+
+                // Если поля пустые и email содержит имя
+                if (email && nameField && lastNameField && (!nameField.value || !lastNameField.value)) {
+                    const nameFromEmail = email.split('@')[0];
+                    if (nameFromEmail && nameFromEmail.includes('.')) {
+                        const parts = nameFromEmail.split('.');
+                        if (!nameField.value && parts[0]) {
+                            nameField.value = capitalizeFirstLetter(parts[0]);
+                        }
+                        if (!lastNameField.value && parts[1]) {
+                            lastNameField.value = capitalizeFirstLetter(parts[1]);
+                        }
+                    }
                 }
             });
-        });
-    }
+        }
 
-    // Автозаполнение полей на основе email
-    const emailField = document.querySelector('input[name="email"]');
-    if (emailField) {
-        emailField.addEventListener('blur', function() {
-            const email = this.value;
-            const nameField = document.querySelector('input[name="first_name"]');
-            const lastNameField = document.querySelector('input[name="last_name"]');
-
-            // Если поля пустые и email содержит имя
-            if (email && nameField && lastNameField && (!nameField.value || !lastNameField.value)) {
-                const nameFromEmail = email.split('@')[0];
-                if (nameFromEmail && nameFromEmail.includes('.')) {
-                    const parts = nameFromEmail.split('.');
-                    if (!nameField.value && parts[0]) {
-                        nameField.value = capitalizeFirstLetter(parts[0]);
-                    }
-                    if (!lastNameField.value && parts[1]) {
-                        lastNameField.value = capitalizeFirstLetter(parts[1]);
-                    }
-                }
-            }
-        });
-    }
-
-    function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
     </script>
 </body>
 </html>
