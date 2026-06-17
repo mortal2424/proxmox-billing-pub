@@ -145,7 +145,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     <i class="fas fa-plus"></i>
                     <span>Создать ВМ</span>
                 </a>
-                <a href="/admin/billing.php?action=deposit" class="quick-action-btn success">
+                <a href="/templates/billing.php?action=deposit" class="quick-action-btn success">
                     <i class="fas fa-wallet"></i>
                     <span>Пополнить</span>
                 </a>
