@@ -123,6 +123,20 @@ docker compose up -d
 
 7. Удалите файл create_admin.php
 
+
+### Управление базой данных через phpMyAdmin
+
+Для удобного управления базой данных можно запустить phpMyAdmin отдельным контейнером:
+
+1. Убедитесь, что основной стек запущен:
+   ```bash
+   docker compose up -d
+   
+2. Запустите phpMyAdmin:
+docker compose -f docker-compose.phpmyadmin.yml up -d
+
+3. Откройте в браузере: http://ваш-сервер:8081
+
 <img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
 <img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
 <img width="1903" height="926" alt="image" src="https://github.com/user-attachments/assets/d35d88f9-a019-420e-800e-16cb743540cc" />
