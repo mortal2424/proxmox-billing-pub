@@ -17,4 +17,4 @@ services:
 
 networks:
   billing-network:
-    external: true                 # Используем существующую сеть, созданную основным стеком
+    driver: bridge
