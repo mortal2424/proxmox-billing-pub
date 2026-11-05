@@ -792,7 +792,8 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 "Cookie: PVEAuthCookie=" . urlencode($ticket['ticket']),
                 "CSRFPreventionToken: " . $ticket['csrf_token']
             ],
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 10
         ]);
 
@@ -2074,8 +2075,9 @@ public function getAPITicket() {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+           CURLOPT_SSL_VERIFYHOST => 2,
+             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/x-www-form-urlencoded'
