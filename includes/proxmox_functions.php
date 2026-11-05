@@ -1045,7 +1045,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     public function execSSHCommand($command) {
         $stream = @ssh2_exec($this->ssh, $command);
         if (!$stream) {
-            throw new Exception("Не удалось выполнить команду: $command");
+            throw new Exception("Не удалось выполнить удаленную команду");
         }
 
         $errorStream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
