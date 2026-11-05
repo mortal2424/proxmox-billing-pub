@@ -156,8 +156,9 @@ class ProxmoxAPI {
         $mountedCdroms = [];
         foreach ($cdroms as $cdrom) {
             // Форматируем путь к ISO правильно
-            if (!preg_match('/^[a-z0-9_-]+:iso\//i', $cdrom)) {
-                $cdrom = "{$storageForIso}:iso/" . ltrim($cdrom, '/');
+            if (!preg_match('/^[a-z0-9_.-]+:iso\//i', $cdrom)) {
+                $isoName = preg_replace('#^iso/#', '', ltrim($cdrom, '/'));
+                $cdrom = "{$storageForIso}:iso/" . $isoName;
             }
 
             // Извлекаем имя файла для проверки
