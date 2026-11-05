@@ -32,8 +32,9 @@ class ProxmoxAuth {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_TIMEOUT => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_TIMEOUT => 15,
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
                 'Content-Type: application/x-www-form-urlencoded'
@@ -80,7 +81,8 @@ class ProxmoxAuth {
                 CURLOPT_URL => $url,
                 CURLOPT_POST => true,
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_TIMEOUT => 15,
                 CURLOPT_HTTPHEADER => [
                     "Cookie: PVEAuthCookie=" . urlencode($ticket['ticket']),
