@@ -98,8 +98,8 @@ class ProxmoxAPI {
         $nodeId = $this->nodeId;
         $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
         $hasIso = !empty($params['iso']);
-        $storage = $storage;
-        $network = $network;
+        $storage = (string)($params['storage'] ?? 'local');
+        $network = (string)($params['network'] ?? 'vmbr0');
         $sdn = $params['sdn'] ?? null;
         $isCustom = $params['is_custom'] ?? 0;
         $osVersion = $params['os_version'] ?? '';
@@ -122,7 +122,7 @@ class ProxmoxAPI {
         $this->execSSHCommand($createCmd);
 
         // 5. Настройка дисков
-        $diskSize = $diskSize;
+        $diskSize = (string)($params['disk'] ?? '10');
         $diskCmd = "qm set {$vmid} --scsi0 " . escapeshellarg("{$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback");
         error_log("[VM Creation] Setting main disk: {$diskCmd}");
         $this->execSSHCommand($diskCmd);
