@@ -1,4 +1,10 @@
 <?php
+$isSecureRequest = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_secure', $isSecureRequest ? '1' : '0');
+ini_set('session.cookie_samesite', 'Lax');
 session_start();
 // Do not write session contents or user records to application logs.
 require_once '../includes/db.php';
