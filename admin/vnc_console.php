@@ -3,7 +3,6 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/../logs/vnc_errors.log');
 
 // Настройки заголовков
 header('Content-Type: application/json');
@@ -57,7 +56,6 @@ try {
     require_once __DIR__ . '/../includes/auth.php';
     require_once __DIR__ . '/../includes/db.php';
 
-    // Логируем начало выполнения
     checkAuth();
     
     // Валидация параметров
@@ -159,30 +157,19 @@ $response = [
             'domain' => parse_url($urlHost, PHP_URL_HOST),
             'path' => '/',
             'secure' => true,
-            'httponly' => false, // Должно быть false для доступа через JavaScript
+            'httponly' => false, // Required by the current browser-based Proxmox console flow
             'samesite' => 'None' // Важно для кросс-доменных запросов
         ],
-        'ticket_info' => [ // Дополнительная информация для отладки
-            'host' => $urlHost,
-            'port' => $urlPort,
-            'node_name' => $nodeData['node_name'],
-            'timestamp' => time()
-        ]
     ]
 ];
 
     echo json_encode($response, JSON_UNESCAPED_SLASHES);
 
 } catch (Exception $e) {
-    error_log("Exception: " . $e->getMessage() . "\nTrace: " . $e->getTraceAsString());
+    error_log('VNC console request failed: ' . get_class($e));
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage(),
-        'details' => [
-            'user_id' => $_SESSION['user']['id'] ?? null,
-            'vm_id' => $vmId ?? null,
-            'node_id' => $nodeId ?? null
-        ]
+        'error' => 'Не удалось открыть консоль. Проверьте доступ и настройки Proxmox.'
     ]);
 }
