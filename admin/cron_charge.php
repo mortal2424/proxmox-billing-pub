@@ -114,7 +114,7 @@ foreach ($vms as $vm) {
         }
         
         // 4. Сначала списываем с бонусного баланса (но не уходим в минус)
-        $bonus_balance_used = min((float)$currentUser['bonus_balance'], $amount);
+        $bonus_balance_used = min(max(0, (float)$currentUser['bonus_balance']), $amount);
         $remaining_amount = $amount - $bonus_balance_used;
         
         if ($bonus_balance_used > 0) {
@@ -133,8 +133,8 @@ foreach ($vms as $vm) {
         }
         
         // 5. Затем списываем с основного баланса (если есть остаток)
-        if ($remaining_amount > 0 && $vm['balance'] > 0) {
-            $main_balance_used = min((float)$currentUser['balance'], $remaining_amount);
+        if ($remaining_amount > 0 && (float)$currentUser['balance'] > 0) {
+            $main_balance_used = min(max(0, (float)$currentUser['balance']), $remaining_amount);
             
             $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")
                 ->execute([$main_balance_used, $user_id]);
