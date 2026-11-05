@@ -110,8 +110,7 @@ if (isset($_POST['auth_date'])) {
                         $_SESSION['error'] = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
                     } else {
                         session_regenerate_id(true);
-                        session_regenerate_id(true);
-                $_SESSION['user'] = $user;
+                        $_SESSION['user'] = $user;
                         header('Location: /templates/dashboard.php');
                         exit;
                     }
@@ -157,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
             if ($user['is_active'] == 0) {
                 $error = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
             } else {
+                session_regenerate_id(true);
                 $_SESSION['user'] = $user;
 
                 // Удаляем использованную капчу
