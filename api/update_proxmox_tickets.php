@@ -1,4 +1,9 @@
 <?php
+// This maintenance task is invoked by cron and must not be reachable over HTTP.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 require_once __DIR__ . '/../includes/db.php';
 
 $db = new Database();
