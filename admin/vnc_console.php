@@ -113,7 +113,7 @@ try {
     }
 
     // Получаем VNC ticket
-    $isLxc = ($vmType === 'lxc' || ($nodeData['vm_type'] ?? '') === 'lxc');
+    $isLxc = (($nodeData['vm_type'] ?? '') === 'lxc');
     $vmTypeForApi = $isLxc ? 'lxc' : 'qemu';
     $vncData = VncHelper::getVncTicket(
         $urlHost,
