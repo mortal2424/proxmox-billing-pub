@@ -347,7 +347,7 @@ public function createLXC($params) {
     $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
     $disk = filter_var($params['disk'] ?? 10, FILTER_VALIDATE_INT);
     $sdn = (string)($params['sdn'] ?? '');
-    if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $storage) ||
+    if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $storage) ||
         !preg_match('#^[A-Za-z0-9_.-]{1,64}:vztmpl/[A-Za-z0-9_.+-]+$#', $template) ||
         !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
         ($sdn !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdn)) ||
