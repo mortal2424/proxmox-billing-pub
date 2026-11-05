@@ -339,6 +339,23 @@ public function getLXCTemplates() {
 }
 
 public function createLXC($params) {
+    // Validate all dynamic arguments before constructing pct shell commands.
+    $storage = (string)($params['storage'] ?? 'local');
+    $template = (string)($params['template'] ?? '');
+    $network = (string)($params['network'] ?? 'vmbr0');
+    $cpu = filter_var($params['cpu'] ?? 1, FILTER_VALIDATE_INT);
+    $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
+    $disk = filter_var($params['disk'] ?? 10, FILTER_VALIDATE_INT);
+    $sdn = (string)($params['sdn'] ?? '');
+    if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $storage) ||
+        !preg_match('#^[A-Za-z0-9_-]{1,64}:vztmpl/[A-Za-z0-9_.+-]+$#', $template) ||
+        !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
+        ($sdn !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdn)) ||
+        $cpu === false || $cpu < 1 || $cpu > 256 ||
+        $ram === false || $ram < 16 || $ram > 1048576 ||
+        $disk === false || $disk < 1 || $disk > 1048576) {
+        throw new InvalidArgumentException('Invalid LXC template, storage, network or resource parameters');
+    }
     $this->pdo->beginTransaction();
 
     try {
@@ -356,8 +373,8 @@ public function createLXC($params) {
         // Подготовка параметров
         $hostname = $params['hostname'] ?? 'lxc-' . $vmid;
         $password = $params['password'] ?? '';
-        $storage = $params['storage'] ?? 'local';
-        $template = $params['template'] ?? '';
+        $storage = (string)($params['storage'] ?? 'local');
+        $template = (string)($params['template'] ?? '');
         $nodeId = $this->nodeId;
 
         if (empty($template)) {
@@ -366,11 +383,11 @@ public function createLXC($params) {
 
         // Создание контейнера (без сети)
         $createCmd = "pct create {$vmid} " . escapeshellarg($template) . " " .
-                    "--storage {$storage} " .
+                    "--storage " . escapeshellarg($storage) .
                     "--hostname " . escapeshellarg($hostname) . " " .
-                    "--cores " . ($params['cpu'] ?? 1) . " " .
-                    "--memory " . ($params['ram'] ?? 1024) . " " .
-                    "--rootfs " . ($params['disk'] ?? 10) . " " .
+                    "--cores {$cpu} " .
+                    "--memory {$ram} " .
+                    "--rootfs {$disk} " .
                     "--password " . escapeshellarg($password) . " " .
                     "--unprivileged 0 " .
                     "--onboot 1 " .
@@ -380,8 +397,8 @@ public function createLXC($params) {
         $this->execSSHCommand($createCmd);
 
         // Настройка сети
-        $network = $params['network'] ?? 'vmbr0';
-        $sdn = $params['sdn'] ?? null;
+        $network = (string)($params['network'] ?? 'vmbr0');
+        $sdn = (string)($params['sdn'] ?? '');
 
         if (!empty($sdn)) {
             $sdnParts = explode('/', $sdn);
@@ -400,7 +417,7 @@ public function createLXC($params) {
             $netString = "name=eth0,bridge={$network},ip=dhcp,firewall=1";
         }
 
-        $netCmd = "pct set {$vmid} --net0 '{$netString}'";
+        $netCmd = "pct set {$vmid} --net0 " . escapeshellarg($netString);
         error_log("[LXC Creation] Setting network: {$netCmd}");
         $this->execSSHCommand($netCmd);
 
