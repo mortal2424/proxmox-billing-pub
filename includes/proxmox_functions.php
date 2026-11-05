@@ -51,6 +51,35 @@ class ProxmoxAPI {
     }
 
     public function createVM($params) {
+    // Validate every value that becomes part of a remote shell command.
+    $storage = (string)($params['storage'] ?? 'local');
+    $network = (string)($params['network'] ?? 'vmbr0');
+    $scsihw = (string)($params['scsihw'] ?? 'virtio-scsi-pci');
+    $diskSize = (string)($params['disk'] ?? '10');
+    $cpu = filter_var($params['cpu'] ?? 1, FILTER_VALIDATE_INT);
+    $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
+    if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $storage) ||
+        !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
+        !in_array($scsihw, ['virtio-scsi-pci', 'virtio-scsi-single', 'lsi', 'lsi53c810', 'megasas', 'pvscsi'], true) ||
+        !preg_match('/^[1-9][0-9]{0,5}$/', $diskSize) ||
+        $cpu === false || $cpu < 1 || $cpu > 256 ||
+        $ram === false || $ram < 16 || $ram > 1048576) {
+        throw new InvalidArgumentException('Invalid VM resource or device parameters');
+    }
+    $sdnInput = (string)($params['sdn'] ?? '');
+    if ($sdnInput !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdnInput)) {
+        throw new InvalidArgumentException('Invalid SDN network identifier');
+    }
+    $cdromsInput = $params['cdroms'] ?? [];
+    if (!is_array($cdromsInput) || count($cdromsInput) > 4) {
+        throw new InvalidArgumentException('Invalid ISO list');
+    }
+    foreach ($cdromsInput as $isoInput) {
+        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_-]{1,64}:)?(?:iso/)?[A-Za-z0-9_.+-]+$#', $isoInput)) {
+            throw new InvalidArgumentException('Invalid ISO identifier');
+        }
+    }
+
     $this->pdo->beginTransaction();
 
     try {
@@ -69,8 +98,8 @@ class ProxmoxAPI {
         $nodeId = $this->nodeId;
         $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
         $hasIso = !empty($params['iso']);
-        $storage = $params['storage'] ?? 'local';
-        $network = $params['network'] ?? 'vmbr0';
+        $storage = $storage;
+        $network = $network;
         $sdn = $params['sdn'] ?? null;
         $isCustom = $params['is_custom'] ?? 0;
         $osVersion = $params['os_version'] ?? '';
@@ -85,21 +114,21 @@ class ProxmoxAPI {
             "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s",
             $vmid,
             escapeshellarg($params['hostname'] ?? 'vm-' . $vmid),
-            $params['cpu'] ?? 1,
-            $params['ram'] ?? 1024,
-            $params['scsihw'] ?? 'virtio-scsi-pci'
+            $cpu,
+            $ram,
+            escapeshellarg($scsihw)
         );
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
 
         // 5. Настройка дисков
-        $diskSize = $params['disk'] ?? '10';
-        $diskCmd = "qm set {$vmid} --scsi0 {$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback";
+        $diskSize = $diskSize;
+        $diskCmd = "qm set {$vmid} --scsi0 " . escapeshellarg("{$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback");
         error_log("[VM Creation] Setting main disk: {$diskCmd}");
         $this->execSSHCommand($diskCmd);
 
         // EFI диск
-        $efiCmd = "qm set {$vmid} --efidisk0 {$storage}:1,format=raw,pre-enrolled-keys=0";
+        $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:1,format=raw,pre-enrolled-keys=0");
         error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
         $this->execSSHCommand($efiCmd);
 
@@ -147,7 +176,7 @@ class ProxmoxAPI {
             }
 
             // Монтируем ISO
-            $isoCmd = "qm set {$vmid} --ide{$cdromIndex} {$cdrom},media=cdrom";
+            $isoCmd = "qm set {$vmid} --ide{$cdromIndex} " . escapeshellarg($cdrom . ",media=cdrom");
             error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
 
             try {
@@ -174,7 +203,7 @@ class ProxmoxAPI {
         $this->execSSHCommand($bootCmd);
 
         // 8. Настройка сети
-        $netCmd = "qm set {$vmid} --net0 virtio,bridge=" . escapeshellarg($networkValue);
+        $netCmd = "qm set {$vmid} --net0 " . escapeshellarg("virtio,bridge={$networkValue}");
         error_log("[VM Creation] Setting network: {$netCmd}");
         $this->execSSHCommand($netCmd);
 
