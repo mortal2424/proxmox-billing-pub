@@ -383,7 +383,7 @@ public function createLXC($params) {
 
         // Создание контейнера (без сети)
         $createCmd = "pct create {$vmid} " . escapeshellarg($template) . " " .
-                    "--storage " . escapeshellarg($storage) .
+                     "--storage " . escapeshellarg($storage) . " " .
                     "--hostname " . escapeshellarg($hostname) . " " .
                     "--cores {$cpu} " .
                     "--memory {$ram} " .
