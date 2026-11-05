@@ -58,7 +58,7 @@ class ProxmoxAPI {
     $diskSize = (string)($params['disk'] ?? '10');
     $cpu = filter_var($params['cpu'] ?? 1, FILTER_VALIDATE_INT);
     $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
-    if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $storage) ||
+    if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $storage) ||
         !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
         !in_array($scsihw, ['virtio-scsi-pci', 'virtio-scsi-single', 'lsi', 'lsi53c810', 'megasas', 'pvscsi'], true) ||
         !preg_match('/^[1-9][0-9]{0,5}$/', $diskSize) ||
@@ -75,7 +75,7 @@ class ProxmoxAPI {
         throw new InvalidArgumentException('Invalid ISO list');
     }
     foreach ($cdromsInput as $isoInput) {
-        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_-]{1,64}:)?(?:iso/)?[A-Za-z0-9_.+-]+$#', $isoInput)) {
+        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_.-]{1,64}:)?(?:iso/)?[A-Za-z0-9_.+-]+$#', $isoInput) || basename($isoInput) === '.' || basename($isoInput) === '..') {
             throw new InvalidArgumentException('Invalid ISO identifier');
         }
     }
@@ -348,7 +348,7 @@ public function createLXC($params) {
     $disk = filter_var($params['disk'] ?? 10, FILTER_VALIDATE_INT);
     $sdn = (string)($params['sdn'] ?? '');
     if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $storage) ||
-        !preg_match('#^[A-Za-z0-9_-]{1,64}:vztmpl/[A-Za-z0-9_.+-]+$#', $template) ||
+        !preg_match('#^[A-Za-z0-9_.-]{1,64}:vztmpl/[A-Za-z0-9_.+-]+$#', $template) ||
         !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
         ($sdn !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdn)) ||
         $cpu === false || $cpu < 1 || $cpu > 256 ||
