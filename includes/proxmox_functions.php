@@ -393,7 +393,7 @@ public function createLXC($params) {
                     "--onboot 1 " .
                     "--features nesting=1";
 
-        error_log("[LXC Creation] Creating container: {$createCmd}");
+        error_log("[LXC Creation] Creating container {$vmid} with validated parameters");
         $this->execSSHCommand($createCmd);
 
         // Настройка сети
