@@ -75,7 +75,7 @@ class ProxmoxAPI {
         throw new InvalidArgumentException('Invalid ISO list');
     }
     foreach ($cdromsInput as $isoInput) {
-        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_.-]{1,64}:)?(?:iso/)?[A-Za-z0-9_.+-]+$#', $isoInput) || basename($isoInput) === '.' || basename($isoInput) === '..') {
+        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_.-]{1,64}:iso/|iso/)?[A-Za-z0-9_.+-]+$#', $isoInput) || basename($isoInput) === '.' || basename($isoInput) === '..') {
             throw new InvalidArgumentException('Invalid ISO identifier');
         }
     }
