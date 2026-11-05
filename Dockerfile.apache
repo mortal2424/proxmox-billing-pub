@@ -24,9 +24,9 @@ COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 777 /var/www/html/uploads \
-    && chmod -R 777 /var/www/html/logs \
-    && chmod -R 777 /var/www/html/backups
+    && chmod -R 755 /var/www/html/uploads \
+    && chmod -R 750 /var/www/html/logs \
+    && chmod -R 750 /var/www/html/backups
 
 COPY docker/crontab.txt /etc/crontab
 RUN chmod 0644 /etc/crontab
