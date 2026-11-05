@@ -7,62 +7,29 @@ ini_set('error_log', __DIR__ . '/../logs/vnc_errors.log');
 
 // Настройки заголовков
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: ' . ($_SERVER['HTTP_ORIGIN'] ?? '*'));
-header('Access-Control-Allow-Credentials: true');
-
 // Класс для работы с VNC
 class VncHelper {
-    public static function getVncTicket($host, $port, $nodeName, $vmId, $vmType, $pveTicket, $csrfToken) {
-        $logMessage = "Starting getVncTicket:\n";
-        $logMessage .= "Host: $host\nPort: $port\nNode: $nodeName\nVMID: $vmId\nType: $vmType\n";
-        
-        $apiUrl = "https://{$host}:{$port}/api2/json/nodes/{$nodeName}/{$vmType}/{$vmId}/vncproxy";
-        $logMessage .= "API URL: $apiUrl\n";
-        
+    public static function getVncTicket($host, $port, $nodeName, $vmId, $vmType, $pveTicket, $csrfToken) {        $apiUrl = "https://{$host}:{$port}/api2/json/nodes/{$nodeName}/{$vmType}/{$vmId}/vncproxy";
         $postData = http_build_query(['websocket' => 1]);
-        $logMessage .= "POST Data: $postData\n";
-        
         $headers = [
             'Cookie: PVEAuthCookie=' . $pveTicket,
             'CSRFPreventionToken: ' . $csrfToken,
             'Content-Type: application/x-www-form-urlencoded',
             'Content-Length: ' . strlen($postData)
         ];
-        $logMessage .= "Headers: " . print_r($headers, true) . "\n";
-
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $apiUrl,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $postData,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_VERBOSE => true
-        ]);
-
-        $verbose = fopen('php://temp', 'w+');
-        curl_setopt($ch, CURLOPT_STDERR, $verbose);
-
-        $response = curl_exec($ch);
+        ]);$response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        
-        rewind($verbose);
-        $verboseLog = stream_get_contents($verbose);
-        fclose($verbose);
-        
-        curl_close($ch);
-
-        $logMessage .= "HTTP Code: $httpCode\n";
-        $logMessage .= "CURL Error: $error\n";
-        $logMessage .= "Verbose Log:\n$verboseLog\n";
-        $logMessage .= "Response: " . substr($response, 0, 1000) . "\n";
-        
-        error_log($logMessage);
-
+        $error = curl_error($ch);curl_close($ch);
         if ($response === false) {
             throw new Exception("CURL Error: {$error}");
         }
@@ -91,9 +58,6 @@ try {
     require_once __DIR__ . '/../includes/db.php';
 
     // Логируем начало выполнения
-    error_log("========== Starting VNC Request ==========");
-    error_log("Request params: " . print_r($_GET, true));
-
     checkAuth();
     
     // Валидация параметров
@@ -115,9 +79,6 @@ try {
                          WHERE vms.vm_id = ? AND vms.user_id = ?");
     $stmt->execute([$vmId, $userId]);
     $nodeData = $stmt->fetch();
-
-    error_log("Node data from DB: " . print_r($nodeData, true));
-
     if (!$nodeData) {
         throw new Exception('Доступ запрещен: ВМ не найдена или нет прав');
     }
@@ -132,9 +93,6 @@ try {
                                WHERE node_id = ? AND expires_at > NOW()");
     $ticketStmt->execute([$nodeData['id']]);
     $ticket = $ticketStmt->fetch();
-
-    error_log("Ticket data from DB: " . print_r($ticket, true));
-
     if (!$ticket || empty($ticket['ticket']) || empty($ticket['csrf_token'])) {
         throw new Exception('Нет активной сессии для этой ноды. Попробуйте позже.');
     }
@@ -153,17 +111,12 @@ try {
         if ($masterNode) {
             $urlHost = $masterNode['hostname'];
             $urlPort = $masterNode['api_port'] ?? 8006;
-            error_log("Using cluster master node: " . print_r($masterNode, true));
         }
     }
 
     // Получаем VNC ticket
     $isLxc = ($vmType === 'lxc' || ($nodeData['vm_type'] ?? '') === 'lxc');
     $vmTypeForApi = $isLxc ? 'lxc' : 'qemu';
-    
-    error_log("Attempting to get VNC ticket with params:");
-    error_log("Host: $urlHost, Port: $urlPort, Node: {$nodeData['node_name']}, VMID: $vmId, Type: $vmTypeForApi");
-
     $vncData = VncHelper::getVncTicket(
         $urlHost,
         $urlPort,
@@ -173,9 +126,6 @@ try {
         $ticket['ticket'],
         $ticket['csrf_token']
     );
-
-    error_log("Received VNC data: " . print_r($vncData, true));
-
     // Формируем URL консоли
     $queryParams = [
         'console' => $isLxc ? 'lxc' : 'kvm',
@@ -194,7 +144,6 @@ try {
     
     // Формируем правильный URL
     $vncUrl = 'https://' . $urlHost . ':' . $urlPort . '/?' . http_build_query($queryParams);
-error_log("Generated VNC URL: " . $vncUrl);
     // Формируем ответ
 $response = [
     'success' => true,
