@@ -1,9 +1,10 @@
 <?php
+require_once __DIR__ . '/../includes/cli_only.php';
 // Установим корректное окружение для cron
 putenv('PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin');
 
 // Логирование
-$logFile = '/home/mortal/web/homevlad.ru /public_html/logs/proxmox_metrics.log';
+$logFile = __DIR__ . '/../logs/proxmox_metrics.log';
 file_put_contents($logFile, "\n[".date('Y-m-d H:i:s')."] CRON JOB STARTED\n", FILE_APPEND);
 
 function log_message($message) {

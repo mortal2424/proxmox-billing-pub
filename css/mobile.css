@@ -1,0 +1,52 @@
+@media (max-width: 767px) {
+    .main-content, .dashboard-content, main, .mobile-table-scroll {
+        min-width: 0;
+    }
+
+    .mobile-table-scroll {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .mobile-table-scroll > table {
+        min-width: max-content;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]),
+    select, textarea {
+        font-size: max(16px, 1em);
+        max-width: 100%;
+    }
+
+    main img, .main-content img, .dashboard-content img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .modal-dialog, .swal2-popup {
+        max-width: calc(100vw - 24px);
+    }
+
+    .modal-body {
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (min-width: 768px) {
+    .mobile-table-scroll {
+        display: contents;
+    }
+}
+
+@media (max-width: 479px) {
+    .header-content, .header-container {
+        min-width: 0;
+        column-gap: 8px;
+    }
+
+    .notifications-menu, .user-profile-menu, .profile-menu {
+        max-width: calc(100vw - 24px);
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+}

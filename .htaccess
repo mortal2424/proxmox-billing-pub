@@ -1,0 +1,5 @@
+RewriteEngine On
+RewriteRule ^(?:backups|logs|bots/logs|uploads/tickets)(?:/|$) - [F,NC]
+RewriteRule ^(?:\.git|\.env)(?:[./]|$) - [F,NC]
+RewriteRule \.(?:sql|log|ini|simple|bak|old)$ - [F,NC]
+RewriteRule ^uploads/.*\.(?:php[0-9]*|phtml|phar)(?:[./]|$) - [F,NC]

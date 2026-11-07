@@ -6,6 +6,12 @@ require_once '../includes/functions.php';
 require_once '../admin/admin_functions.php';
 
 checkAuth();
+$_SESSION['ticket_csrf'] ??= bin2hex(random_bytes(32));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
+    (!is_string($_POST['ticket_csrf'] ?? null) || !hash_equals($_SESSION['ticket_csrf'], $_POST['ticket_csrf']))) {
+    http_response_code(403);
+    exit;
+}
 
 $db = new Database();
 $pdo = $db->getConnection();
@@ -120,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_ticket'])) {
                 if ($_FILES['attachments']['error'][$key] === UPLOAD_ERR_OK) {
                     $fileName = basename($_FILES['attachments']['name'][$key]);
                     $fileSize = $_FILES['attachments']['size'][$key];
-                    $mimeType = $_FILES['attachments']['type'][$key];
+                    $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($tmpName);
 
                     // Проверка размера файла (5MB)
                     if ($fileSize > 5 * 1024 * 1024) {
@@ -138,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_ticket'])) {
                         continue;
                     }
 
-                    $filePath = $uploadDir . uniqid() . '_' . $fileName;
+                    $filePath = $uploadDir . bin2hex(random_bytes(16)) . '.bin';
 
                     if (move_uploaded_file($tmpName, $filePath)) {
                         $stmt = $pdo->prepare("INSERT INTO ticket_attachments
@@ -211,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply_ticket'])) {
                 if ($_FILES['reply_attachments']['error'][$key] === UPLOAD_ERR_OK) {
                     $fileName = basename($_FILES['reply_attachments']['name'][$key]);
                     $fileSize = $_FILES['reply_attachments']['size'][$key];
-                    $mimeType = $_FILES['reply_attachments']['type'][$key];
+                    $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($tmpName);
 
                     if ($fileSize > 5 * 1024 * 1024) {
                         continue;
@@ -227,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply_ticket'])) {
                         continue;
                     }
 
-                    $filePath = $uploadDir . uniqid() . '_' . $fileName;
+                    $filePath = $uploadDir . bin2hex(random_bytes(16)) . '.bin';
 
                     if (move_uploaded_file($tmpName, $filePath)) {
                         $stmt = $pdo->prepare("INSERT INTO ticket_attachments
@@ -314,6 +320,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1384,6 +1391,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                     </div>
 
                     <form method="POST" enctype="multipart/form-data" id="ticketForm">
+                        <input type="hidden" name="ticket_csrf" value="<?= htmlspecialchars($_SESSION['ticket_csrf'], ENT_QUOTES) ?>">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Тема тикета *</label>
@@ -1554,7 +1562,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                                             <div class="attachments-grid">
                                                 <h4><i class="fas fa-paperclip"></i> Вложения:</h4>
                                                 <?php foreach ($attachments as $file): ?>
-                                                    <a href="/download.php?file=<?= urlencode($file['file_path']) ?>" class="attachment-item" target="_blank">
+                                                    <a href="/download.php?id=<?= (int)$file['id'] ?>" class="attachment-item" target="_blank">
                                                         <div class="attachment-icon">
                                                             <?php
                                                             $extension = pathinfo($file['file_name'], PATHINFO_EXTENSION);
@@ -1579,6 +1587,7 @@ $title = "Техническая поддержка | HomeVlad Cloud";
                                         <!-- Форма ответа -->
                                         <?php if ($ticket['status'] !== 'closed'): ?>
                                             <form method="POST" class="reply-form" enctype="multipart/form-data">
+                        <input type="hidden" name="ticket_csrf" value="<?= htmlspecialchars($_SESSION['ticket_csrf'], ENT_QUOTES) ?>">
                                                 <input type="hidden" name="ticket_id" value="<?= $ticket['id'] ?>">
                                                 <div class="form-group">
                                                     <label class="form-label">Ваш ответ *</label>

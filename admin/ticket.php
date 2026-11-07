@@ -1657,7 +1657,7 @@ function generateTicketHTML(data) {
                 <div class="ticket-attachments-list">
                     ${attachments.map(file => `
                         <div class="ticket-attachment-item">
-                            <a href="/admin/download.php?file=${encodeURIComponent(file.file_path)}" class="ticket-attachment-link" target="_blank">
+                            <a href="/download.php?id=${encodeURIComponent(file.id)}" class="ticket-attachment-link" target="_blank">
                                 <i class="fas fa-file"></i>
                                 <span class="ticket-attachment-name">${escapeHtml(file.file_name)}</span>
                             </a>

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 
 $db = new Database();
