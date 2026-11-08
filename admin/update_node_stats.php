@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/node_credentials.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/ssh_functions.php';
@@ -82,7 +83,7 @@ foreach ($nodes as $node) {
         $stats = getNodeStats(
             $node['hostname'],
             $node['username'],
-            $node['password']
+            decryptNodePassword($node['password'])
         );
         
         if (isset($stats['error'])) {

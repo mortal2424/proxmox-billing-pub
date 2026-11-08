@@ -121,7 +121,6 @@ try {
         throw new Exception("Нода с ID $nodeId не найдена");
     }
 
-    error_log("Node data from DB: " . print_r($nodeData, true));
 
     // Проверяем наличие обязательных полей
     if (empty($nodeData['hostname']) || empty($nodeData['node_name'])) {
@@ -136,7 +135,6 @@ try {
     $ticketStmt->execute([$nodeData['id']]);
     $ticket = $ticketStmt->fetch();
 
-    error_log("Ticket data from DB: " . print_r($ticket, true));
 
     if (!$ticket || empty($ticket['ticket']) || empty($ticket['csrf_token'])) {
         // Пытаемся получить любой активный тикет для этого хоста
@@ -192,7 +190,6 @@ try {
         if ($masterNode) {
             $urlHost = $masterNode['hostname'];
             $urlPort = $masterNode['api_port'] ?? 8006;
-            error_log("Using cluster master node: " . print_r($masterNode, true));
         }
     }
 
@@ -209,7 +206,6 @@ try {
         $ticket['csrf_token']
     );
 
-    error_log("Received VNC data: " . print_r($vncData, true));
 
     // Определяем, является ли ВМ контейнером (lxc)
     $isLxc = ($vmType === 'lxc');
@@ -231,7 +227,6 @@ try {
 
     // Формируем правильный URL
     $vncUrl = 'https://' . $urlHost . ':' . $urlPort . '/?' . http_build_query($queryParams);
-    error_log("Generated VNC URL: " . $vncUrl);
 
     // Формируем ответ
     $response = [

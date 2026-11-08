@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/node_credentials.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -33,7 +34,7 @@ if (empty($node['hostname']) || empty($node['username']) || empty($node['passwor
 }
 
 try {
-    $info = getNodeSSHInfo($node['hostname'], $node['username'], $node['password']);
+    $info = getNodeSSHInfo($node['hostname'], $node['username'], decryptNodePassword($node['password']));
     header('Content-Type: application/json');
     echo json_encode($info);
 } catch (Exception $e) {

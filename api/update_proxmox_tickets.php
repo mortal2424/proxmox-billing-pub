@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/node_credentials.php';
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 
@@ -19,7 +20,7 @@ foreach ($nodes as $node) {
             $username .= '@pam'; // Добавляем домен если отсутствует
         }
         
-        $postData = "username=" . urlencode($username) . "&password=" . urlencode($node['password']);
+        $postData = "username=" . urlencode($username) . "&password=" . urlencode(decryptNodePassword($node['password']));
         
         $ch = curl_init();
         curl_setopt_array($ch, [

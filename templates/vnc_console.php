@@ -112,11 +112,10 @@ try {
 
     $stmt = $pdo->prepare("SELECT vms.*, pn.* FROM vms 
                          JOIN proxmox_nodes pn ON vms.node_id = pn.id
-                         WHERE vms.vm_id = ? AND vms.user_id = ?");
-    $stmt->execute([$vmId, $userId]);
+                         WHERE vms.vm_id = ? AND vms.user_id = ? AND vms.node_id = ?");
+    $stmt->execute([$vmId, $userId, $nodeId]);
     $nodeData = $stmt->fetch();
 
-    error_log("Node data from DB: " . print_r($nodeData, true));
 
     if (!$nodeData) {
         throw new Exception('Доступ запрещен: ВМ не найдена или нет прав');
@@ -133,7 +132,6 @@ try {
     $ticketStmt->execute([$nodeData['id']]);
     $ticket = $ticketStmt->fetch();
 
-    error_log("Ticket data from DB: " . print_r($ticket, true));
 
     if (!$ticket || empty($ticket['ticket']) || empty($ticket['csrf_token'])) {
         throw new Exception('Нет активной сессии для этой ноды. Попробуйте позже.');
@@ -153,7 +151,6 @@ try {
         if ($masterNode) {
             $urlHost = $masterNode['hostname'];
             $urlPort = $masterNode['api_port'] ?? 8006;
-            error_log("Using cluster master node: " . print_r($masterNode, true));
         }
     }
 
@@ -174,7 +171,6 @@ try {
         $ticket['csrf_token']
     );
 
-    error_log("Received VNC data: " . print_r($vncData, true));
 
     // Формируем URL консоли
     $queryParams = [
@@ -194,7 +190,6 @@ try {
     
     // Формируем правильный URL
     $vncUrl = 'https://' . $urlHost . ':' . $urlPort . '/?' . http_build_query($queryParams);
-error_log("Generated VNC URL: " . $vncUrl);
     // Формируем ответ
 $response = [
     'success' => true,

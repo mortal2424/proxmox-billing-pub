@@ -1483,7 +1483,6 @@ async function openVncConsoleProxmox(nodeId, vmId, vmName) {
             cookieStr += `secure=${cookie.secure !== false}; `;
             cookieStr += `samesite=${cookie.samesite || 'None'}`;
 
-            console.log('Setting cookie for Proxmox VNC:', cookieStr);
             document.cookie = cookieStr;
         }
 

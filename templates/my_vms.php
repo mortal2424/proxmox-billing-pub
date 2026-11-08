@@ -2284,7 +2284,6 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         `samesite=${cookie.samesite || 'Lax'}`;
 
                     document.cookie = cookieStr;
-                    console.log('Cookie set:', cookieStr);
                 }
 
                 // Проверка URL консоли

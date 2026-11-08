@@ -18,6 +18,11 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
+    location ^~ /uploads/tickets/ { return 403; }
+    location ^~ /backups/ { return 403; }
+    location ^~ /logs/ { return 403; }
+    location ^~ /bots/logs/ { return 403; }
+
     location / {
         proxy_pass http://apache:80;
         proxy_set_header Host $host;

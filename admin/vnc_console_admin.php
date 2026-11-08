@@ -93,7 +93,6 @@ try {
     // Логируем начало выполнения
     error_log("========== Starting ADMIN VNC Request ==========");
     error_log("Request params: " . print_r($_GET, true));
-    error_log("Session: " . print_r($_SESSION, true));
 
     // Проверяем права администратора
     if (!isAdmin()) {
@@ -149,7 +148,6 @@ try {
         error_log("Found admin VM by VMID only: VMID={$nodeData['vm_id']}, NodeID={$nodeData['node_id']}");
     }
 
-    error_log("Node data from DB: " . print_r($nodeData, true));
 
     // Проверяем наличие обязательных полей
     $missingFields = [];
@@ -173,7 +171,6 @@ try {
     $ticketStmt->execute([$nodeData['id']]);
     $ticket = $ticketStmt->fetch();
 
-    error_log("Ticket data from DB: " . print_r($ticket, true));
 
     if (!$ticket || empty($ticket['ticket']) || empty($ticket['csrf_token'])) {
         // Пытаемся получить любой активный тикет для этого хоста
@@ -205,7 +202,6 @@ try {
         if ($masterNode) {
             $urlHost = $masterNode['hostname'];
             $urlPort = $masterNode['api_port'] ?? 8006;
-            error_log("Using cluster master node: " . print_r($masterNode, true));
         }
     }
 
@@ -225,7 +221,6 @@ try {
         $ticket['csrf_token']
     );
 
-    error_log("Received VNC data: " . print_r($vncData, true));
 
     // Определяем, является ли ВМ контейнером (lxc)
     $isLxc = ($vmTypeForApi === 'lxc');
@@ -247,7 +242,6 @@ try {
 
     // Формируем правильный URL
     $vncUrl = 'https://' . $urlHost . ':' . $urlPort . '/?' . http_build_query($queryParams);
-    error_log("Generated VNC URL: " . $vncUrl);
 
     // Формируем ответ
     $response = [

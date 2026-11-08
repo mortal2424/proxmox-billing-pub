@@ -1318,7 +1318,6 @@ async function openAdminVncConsole(nodeId, vmId, vmName) {
             cookieStr += `secure=${cookie.secure !== false}; `;
             cookieStr += `samesite=${cookie.samesite || 'Lax'}`;
 
-            console.log('Setting cookie for admin VNC:', cookieStr);
             document.cookie = cookieStr;
         }
 

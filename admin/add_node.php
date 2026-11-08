@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/node_credentials.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
         $stmt = $pdo->prepare($sql);
-        $encrypted_password = $password;
+        $encrypted_password = encryptNodePassword($password);
         $stmt->execute([
             $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
             $username, $encrypted_password, $is_active, $description,

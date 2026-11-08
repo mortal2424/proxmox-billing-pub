@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/node_credentials.php';
 require_once __DIR__ . '/ssh_functions.php';
 require_once __DIR__ . '/ProxmoxAuth.php';
 
@@ -17,7 +18,7 @@ class ProxmoxAPI {
     public function __construct($host, $username, $password, $port = 22, $nodeName = null, $nodeId = null, $db = null) {
         $this->host = $host;
         $this->username = $username;
-        $this->password = $password;
+        $this->password = decryptNodePassword($password);
         $this->port = (int)$port;
         $this->nodeName = $nodeName ?: gethostname();
         $this->nodeId = $nodeId;
@@ -2059,7 +2060,8 @@ public function getAPITicket() {
     public function getTicketViaSSH() {
     $this->connect(); // Устанавливаем SSH соединение
 
-    $command = "pvesh get /access/ticket --username {$this->username} --password {$this->password} --output-format json";
+    $command = "pvesh get /access/ticket --username " . escapeshellarg($this->username) .
+        " --password " . escapeshellarg($this->password) . " --output-format json";
     $stream = ssh2_exec($this->ssh, $command);
 
     stream_set_blocking($stream, true);

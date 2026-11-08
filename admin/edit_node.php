@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/node_credentials.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -171,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Если есть пароль, добавляем его
             if (!empty($password)) {
                 $sql_parts[] = "password = ?";
-                $params[] = $password; // В реальной системе здесь должно быть шифрование
+                $params[] = encryptNodePassword($password);
             }
 
             $params[] = $node['id']; // Для WHERE условия
