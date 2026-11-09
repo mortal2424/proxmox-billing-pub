@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Консоль HomeVlad</title>
+<link rel="stylesheet" href="/console/assets/xterm/css/xterm.css">
+<style>
+    body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #131923; color: #fff; font: 1rem system-ui; }
+    header { padding: .6rem 1rem; display: flex; gap: 1rem; align-items: center; }
+    main { flex: 1; min-height: 0; overflow: hidden; }
+    button { font: inherit; }
+</style>
+<header><span id="status" role="status">Подключение…</span><button id="cad" hidden>Ctrl+Alt+Del</button></header>
+<main id="screen"></main>
+<script type="module" src="/console/view.js"></script>
+</html>

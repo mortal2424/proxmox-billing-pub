@@ -1,0 +1,21 @@
+[Unit]
+Description=HomeVlad Proxmox console bridge
+After=network-online.target
+
+[Service]
+User=mortal
+Group=mortal
+Environment=CONSOLE_ORIGIN=https://homevlad.ru
+EnvironmentFile=-/etc/homevlad-console/environment
+ExecStart=/usr/bin/python3 /opt/homevlad-console/bridge.py
+RuntimeDirectory=homevlad-console
+RuntimeDirectoryMode=0750
+UMask=0077
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
