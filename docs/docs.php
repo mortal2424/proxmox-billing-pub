@@ -338,7 +338,7 @@ $title = "Документация | HomeVlad Cloud";
     <link rel="stylesheet" href="/css/themes.css">
     <?php require __DIR__ . '/../templates/headers/workspace_preference.php'; ?>
     <?php if ($workspaceLite): ?>
-        <link rel="stylesheet" href="/css/workspace.css?v=5">
+        <link rel="stylesheet" href="/css/workspace.css?v=6">
     <?php endif; ?>
     <style>
         :root {

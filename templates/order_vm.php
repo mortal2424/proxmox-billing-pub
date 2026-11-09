@@ -296,7 +296,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
     <?php if ($workspaceLite): ?>
-        <link rel="stylesheet" href="/css/workspace.css?v=5">
+        <link rel="stylesheet" href="/css/workspace.css?v=6">
     <?php endif; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

@@ -63,7 +63,7 @@ $total = (int) $usage['guests'];
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Инфраструктура | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/workspace.css?v=5">
+    <link rel="stylesheet" href="/css/workspace.css?v=6">
     <link rel="stylesheet" href="/css/cloud-overview.css?v=3">
 </head>
 <body class="workspace cloud-overview">

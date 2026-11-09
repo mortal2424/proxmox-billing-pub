@@ -178,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
     <?php if ($workspaceLite): ?>
-        <link rel="stylesheet" href="/css/workspace.css?v=5">
+        <link rel="stylesheet" href="/css/workspace.css?v=6">
     <?php endif; ?>
     <title>Настройки <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнера' ?> | <?= htmlspecialchars($_ENV['APP_NAME']) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

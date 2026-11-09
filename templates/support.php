@@ -290,7 +290,7 @@ $listUrl = '/templates/support.php?tab=' . $tab;
     <link rel="stylesheet" href="/css/themes.css">
     <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
     <?php if ($workspaceLite): ?>
-        <link rel="stylesheet" href="/css/workspace.css?v=5">
+        <link rel="stylesheet" href="/css/workspace.css?v=6">
     <?php endif; ?>
     <link rel="stylesheet" href="/css/support.css">
 </head>

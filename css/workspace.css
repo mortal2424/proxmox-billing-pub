@@ -5,7 +5,14 @@ body.workspace {
     --workspace-ink: #193441;
     --workspace-muted: #516b76;
     --workspace-bg: #f1f7f7;
-    background: var(--workspace-bg);
+    min-height: 100vh;
+    background-color: var(--workspace-bg);
+    background-image:
+        radial-gradient(ellipse 68% 430px at 90% 0, var(--workspace-glow), transparent),
+        radial-gradient(ellipse 55% 500px at 0 340px, var(--workspace-glow-soft), transparent),
+        linear-gradient(var(--workspace-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--workspace-grid) 1px, transparent 1px);
+    background-size: auto, auto, 36px 36px, 36px 36px;
 }
 body.workspace.dark-theme {
     --workspace-surface: #172838;
@@ -209,6 +216,9 @@ body.workspace.dark-theme {
 
 body.workspace {
     --workspace-bg: #f8f8f4;
+    --workspace-glow: #b6e7d2b3;
+    --workspace-glow-soft: #d8e9c999;
+    --workspace-grid: #326e5810;
     --workspace-surface: #fff;
     --workspace-border: #dedfd7;
     --workspace-tint: #edf1e8;
@@ -220,6 +230,9 @@ body.workspace {
 }
 body.workspace.dark-theme {
     --workspace-bg: #141c19;
+    --workspace-glow: #24684e80;
+    --workspace-glow-soft: #334e3559;
+    --workspace-grid: #a7d7b910;
     --workspace-surface: #202b26;
     --workspace-border: #3d5045;
     --workspace-tint: #2b3f34;
