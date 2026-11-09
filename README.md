@@ -1,191 +1,101 @@
-Billing Panel Proxmox 
+# HomeVlad Cloud · Proxmox Billing
 
+Панель управления и биллинга для Proxmox VE. Текущая бета-версия — [v2.5.1-beta7](https://github.com/mortal2424/proxmox-billing-pub/releases/tag/v2.5.1-beta7).
 
+- Управление узлами и логическими кластерами, создание и мониторинг ВМ QEMU и контейнеров LXC.
+- Тарифы, квоты, пополнение баланса и автоматические списания.
+- Консоль QEMU и LXC из кабинета пользователя и админки через домен панели.
+- Полный кабинет и компактный лайт-режим. Переключатель находится в меню аккаунта, светлая и тёмная темы выбираются отдельно.
+- Адаптивная вёрстка и PWA. На iPhone откройте панель по HTTPS в Safari и выберите «Поделиться» → «На экран „Домой“».
+- Тикеты поддержки, Telegram-боты, пользовательская вики и страница состояния платформы.
 
-The first public release of the billing panel for Proxmox, the code is still under development, but many of the panel's features have already been implemented.
- 1. Creating a cluster (as a logical unit)
-2. Adding individual servers to them, as well as adding Proxmox cluster systems
-3. Creating virtual machines and containers
-4. Using the billing system, replenishing the balance, creating tariffs, and charging for resources once an hour or once a month, depending on the created tariff
-5. Implementing monitoring of VM and Container resources
-6. Proxmox node monitoring is implemented
-7. A ticket system for support is implemented with email and telegram notifications 
+## Установка в Docker
 
-Installation is simple:
-Copy all the contents of the repository to your hosting, add the sql dump to the database
-Create cron jobs 
-You can also run the installer install/install.php
+Понадобятся Git, Docker с Compose v2, домен с DNS-записью на сервер и доступные входящие порты 80 и 443. Для выпуска сертификата Let's Encrypt порт 80 должен быть свободен на время запуска `init-ssl`.
 
+```sh
+git clone --branch v2.5.1-beta7 https://github.com/mortal2424/proxmox-billing-pub.git
+cd proxmox-billing-pub
+cp .env.example .env
+chmod 600 .env
+mkdir -p webroot uploads logs backups docker/proxmox-tls
+```
 
-1. Debiting (billing work) once per hour or per month if you need both then you need to create two tasks
-
-/admin/cron_charge.php
-
-2. Update node stats every 5 minutes
-
-/admin/update_node_stats.php
-
-3. Delete old metrics at 3 am every day
-
-/api/clean_old_metrics.php
-
-4. Collect metrics from LXC every 5 minutes
-
-/api/collect_lxc_metrics.php
-
-5. Update PVETicket every 2 hours
-
-/api/update_proxmox_tickets.php
-
-6. Collect VM and LXC IP addresses every minute
-
-/includes/vm_ip_updater.php
-
-7. Collect VM metrics every 5 minutes
-
-/api/collect_vm_metrics.php
-
-To create the first administrator, run the file /admin/create_admin.php
-
-The code is under development and may contain errors. If you want to help with the development, please contact me at mortal24@yandex.ru or via Telegram at 331473849. I will add you as a developer, and together we can create the panel more quickly.
-
-
-
-Это первый публичный релиз биллинговой панели для Proxmox, код все еще находится в стадии разработки, но многие функции панели уже реализованы.
-
-1. Создание кластера (как логической единицы)
-2. Добавление к ним отдельных серверов, а также добавление кластерных систем Proxmox
-3. Создание виртуальных машин и контейнеров
-4. Использование биллинговой системы, пополнение баланса, создание тарифов и взимание платы за ресурсы раз в час или раз в месяц, в зависимости от созданного тарифа
-5. Внедрение мониторинга ресурсов виртуальной машины и контейнера
-6. Реализован мониторинг узла Proxmox
-7. Реализована система тикетов для поддержки с уведомлениями по электронной почте и telegram
-
-Установка проста: Скопируйте все содержимое репозитория на свой хостинг, добавьте sql-дамп в базу данных, создайте cron-задания, так же можно запустить инсталятор install/install.php
-
-1. Списание средств (выставление счетов) раз в час или в месяц, если вам нужно и то, и другое, то вам нужно создать две задачи
-/admin/cron_charge.php
-
-2. Обновлять статистику узлов каждые 5 минут
-/admin/update_node_stats.php
-
-3. Удалять старые показатели в 3 часа ночи каждый день
-/api/clean_old_metrics.php
-
-4. Собирать показатели из LXC каждые 5 минут
-/api/collect_lxc_metrics.php
-
-5. Обновляйте PVETicket каждые 2 часа
-/api/update_proxmox_tickets.php
-
-6. Собирайте IP-адреса виртуальных машин и LXC-серверов каждую минуту
-/includes/vm_ip_updater.php
-
-7. Собирайте показатели виртуальных машин каждые 5 минут
-/api/collect_vm_metrics.php
-
-Для создания первого администратора запустите файл /admin/create_admin.php
-
-Код находится в стадии разработки и может содержать ошибки. Если вы хотите помочь с разработкой, пожалуйста, свяжитесь со мной по адресу mortal24@yandex.ru или через Telegram по номеру 331473849. Я добавлю вас в качестве разработчика, и вместе мы сможем быстрее создать панель.
-
-
-
-Как запустить докер контейнер
-# Proxmox Billing – Docker Deployment
-
-## Требования
-- Docker & Docker Compose
-- Git
-- Домен, указывающий на ваш сервер (опционально, для HTTPS)
-
-## Быстрый старт
-
-1. Клонируйте репозиторий и подготовьте конфигурацию.
-
-   ```sh
-   git clone https://github.com/mortal2424/proxmox-billing-pub.git
-   cd proxmox-billing-pub
-   cp .env.example .env
-   mkdir -p webroot uploads logs backups docker/proxmox-tls
-   ```
-
-2. В `.env` укажите `DOMAIN` без схемы и порта, `EMAIL` и пароли БД.
-   Для шифрования паролей узлов сгенерируйте ключ командой
-   `openssl rand -base64 32` и сохраните его в `PROXMOX_NODE_KEY`.
-   Сохраните этот ключ при обновлении контейнеров.
-3. Запустите стек.
+1. В `.env` укажите `DOMAIN` без схемы и порта, `EMAIL`, имя БД и пользователя. Замените примеры паролей в `DB_PASSWORD` и `MYSQL_ROOT_PASSWORD` уникальными значениями. Добавьте `PROXMOX_NODE_KEY`, как описано в разделе о шифровании.
+2. Запустите стек и проверьте журналы.
 
    ```sh
    docker compose up -d --build
+   docker compose ps
+   docker compose logs --tail=100 init-ssl apache nginx
    ```
 
-4. Откройте сайт по HTTPS и создайте первого администратора через
-   `/admin/create_admin.php`. После настройки закройте этот маршрут.
+3. Apache автоматически импортирует схему в пустую БД и создаёт `includes/config.php`. Откройте `https://<ваш-домен>/admin/create_admin.php` и создайте первого администратора. Ограничьте доступ к этому маршруту на время первичной настройки и закройте его после создания аккаунта.
+4. В админке добавьте узлы Proxmox, настройте тарифы и проверьте доступ к API и запуск консоли. Сбор метрик и списания уже настроены через cron внутри контейнера Apache.
 
-### Консоль QEMU и LXC в Docker
+При неудачной выдаче сертификата `init-ssl` создаёт самоподписанный сертификат. Перед публичным запуском убедитесь, что Nginx обслуживает домен с доверенным сертификатом, и проверьте процедуру его продления. Nginx читает сертификаты из тома `ssl-certs`, а Certbot хранит данные продления отдельно. Обновлённые файлы должны попасть в том, после чего Nginx должен перечитать конфигурацию.
 
-Основной `docker-compose.yml` запускает прокси вместе с Apache. Образ
-содержит noVNC и xterm.js. Кнопка «Консоль» использует HTTPS и WebSocket
-на домене биллинга. В браузере достаточно входа в биллинг. Порт 8765
-используется внутри Docker-сети.
+### Обновление Docker
 
-Контейнер `apache` должен иметь сетевой доступ к API узла Proxmox
-(обычно TCP 8006). Для узлов с публичным сертификатом достаточно системного
-хранилища доверия. Для частного CA поместите проверенный публичный PEM в
-`docker/proxmox-tls/pve-root-ca.pem` и добавьте в `.env`:
-
-```dotenv
-PROXMOX_CA_FILE=/etc/proxmox-tls/pve-root-ca.pem
-```
-
-Имя узла в настройках биллинга должно совпадать с именем в сертификате.
-Для отдельного самоподписанного сертификата можно вместо CA указать
-`PROXMOX_CERT_PINS=/etc/proxmox-tls/pins.json`. Положите в
-`docker/proxmox-tls/pins.json` словарь вида
-`{"pve.example.org:8006": "<64 шестнадцатеричных символа SHA-256>"}`.
-Проверьте отпечаток на самом узле Proxmox. После смены сертификата обновите
-отпечаток. Эта настройка относится к прокси консоли.
-
-После изменения конфигурации пересоздайте контейнеры и проверьте запуск
-консоли работающей ВМ и LXC из кабинета без входа в Proxmox.
+Из существующего каталога установки сохраните резервные копии БД, загруженных файлов и конфигурации. Сохраните прежний `PROXMOX_NODE_KEY` и прежнее имя Compose-проекта, чтобы стек использовал тот же том БД.
 
 ```sh
+git fetch origin --tags
+git switch --detach v2.5.1-beta7
 docker compose up -d --build
-docker compose logs --tail=100 apache nginx
+docker compose ps
 ```
 
-### Управление базой данных через phpMyAdmin
+Образ Apache собирается из исходников выбранного тега. Инициализация пропускает импорт для БД с существующими таблицами. Если старая установка требует изменений схемы, подготовьте их отдельно и проверьте на копии БД. Для сохранения данных не удаляйте том `db_data`.
 
-Для удобного управления базой данных можно запустить phpMyAdmin отдельным контейнером:
+### Доступ к БД через phpMyAdmin
 
-1. Убедитесь, что основной стек запущен:
-   ```bash
-   docker compose up -d
-   
-2. Запустите phpMyAdmin:
-docker compose -f docker-compose.phpmyadmin.yml up -d
+Если нужен phpMyAdmin, подключите дополнительный файл к основному Compose-проекту и ограничьте порт 8081 локальным интерфейсом, заменив `8081:80` на `127.0.0.1:8081:80` в дополнительном файле.
 
-3. Откройте в браузере: http://ваш-сервер:8081
+```sh
+docker compose -f docker-compose.yml -f docker-compose.phpmyadmin.yml up -d phpmyadmin
+```
 
-<img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
-<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
-<img width="1903" height="926" alt="image" src="https://github.com/user-attachments/assets/d35d88f9-a019-420e-800e-16cb743540cc" />
-<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/a7582b5d-1a78-47da-a2f6-eab43d0e1d0f" />
-<img width="1904" height="928" alt="image" src="https://github.com/user-attachments/assets/2b380ce0-4e94-4ff1-9744-59177942fc9f" />
-<img width="1906" height="927" alt="image" src="https://github.com/user-attachments/assets/2428518c-b594-4e25-8f88-0d94a045b90c" />
-<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/60e92779-545d-4e80-b297-95f5f2071c56" />
-<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/3da10ace-3a81-456c-b871-e6cc31645ff6" />
+Подключайтесь через локальный адрес или SSH-туннель. Сервер БД внутри Compose-сети — `db`.
 
+## Установка без Docker
 
+Рекомендуемая версия PHP — 8.2, как в Docker-образе. Понадобятся HTTPS, MySQL или MariaDB, Composer и расширения PHP из проверки установщика, в том числе PDO MySQL, cURL, OpenSSL, SSH2, mbstring, XML, GD, BCMath и Intl.
 
+1. Разверните исходники в корне сайта. Установите зависимости командой `composer install --no-dev --optimize-autoloader`.
+2. Создайте пустую БД и пользователя для неё. Подготовьте каталоги `uploads`, `logs`, `cache`, `temp` и `backups`. Предоставьте PHP права на запись в нужные установщику каталоги, включая `includes` для создания конфигурации.
+3. Ограничьте доступ к `/install/` на время установки. Откройте `/install/install.php` и следуйте мастеру, который импортирует `install/sql-install.sql`, создаёт `includes/config.php` и настраивает администратора. При ручной установке импортируйте схему в пустую БД, заполните конфигурацию по `includes/config.php.simple` и создайте первого администратора через `/admin/create_admin.php`.
+4. После установки закройте установщик и маршрут создания первого администратора. Проверьте, что веб-сервер закрывает доступ к служебным файлам, логам, резервным копиям, SQL-дампу и вложениям тикетов, а в `uploads` нельзя исполнять PHP. На Apache примените правила `.htaccess`, для Nginx настройте эквивалентные ограничения. Примеры есть в каталоге [docker](docker/).
+5. Настройте CLI-задачи и при необходимости прокси консоли.
 
+### Задания cron
 
+Используйте [расписание Docker](docker/crontab.txt) как образец. На обычном сервере замените абсолютные пути и пользователя на подходящие для установки. При добавлении в пользовательский `crontab -e` уберите поле пользователя после расписания.
 
+| Период | Скрипт | Назначение |
+| --- | --- | --- |
+| Каждый час | `admin/cron_charge.php` | Списания по тарифам. Достаточно одного задания |
+| Каждые 5 минут | `admin/update_node_stats.php` | Статистика узлов |
+| Каждые 5 минут | `api/collect_lxc_metrics.php`, `api/collect_vm_metrics.php` | Метрики LXC и ВМ, два задания |
+| Каждые 2 часа | `api/update_proxmox_tickets.php` | Обновление билетов Proxmox |
+| Каждую минуту | `includes/vm_ip_updater.php` | Обновление IP-адресов |
+| Ежедневно в 03:00 | `api/clean_old_metrics.php` | Удаление старых метрик |
 
+## Консоль QEMU и LXC
 
-### Шифрование паролей узлов Proxmox
+Панель проверяет права на ВМ или контейнер, а прокси устанавливает соединение с Proxmox. Браузеру достаточно HTTPS-сессии панели. Для установки без Docker настройте сервис, статические клиенты и WebSocket по [инструкции прокси](console/README.md).
 
-Приложению и CLI-задачам нужен один и тот же ключ из 32 случайных байт в Base64.
+В Docker прокси и клиенты noVNC и xterm.js входят в образ Apache. Nginx проксирует `/console/socket`, порт 8765 остаётся внутри Docker-сети. Сервер панели или контейнер Apache должен достигать API узла Proxmox, обычно на TCP 8006.
+
+- Для частного CA положите проверенный публичный PEM кластера в `docker/proxmox-tls/pve-root-ca.pem` и укажите в `.env` `PROXMOX_CA_FILE=/etc/proxmox-tls/pve-root-ca.pem`. Имя узла должно присутствовать в сертификате.
+- Для отдельного самоподписанного сертификата прокси поддерживает привязку по отпечатку. Укажите `PROXMOX_CERT_PINS=/etc/proxmox-tls/pins.json` и положите в этот каталог JSON вида `{"pve.example.org:8006":"<64 шестнадцатеричных символа SHA-256>"}`. Сверьте отпечаток на узле и обновите его при смене сертификата.
+- Переменные выше относятся к прокси консоли. Для PHP-запросов к API с проверкой TLS добавьте CA узла в хранилище доверия PHP/cURL, включая контейнер Apache при установке в Docker.
+
+После смены переменных примените их через `docker compose up -d`. Проверьте запуск консоли работающих QEMU и LXC из кабинета и админки в браузере, где открыта только сессия панели. При сбое проверьте журналы Apache и Nginx, TLS, доступ к API и права учётной записи Proxmox на консоль.
+
+## Шифрование паролей узлов Proxmox
+
+Приложению и CLI-задачам нужен один и тот же ключ из 32 случайных байт в Base64. Сгенерируйте его командой `openssl rand -base64 32`. В Docker задайте ключ в `.env` до первого запуска.
 Перед обновлением передайте его через `PROXMOX_NODE_KEY` или положите в файл
 `.proxmox-node-key` рядом с каталогом приложения, на уровень выше веб-корня.
 Ограничьте чтение файла пользователями PHP и cron. Храните резервную копию ключа отдельно от БД.
@@ -197,20 +107,20 @@ docker compose -f docker-compose.phpmyadmin.yml up -d
 php cronjobs/encrypt_node_passwords.php
 ```
 
+В Docker запустите `docker compose exec apache php cronjobs/encrypt_node_passwords.php`.
+
 Миграция повторно проверяет уже зашифрованные записи и откатывается при ошибке.
 После миграции проверьте обновление билетов и подключение к узлам. Для восстановления
 старого кода потребуется совместимая резервная копия базы. Пароли пользователей
 по-прежнему проверяются по хешам из `users.password_hash`.
 
-### Боты Telegram
+## Боты Telegram
 
 В разделе настроек администратора укажите разные токены для чат-бота и
 бота поддержки. В кабинете привяжите Telegram и откройте личный чат с
 каждым ботом через `/start`.
 
-Запустите по одному CLI-процессу на токен. На HomeVlad используется
-`bots/homevlad-telegram@.service`. При другой установке укажите пользователя
-и рабочий каталог приложения в unit-файле.
+Запустите по одному CLI-процессу на токен. Возьмите [шаблон systemd](bots/homevlad-telegram@.service), замените `User` и `WorkingDirectory` для своего сервера, установите его в `/etc/systemd/system/` и выполните `systemctl daemon-reload`.
 
 ```sh
 systemctl enable --now homevlad-telegram@chat homevlad-telegram@support
@@ -233,7 +143,7 @@ docker compose exec apache php bots/telegram_bot.php support
 поддержке. Бот поддержки показывает последние обращения и их статусы.
 Создание обращения и переписка открываются в кабинете.
 
-### Пользовательская вики и статус
+## Пользовательская вики и статус
 
 После создания администратора загрузите базовые инструкции в вики:
 
@@ -249,3 +159,19 @@ php docs/seed-user-guides.php
 свежесть данных из `node_stats` по активным гипервизорам, доступным
 пользователям. Для обновления замеров используйте штатное задание
 `admin/update_node_stats.php`.
+
+## Скриншоты
+
+<details>
+<summary>Открыть галерею интерфейса</summary>
+
+<img width="1909" height="930" alt="image" src="https://github.com/user-attachments/assets/905b421c-2cbd-4e0b-bc2c-fa5edda3e61b" />
+<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/4fc535ba-7a10-497f-907b-f6cd6d63e065" />
+<img width="1903" height="926" alt="image" src="https://github.com/user-attachments/assets/d35d88f9-a019-420e-800e-16cb743540cc" />
+<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/a7582b5d-1a78-47da-a2f6-eab43d0e1d0f" />
+<img width="1904" height="928" alt="image" src="https://github.com/user-attachments/assets/2b380ce0-4e94-4ff1-9744-59177942fc9f" />
+<img width="1906" height="927" alt="image" src="https://github.com/user-attachments/assets/2428518c-b594-4e25-8f88-0d94a045b90c" />
+<img width="1906" height="926" alt="image" src="https://github.com/user-attachments/assets/60e92779-545d-4e80-b297-95f5f2071c56" />
+<img width="1905" height="927" alt="image" src="https://github.com/user-attachments/assets/3da10ace-3a81-456c-b871-e6cc31645ff6" />
+
+</details>
