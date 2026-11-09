@@ -211,8 +211,8 @@ html {
 }
 
 body:has(> .modern-header.centered-header) {
-    --full-shell-start: #285d51;
-    --full-shell-end: #347164;
+    --full-shell-start: #203b38;
+    --full-shell-end: #294845;
     --full-page-base: #f3f8f5;
     --full-page-glow: #aee4d099;
     --full-page-grid: #35715a0d;
@@ -224,14 +224,14 @@ body:has(> .modern-header.centered-header) {
     background-size: auto, 36px 36px, 36px 36px;
 }
 body.dark-theme:has(> .modern-header.centered-header) {
-    --full-shell-start: #25443c;
-    --full-shell-end: #31554a;
+    --full-shell-start: #1b302e;
+    --full-shell-end: #243c38;
     --full-page-base: #17221f;
     --full-page-glow: #2e6a514d;
     --full-page-grid: #b0e3c80c;
 }
 .admin-header.centered-header.modern-header {
-    background: linear-gradient(135deg, var(--full-shell-start, #285d51), var(--full-shell-end, #347164));
+    background: linear-gradient(135deg, var(--full-shell-start, #203b38), var(--full-shell-end, #294845));
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     position: sticky;
     top: 0;
