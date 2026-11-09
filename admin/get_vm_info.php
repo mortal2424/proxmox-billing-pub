@@ -50,13 +50,31 @@ try {
     $vmConfig = $proxmox->getVMConfig($vmid);
     $vmStatus = $proxmox->getVMStatus($vmid);
     
+    // QEMU reports configured sizes on each attached disk, not in a top-level field.
+    $diskBytes = 0;
+    $units = ['' => 1, 'K' => 1024, 'M' => 1024 ** 2, 'G' => 1024 ** 3, 'T' => 1024 ** 4];
+    foreach ($vmConfig ?? [] as $device => $definition) {
+        if (!preg_match('/^(?:scsi|virtio|sata|ide)\d+$/D', $device) || !is_string($definition)) {
+            continue;
+        }
+        if (preg_match('/(?:^|,)media=cdrom(?:,|$)/', $definition)) {
+            continue;
+        }
+        if (preg_match('/(?:^|,)size=([0-9]+(?:\.[0-9]+)?)([KMGT]?)(?:,|$)/i', $definition, $size)) {
+            $diskBytes += (float) $size[1] * $units[strtoupper($size[2])];
+        }
+    }
+    if ($diskBytes === 0) {
+        $diskBytes = (float) ($vmStatus['maxdisk'] ?? $vmConfig['disk'] ?? 0);
+    }
+
     $result = [
         'vmid' => $vmid,
         'name' => $vmConfig['name'] ?? 'N/A',
         'status' => $vmStatus['status'] ?? 'unknown',
         'cpus' => $vmConfig['cores'] ?? 1,
         'mem' => round(($vmConfig['memory'] ?? 512) / 1024, 1),
-        'disk' => round(($vmConfig['disk'] ?? 0) / (1024 * 1024 * 1024), 1),
+        'disk' => round($diskBytes / (1024 ** 3), 1),
         'ip' => $vmConfig['ipconfig0'] ?? null
     ];
     
