@@ -176,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
+    <link rel="stylesheet" href="/css/workspace.css">
     <title>Настройки <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнера' ?> | <?= htmlspecialchars($_ENV['APP_NAME']) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -707,7 +708,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
     <script src="/js/theme.js" defer></script>
 </head>
-<body>
+<body class="workspace">
     <?php include '../templates/headers/user_header.php'; ?>
 
     <!-- Кнопка вверх -->
@@ -719,12 +720,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php include '../templates/headers/user_sidebar.php'; ?>
 
         <div class="main-content">
+            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
             <!-- Заголовок страницы -->
             <div class="page-header">
-                <h1 class="page-title">
+                <div class="workspace-title">
+                    <h1 class="page-title">
                     <i class="fas fa-cog"></i> Настройки <?= $vm['vm_type'] === 'qemu' ? 'Виртуальной машины' : 'Контейнера' ?> #<?= $vm['vm_id'] ?>
                     <small><?= htmlspecialchars($vm['name'] ?? '') ?></small>
                 </h1>
+                    <p>Проверьте конфигурацию и параметры выбранного сервера.</p>
+                </div>
                 <div class="header-actions">
                     <button class="btn-refresh" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Обновить

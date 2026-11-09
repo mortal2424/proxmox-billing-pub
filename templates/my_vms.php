@@ -40,6 +40,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
+    <link rel="stylesheet" href="/css/workspace.css">
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1113,7 +1114,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         }
     </style>
 </head>
-<body>
+<body class="workspace">
     <?php
     // Подключаем общую шапку
     include '../templates/headers/user_header.php';
@@ -1136,6 +1137,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         ?>
 
         <div class="main-content">
+            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
             <!-- Прогресс бар загрузки -->
             <div class="progress-container">
                 <div class="progress-bar" id="loading-progress"></div>
@@ -1143,9 +1145,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
             <!-- Заголовок страницы -->
             <div class="page-header">
-                <h1 class="page-title">
+                <div class="workspace-title">
+                    <h1 class="page-title">
                     <i class="fas fa-server"></i> Мои ВМ и контейнеры
                 </h1>
+                    <p>Найдите нужную ВМ или контейнер и управляйте им из списка.</p>
+                </div>
                 <div class="header-actions">
                     <a href="order_vm.php" class="btn-order" style="margin-right: 10px;">
                         <i class="fas fa-plus"></i> Заказать ВМ
@@ -1173,7 +1178,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         <i class="fas fa-list"></i> Список виртуальных машин (QEMU)
                     </h2>
 
-                    <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="workspace-vm-tools">
                         <div class="view-toggle">
                             <button class="view-toggle-btn active" data-view="grid" title="Плиточный вид">
                                 <i class="fas fa-th-large"></i>
@@ -1184,8 +1189,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         </div>
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Поиск ВМ..." id="vm-search">
+                            <input type="text" placeholder="Поиск ВМ..." id="vm-search" aria-label="Поиск ВМ">
                         </div>
+                        <select id="vm-status-filter" aria-label="Статус ВМ">
+                            <option value="">Все статусы</option>
+                            <option value="running">Работают</option>
+                            <option value="stopped">Остановлены</option>
+                            <option value="suspended">Приостановлены</option>
+                        </select>
                     </div>
                 </div>
 
@@ -1204,7 +1215,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         <i class="fas fa-list"></i> Список виртуальных контейнеров (LXC)
                     </h2>
 
-                    <div style="display: flex; align-items: center; gap: 15px;">
+                    <div class="workspace-vm-tools">
                         <div class="view-toggle">
                             <button class="view-toggle-btn active" data-view="grid" title="Плиточный вид">
                                 <i class="fas fa-th-large"></i>
@@ -1215,8 +1226,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         </div>
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Поиск контейнеров..." id="container-search">
+                            <input type="text" placeholder="Поиск контейнеров..." id="container-search" aria-label="Поиск контейнеров">
                         </div>
+                        <select id="container-status-filter" aria-label="Статус контейнеров">
+                            <option value="">Все статусы</option>
+                            <option value="running">Работают</option>
+                            <option value="stopped">Остановлены</option>
+                            <option value="suspended">Приостановлены</option>
+                        </select>
                     </div>
                 </div>
 
@@ -1237,7 +1254,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                     <a href="order_vm.php" class="btn-order">
                         <i class="fas fa-plus"></i> Создать ВМ
                     </a>
-                    <a href="order_container.php" class="btn-order">
+                    <a href="order_vm.php?vm_type=lxc" class="btn-order">
                         <i class="fas fa-box"></i> Создать контейнер
                     </a>
                 </div>
@@ -1382,15 +1399,10 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                 });
             });
 
-            // Поиск VM
-            document.getElementById('vm-search').addEventListener('input', function(e) {
-                searchVMs(e.target.value, 'vm');
-            });
-
-            // Поиск контейнеров
-            document.getElementById('container-search').addEventListener('input', function(e) {
-                searchVMs(e.target.value, 'container');
-            });
+            for (const kind of ['vm', 'container']) {
+                document.getElementById(kind + '-search').addEventListener('input', () => filterGuests(kind));
+                document.getElementById(kind + '-status-filter').addEventListener('change', () => filterGuests(kind));
+            }
 
             // Обработка уведомлений из сессии
             <?php if (isset($_SESSION['message'])): ?>
@@ -2040,7 +2052,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                 <i class="fas fa-box"></i>
                             </div>
                             <p class="empty-text">У вас пока нет контейнеров</p>
-                            <a href="order_container.php" class="btn-order">
+                            <a href="order_vm.php?vm_type=lxc" class="btn-order">
                                 <i class="fas fa-plus"></i> Создать первый контейнер
                             </a>
                         </div>
@@ -2049,7 +2061,8 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                 updateProgress(100);
 
-                // Проверяем пустое состояние
+                filterGuests('vm');
+                filterGuests('container');
                 checkEmptyState();
 
                 // Запускаем периодическое обновление метрик
@@ -2690,56 +2703,36 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             addVmActionHandlers();
             addContainerActionHandlers();
 
-            // Сохраняем выбор пользователя в localStorage
+            filterGuests('vm');
+            filterGuests('container');
             localStorage.setItem('vmViewType', viewType);
         }
 
-        // Функция поиска
-        function searchVMs(searchTerm, type) {
-            const listId = type === 'vm' ? 'vm-list' : 'container-list';
-            const list = document.getElementById(listId);
-            const cards = list.querySelectorAll('.vm-card:not(.skeleton)');
-
-            if (searchTerm.trim() === '') {
-                // Показываем все карточки
-                cards.forEach(card => {
-                    card.style.display = '';
-                });
-                return;
+        function filterGuests(kind) {
+            const list = document.getElementById(kind === 'vm' ? 'vm-list' : 'container-list');
+            const term = document.getElementById(kind + '-search').value.trim().toLowerCase();
+            const status = document.getElementById(kind + '-status-filter').value;
+            const cards = [...list.querySelectorAll('.vm-card[data-vmid]')];
+            let matched = false;
+            for (const card of cards) {
+                const name = card.querySelector('.vm-name')?.textContent.toLowerCase() || '';
+                const visible = (!status || card.dataset.status === status) &&
+                    (name.includes(term) || card.dataset.vmid.includes(term));
+                card.style.display = visible ? '' : 'none';
+                matched ||= visible;
             }
 
-            const term = searchTerm.toLowerCase();
-            let hasResults = false;
-
-            cards.forEach(card => {
-                const vmName = card.querySelector('.vm-name').textContent.toLowerCase();
-                const vmId = card.querySelector('.vm-id')?.textContent.toLowerCase() || '';
-
-                if (vmName.includes(term) || vmId.includes(term)) {
-                    card.style.display = '';
-                    hasResults = true;
-                } else {
-                    card.style.display = 'none';
+            let empty = list.querySelector('.workspace-no-results');
+            if (!matched && cards.length) {
+                if (!empty) {
+                    empty = document.createElement('p');
+                    empty.className = 'empty-state workspace-no-results';
+                    empty.textContent = 'Нет серверов по этому запросу. Измените поиск или статус.';
+                    empty.setAttribute('role', 'status');
+                    list.append(empty);
                 }
-            });
-
-            // Показываем сообщение, если ничего не найдено
-            const noResults = list.querySelector('.no-results');
-            if (!hasResults && cards.length > 0) {
-                if (!noResults) {
-                    const noResultsDiv = document.createElement('div');
-                    noResultsDiv.className = 'empty-state';
-                    noResultsDiv.innerHTML = `
-                        <div class="empty-icon">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h3 class="empty-text">Ничего не найдено</h3>
-                        <p class="empty-text">Попробуйте изменить запрос</p>
-                    `;
-                    list.appendChild(noResultsDiv);
-                }
-            } else if (noResults) {
-                noResults.remove();
+            } else {
+                empty?.remove();
             }
         }
 

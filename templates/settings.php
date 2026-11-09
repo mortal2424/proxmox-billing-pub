@@ -210,6 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
+    <link rel="stylesheet" href="/css/workspace.css">
     <title>Настройки | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -999,7 +1000,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </style>
 </head>
-<body>
+<body class="workspace">
     <?php
     // Подключаем обновленную шапку
     include '../templates/headers/user_header.php';
@@ -1017,11 +1018,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ?>
 
         <div class="main-content">
+            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
             <!-- Заголовок страницы -->
             <div class="page-header">
-                <h1 class="page-title">
+                <div class="workspace-title">
+                    <h1 class="page-title">
                     <i class="fas fa-cog"></i> Настройки аккаунта
                 </h1>
+                    <p>Управляйте профилем, паролем и данными для оплаты.</p>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-primary" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Обновить

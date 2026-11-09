@@ -54,6 +54,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
+    <link rel="stylesheet" href="/css/workspace.css">
     <title>Панель управления | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -995,7 +996,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         }
     </style>
 </head>
-<body>
+<body class="workspace">
     <?php
     // Подключаем обновленную шапку
     include '../templates/headers/user_header.php';
@@ -1033,16 +1034,26 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         ?>
 
         <div class="main-content">
+            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
             <!-- Заголовок страницы -->
             <div class="page-header">
-                <h1 class="page-title">
+                <div class="workspace-title">
+                    <h1 class="page-title">
                     <i class="fas fa-tachometer-alt"></i> Панель управления
                 </h1>
+                    <p>Баланс, лимиты и состояние серверов в одном месте.</p>
+                </div>
                 <div class="header-actions">
                     <button class="btn-refresh" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Обновить
                     </button>
                 </div>
+            </div>
+
+            <div class="workspace-actions" aria-label="Частые действия">
+                <a href="/templates/order_vm.php">Заказать сервер</a>
+                <a href="/templates/my_vms.php">Открыть мои ВМ</a>
+                <a href="/templates/billing.php#payment-form">Пополнить баланс</a>
             </div>
 
             <!-- Статистика -->
