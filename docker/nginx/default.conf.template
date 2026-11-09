@@ -23,6 +23,15 @@ server {
     location ^~ /logs/ { return 403; }
     location ^~ /bots/logs/ { return 403; }
 
+    location = /console/socket {
+        proxy_pass http://apache:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection upgrade;
+        proxy_read_timeout 75s;
+        access_log off;
+    }
+
     location / {
         proxy_pass http://apache:80;
         proxy_set_header Host $host;

@@ -100,29 +100,59 @@ The code is under development and may contain errors. If you want to help with t
 
 ## Быстрый старт
 
-1. Клонируйте репозиторий:
-   ```bash
+1. Клонируйте репозиторий и подготовьте конфигурацию.
+
+   ```sh
    git clone https://github.com/mortal2424/proxmox-billing-pub.git
    cd proxmox-billing-pub
-   
-2. Создайте файл .env из примера:
-cp .env.example .env
-# отредактируйте DOMAIN, EMAIL, пароли
+   cp .env.example .env
+   mkdir -p webroot uploads logs backups docker/proxmox-tls
+   ```
 
-3. Создайте необходимые папки:
+2. В `.env` укажите `DOMAIN` без схемы и порта, `EMAIL` и пароли БД.
+   Для шифрования паролей узлов сгенерируйте ключ командой
+   `openssl rand -base64 32` и сохраните его в `PROXMOX_NODE_KEY`.
+   Сохраните этот ключ при обновлении контейнеров.
+3. Запустите стек.
 
-mkdir -p webroot uploads logs backups
+   ```sh
+   docker compose up -d --build
+   ```
 
-4. Запустите контейнеры:
+4. Откройте сайт по HTTPS и создайте первого администратора через
+   `/admin/create_admin.php`. После настройки закройте этот маршрут.
 
-docker compose up -d
+### Консоль QEMU и LXC в Docker
 
-5. Откройте сайт: https://ваш-домен
-   
-6. Создайте первого администратора https://ваш-домен/admin/create_admin.php
+Основной `docker-compose.yml` запускает прокси вместе с Apache. Образ
+содержит noVNC и xterm.js. Кнопка «Консоль» использует HTTPS и WebSocket
+на домене биллинга. В браузере достаточно входа в биллинг. Порт 8765
+используется внутри Docker-сети.
 
-7. Удалите файл create_admin.php
+Контейнер `apache` должен иметь сетевой доступ к API узла Proxmox
+(обычно TCP 8006). Для узлов с публичным сертификатом достаточно системного
+хранилища доверия. Для частного CA поместите проверенный публичный PEM в
+`docker/proxmox-tls/pve-root-ca.pem` и добавьте в `.env`:
 
+```dotenv
+PROXMOX_CA_FILE=/etc/proxmox-tls/pve-root-ca.pem
+```
+
+Имя узла в настройках биллинга должно совпадать с именем в сертификате.
+Для отдельного самоподписанного сертификата можно вместо CA указать
+`PROXMOX_CERT_PINS=/etc/proxmox-tls/pins.json`. Положите в
+`docker/proxmox-tls/pins.json` словарь вида
+`{"pve.example.org:8006": "<64 шестнадцатеричных символа SHA-256>"}`.
+Проверьте отпечаток на самом узле Proxmox. После смены сертификата обновите
+отпечаток. Эта настройка относится к прокси консоли.
+
+После изменения конфигурации пересоздайте контейнеры и проверьте запуск
+консоли работающей ВМ и LXC из кабинета без входа в Proxmox.
+
+```sh
+docker compose up -d --build
+docker compose logs --tail=100 apache nginx
+```
 
 ### Управление базой данных через phpMyAdmin
 

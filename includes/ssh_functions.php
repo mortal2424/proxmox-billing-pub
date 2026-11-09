@@ -18,7 +18,7 @@ if (!function_exists('exec_ssh_command')) {
     function exec_ssh_command($connection, $command) {
         $stream = @ssh2_exec($connection, $command);
         if (!$stream) {
-            throw new Exception("Не удалось выполнить команду: {$command}");
+            throw new Exception("Не удалось выполнить удаленную команду");
         }
         
         stream_set_blocking($stream, true);

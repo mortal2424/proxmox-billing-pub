@@ -1,6 +1,12 @@
 <?php
+$isSecureRequest = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_secure', $isSecureRequest ? '1' : '0');
+ini_set('session.cookie_samesite', 'Lax');
 session_start();
-error_log("Login page accessed. Session: " . print_r($_SESSION, true));
+// Do not write session contents or user records to application logs.
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
@@ -61,12 +67,13 @@ function verifyTelegramAuthorization($auth_data) {
     $secret_key = hash('sha256', $bot_token, true);
     $hash = hash_hmac('sha256', $data_check_string, $secret_key);
 
-    if (strcmp($hash, $check_hash) !== 0) {
+    if (!is_string($check_hash) || !hash_equals($hash, $check_hash)) {
         error_log("Telegram hash verification failed");
         return false;
     }
 
-    if ((time() - $auth_data['auth_date']) > 86400) {
+    $authTimestamp = filter_var($auth_data['auth_date'] ?? null, FILTER_VALIDATE_INT);
+    if ($authTimestamp === false || $authTimestamp > time() + 60 || (time() - $authTimestamp) > 86400) {
         error_log("Telegram auth data expired");
         return false;
     }
@@ -109,6 +116,7 @@ if (isset($_POST['auth_date'])) {
                         $_SESSION['error'] = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
                     } else {
                         session_regenerate_id(true);
+                        unset($user['password_hash']);
                         $_SESSION['user'] = $user;
                         header('Location: /templates/dashboard.php');
                         exit;
@@ -156,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                 $error = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
             } else {
                 session_regenerate_id(true);
+                unset($user['password_hash']);
                 $_SESSION['user'] = $user;
 
                 // Удаляем использованную капчу

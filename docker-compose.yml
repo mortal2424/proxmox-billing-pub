@@ -49,9 +49,15 @@ services:
       - ./uploads:/var/www/html/uploads
       - ./logs:/var/www/html/logs
       - ./backups:/var/www/html/backups
+      - ./docker/proxmox-tls:/etc/proxmox-tls:ro
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
     #  - .:/var/www/html
     environment:
+      CONSOLE_ORIGIN: https://${DOMAIN}
+      CONSOLE_BIND: 0.0.0.0
+      PROXMOX_CA_FILE: ${PROXMOX_CA_FILE:-}
+      PROXMOX_CERT_PINS: ${PROXMOX_CERT_PINS:-}
+      PROXMOX_NODE_KEY: ${PROXMOX_NODE_KEY:-}
       DB_HOST: db
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}

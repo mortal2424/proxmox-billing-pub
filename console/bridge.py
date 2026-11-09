@@ -168,4 +168,4 @@ if __name__ == "__main__":
     app["origin"] = os.environ["CONSOLE_ORIGIN"]
     app.cleanup_ctx.append(resources)
     app.router.add_get("/console/socket", proxy)
-    web.run_app(app, host="127.0.0.1", port=8765, access_log=None)
+    web.run_app(app, host=os.environ.get("CONSOLE_BIND", "127.0.0.1"), port=8765, access_log=None)

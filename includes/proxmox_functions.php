@@ -52,6 +52,35 @@ class ProxmoxAPI {
     }
 
     public function createVM($params) {
+    // Validate every value that becomes part of a remote shell command.
+    $storage = (string)($params['storage'] ?? 'local');
+    $network = (string)($params['network'] ?? 'vmbr0');
+    $scsihw = (string)($params['scsihw'] ?? 'virtio-scsi-pci');
+    $diskSize = (string)($params['disk'] ?? '10');
+    $cpu = filter_var($params['cpu'] ?? 1, FILTER_VALIDATE_INT);
+    $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
+    if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $storage) ||
+        !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
+        !in_array($scsihw, ['virtio-scsi-pci', 'virtio-scsi-single', 'lsi', 'lsi53c810', 'megasas', 'pvscsi'], true) ||
+        !preg_match('/^[1-9][0-9]{0,5}$/', $diskSize) ||
+        $cpu === false || $cpu < 1 || $cpu > 256 ||
+        $ram === false || $ram < 16 || $ram > 1048576) {
+        throw new InvalidArgumentException('Invalid VM resource or device parameters');
+    }
+    $sdnInput = (string)($params['sdn'] ?? '');
+    if ($sdnInput !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdnInput)) {
+        throw new InvalidArgumentException('Invalid SDN network identifier');
+    }
+    $cdromsInput = $params['cdroms'] ?? [];
+    if (!is_array($cdromsInput) || count($cdromsInput) > 4) {
+        throw new InvalidArgumentException('Invalid ISO list');
+    }
+    foreach ($cdromsInput as $isoInput) {
+        if (!is_string($isoInput) || !preg_match('#^(?:[A-Za-z0-9_.-]{1,64}:iso/|iso/)?[A-Za-z0-9_.+-]+$#', $isoInput) || basename($isoInput) === '.' || basename($isoInput) === '..') {
+            throw new InvalidArgumentException('Invalid ISO identifier');
+        }
+    }
+
     $this->pdo->beginTransaction();
 
     try {
@@ -70,8 +99,8 @@ class ProxmoxAPI {
         $nodeId = $this->nodeId;
         $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
         $hasIso = !empty($params['iso']);
-        $storage = $params['storage'] ?? 'local';
-        $network = $params['network'] ?? 'vmbr0';
+        $storage = (string)($params['storage'] ?? 'local');
+        $network = (string)($params['network'] ?? 'vmbr0');
         $sdn = $params['sdn'] ?? null;
         $isCustom = $params['is_custom'] ?? 0;
         $osVersion = $params['os_version'] ?? '';
@@ -86,21 +115,21 @@ class ProxmoxAPI {
             "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s",
             $vmid,
             escapeshellarg($params['hostname'] ?? 'vm-' . $vmid),
-            $params['cpu'] ?? 1,
-            $params['ram'] ?? 1024,
-            $params['scsihw'] ?? 'virtio-scsi-pci'
+            $cpu,
+            $ram,
+            escapeshellarg($scsihw)
         );
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
 
         // 5. Настройка дисков
-        $diskSize = $params['disk'] ?? '10';
-        $diskCmd = "qm set {$vmid} --scsi0 {$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback";
+        $diskSize = (string)($params['disk'] ?? '10');
+        $diskCmd = "qm set {$vmid} --scsi0 " . escapeshellarg("{$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback");
         error_log("[VM Creation] Setting main disk: {$diskCmd}");
         $this->execSSHCommand($diskCmd);
 
         // EFI диск
-        $efiCmd = "qm set {$vmid} --efidisk0 {$storage}:1,format=raw,pre-enrolled-keys=0";
+        $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:1,format=raw,pre-enrolled-keys=0");
         error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
         $this->execSSHCommand($efiCmd);
 
@@ -128,8 +157,9 @@ class ProxmoxAPI {
         $mountedCdroms = [];
         foreach ($cdroms as $cdrom) {
             // Форматируем путь к ISO правильно
-            if (!preg_match('/^[a-z0-9_-]+:iso\//i', $cdrom)) {
-                $cdrom = "{$storageForIso}:iso/" . ltrim($cdrom, '/');
+            if (!preg_match('/^[a-z0-9_.-]+:iso\//i', $cdrom)) {
+                $isoName = preg_replace('#^iso/#', '', ltrim($cdrom, '/'));
+                $cdrom = "{$storageForIso}:iso/" . $isoName;
             }
 
             // Извлекаем имя файла для проверки
@@ -148,7 +178,7 @@ class ProxmoxAPI {
             }
 
             // Монтируем ISO
-            $isoCmd = "qm set {$vmid} --ide{$cdromIndex} {$cdrom},media=cdrom";
+            $isoCmd = "qm set {$vmid} --ide{$cdromIndex} " . escapeshellarg($cdrom . ",media=cdrom");
             error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
 
             try {
@@ -175,7 +205,7 @@ class ProxmoxAPI {
         $this->execSSHCommand($bootCmd);
 
         // 8. Настройка сети
-        $netCmd = "qm set {$vmid} --net0 virtio,bridge=" . escapeshellarg($networkValue);
+        $netCmd = "qm set {$vmid} --net0 " . escapeshellarg("virtio,bridge={$networkValue}");
         error_log("[VM Creation] Setting network: {$netCmd}");
         $this->execSSHCommand($netCmd);
 
@@ -311,6 +341,23 @@ public function getLXCTemplates() {
 }
 
 public function createLXC($params) {
+    // Validate all dynamic arguments before constructing pct shell commands.
+    $storage = (string)($params['storage'] ?? 'local');
+    $template = (string)($params['template'] ?? '');
+    $network = (string)($params['network'] ?? 'vmbr0');
+    $cpu = filter_var($params['cpu'] ?? 1, FILTER_VALIDATE_INT);
+    $ram = filter_var($params['ram'] ?? 1024, FILTER_VALIDATE_INT);
+    $disk = filter_var($params['disk'] ?? 10, FILTER_VALIDATE_INT);
+    $sdn = (string)($params['sdn'] ?? '');
+    if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $storage) ||
+        !preg_match('#^[A-Za-z0-9_.-]{1,64}:vztmpl/[A-Za-z0-9_.+-]+$#', $template) ||
+        !preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $network) ||
+        ($sdn !== '' && !preg_match('#^[A-Za-z0-9_.-]{1,64}(?:/[A-Za-z0-9_.-]{1,64})?$#', $sdn)) ||
+        $cpu === false || $cpu < 1 || $cpu > 256 ||
+        $ram === false || $ram < 16 || $ram > 1048576 ||
+        $disk === false || $disk < 1 || $disk > 1048576) {
+        throw new InvalidArgumentException('Invalid LXC template, storage, network or resource parameters');
+    }
     $this->pdo->beginTransaction();
 
     try {
@@ -328,8 +375,8 @@ public function createLXC($params) {
         // Подготовка параметров
         $hostname = $params['hostname'] ?? 'lxc-' . $vmid;
         $password = $params['password'] ?? '';
-        $storage = $params['storage'] ?? 'local';
-        $template = $params['template'] ?? '';
+        $storage = (string)($params['storage'] ?? 'local');
+        $template = (string)($params['template'] ?? '');
         $nodeId = $this->nodeId;
 
         if (empty($template)) {
@@ -338,22 +385,22 @@ public function createLXC($params) {
 
         // Создание контейнера (без сети)
         $createCmd = "pct create {$vmid} " . escapeshellarg($template) . " " .
-                    "--storage {$storage} " .
+                     "--storage " . escapeshellarg($storage) . " " .
                     "--hostname " . escapeshellarg($hostname) . " " .
-                    "--cores " . ($params['cpu'] ?? 1) . " " .
-                    "--memory " . ($params['ram'] ?? 1024) . " " .
-                    "--rootfs " . ($params['disk'] ?? 10) . " " .
+                    "--cores {$cpu} " .
+                    "--memory {$ram} " .
+                    "--rootfs {$disk} " .
                     "--password " . escapeshellarg($password) . " " .
                     "--unprivileged 0 " .
                     "--onboot 1 " .
                     "--features nesting=1";
 
-        error_log("[LXC Creation] Creating container: {$createCmd}");
+        error_log("[LXC Creation] Creating container {$vmid} with validated parameters");
         $this->execSSHCommand($createCmd);
 
         // Настройка сети
-        $network = $params['network'] ?? 'vmbr0';
-        $sdn = $params['sdn'] ?? null;
+        $network = (string)($params['network'] ?? 'vmbr0');
+        $sdn = (string)($params['sdn'] ?? '');
 
         if (!empty($sdn)) {
             $sdnParts = explode('/', $sdn);
@@ -372,7 +419,7 @@ public function createLXC($params) {
             $netString = "name=eth0,bridge={$network},ip=dhcp,firewall=1";
         }
 
-        $netCmd = "pct set {$vmid} --net0 '{$netString}'";
+        $netCmd = "pct set {$vmid} --net0 " . escapeshellarg($netString);
         error_log("[LXC Creation] Setting network: {$netCmd}");
         $this->execSSHCommand($netCmd);
 
@@ -747,7 +794,8 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 "Cookie: PVEAuthCookie=" . urlencode($ticket['ticket']),
                 "CSRFPreventionToken: " . $ticket['csrf_token']
             ],
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 10
         ]);
 
@@ -999,7 +1047,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     public function execSSHCommand($command) {
         $stream = @ssh2_exec($this->ssh, $command);
         if (!$stream) {
-            throw new Exception("Не удалось выполнить команду: $command");
+            throw new Exception("Не удалось выполнить удаленную команду");
         }
 
         $errorStream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
@@ -2029,8 +2077,8 @@ public function getAPITicket() {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => http_build_query($postData),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/x-www-form-urlencoded'

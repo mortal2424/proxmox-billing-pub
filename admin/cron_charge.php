@@ -1,5 +1,12 @@
 <?php
 require_once __DIR__ . '/../includes/cli_only.php';
+
+$lockHandle = fopen(sys_get_temp_dir() . '/proxmox-billing-cron-charge.lock', 'c');
+if ($lockHandle === false || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+    error_log('cron_charge.php: another billing run is already active');
+    exit(0);
+}
+
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
@@ -39,7 +46,14 @@ foreach ($vms as $vm) {
     try {
         $pdo->beginTransaction();
         
-        $user_id = $vm['user_id'];
+        $user_id = (int)$vm['user_id'];
+        // Lock and read the current balance, not the stale value from the initial VM list.
+        $balanceStmt = $pdo->prepare('SELECT balance, bonus_balance FROM users WHERE id = ? FOR UPDATE');
+        $balanceStmt->execute([$user_id]);
+        $currentUser = $balanceStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$currentUser) {
+            throw new RuntimeException('Billing user not found: ' . $user_id);
+        }
         $amount = 0;
         $metadata = [];
         
@@ -96,7 +110,7 @@ foreach ($vms as $vm) {
         }
         
         // 4. Сначала списываем с бонусного баланса (но не уходим в минус)
-        $bonus_balance_used = min($vm['bonus_balance'], $amount);
+        $bonus_balance_used = min(max(0, (float)$currentUser['bonus_balance']), $amount);
         $remaining_amount = $amount - $bonus_balance_used;
         
         if ($bonus_balance_used > 0) {
@@ -115,8 +129,8 @@ foreach ($vms as $vm) {
         }
         
         // 5. Затем списываем с основного баланса (если есть остаток)
-        if ($remaining_amount > 0 && $vm['balance'] > 0) {
-            $main_balance_used = min($vm['balance'], $remaining_amount);
+        if ($remaining_amount > 0 && (float)$currentUser['balance'] > 0) {
+            $main_balance_used = min(max(0, (float)$currentUser['balance']), $remaining_amount);
             
             $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")
                 ->execute([$main_balance_used, $user_id]);
@@ -156,11 +170,10 @@ foreach ($vms as $vm) {
             $proxmox->suspendVM($vm['vm_id'], "Недостаточно средств на балансе");
         } elseif ($vm['status'] == 'suspended') {
             // Если средств хватает, но ВМ приостановлена - возобновляем
-            $current_balance = $pdo->prepare("SELECT balance, bonus_balance FROM users WHERE id = ?")
-                ->execute([$user_id])
-                ->fetch(PDO::FETCH_ASSOC);
-            
-            $total_balance = $current_balance['balance'] + $current_balance['bonus_balance'];
+            $balanceStmt = $pdo->prepare("SELECT balance, bonus_balance FROM users WHERE id = ?");
+            $balanceStmt->execute([$user_id]);
+            $current_balance = $balanceStmt->fetch(PDO::FETCH_ASSOC);
+            $total_balance = (float)$current_balance['balance'] + (float)$current_balance['bonus_balance'];
             $required_balance = $amount * 24; // Проверяем на сутки вперед
             
             if ($total_balance >= $required_balance) {
@@ -174,7 +187,9 @@ foreach ($vms as $vm) {
         
         $pdo->commit();
     } catch (Exception $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log("Error processing VM #{$vm['vm_id']}: " . $e->getMessage());
     }
 }

@@ -1,3 +1,17 @@
+FROM debian:bookworm-slim AS console-assets
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && mkdir -p /assets/novnc /assets/xterm /assets/fit \
+    && curl -fsSL --retry 3 https://codeload.github.com/novnc/noVNC/tar.gz/refs/tags/v1.5.0 -o /tmp/novnc.tgz \
+    && echo "6a73e41f98388a5348b7902f54b02d177cb73b7e5eb0a7a0dcf688cc2c79b42a  /tmp/novnc.tgz" | sha256sum -c - \
+    && tar -xzf /tmp/novnc.tgz --strip-components=1 -C /assets/novnc noVNC-1.5.0/core noVNC-1.5.0/vendor noVNC-1.5.0/LICENSE.txt \
+    && curl -fsSL --retry 3 https://registry.npmjs.org/@xterm/xterm/-/xterm-5.5.0.tgz -o /tmp/xterm.tgz \
+    && echo "bd954fa721872170188cc5d7e83e88db3c83c9a18a4e8d24c2783d26491f59d2  /tmp/xterm.tgz" | sha256sum -c - \
+    && tar -xzf /tmp/xterm.tgz --strip-components=1 -C /assets/xterm package/lib package/css package/LICENSE \
+    && curl -fsSL --retry 3 https://registry.npmjs.org/@xterm/addon-fit/-/addon-fit-0.10.0.tgz -o /tmp/fit.tgz \
+    && echo "917ac44972453d5eed52edc1e50260c76398ce48cf2290c2e60671102bba0b33  /tmp/fit.tgz" | sha256sum -c - \
+    && tar -xzf /tmp/fit.tgz --strip-components=1 -C /assets/fit package/lib package/LICENSE
+
 FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y \
@@ -10,7 +24,7 @@ RUN apt-get update && apt-get install -y \
         libssh2-1-dev \
         libssh2-1 \
         zip unzip git curl cron \
-        mariadb-client \
+        mariadb-client python3-aiohttp supervisor \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) pdo_mysql mysqli zip gd mbstring exif pcntl bcmath \
     && pecl install ssh2-1.4.1 \
@@ -21,12 +35,19 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 COPY . /var/www/html/
+COPY --from=console-assets /assets/ /var/www/html/console/assets/
+COPY console/bridge.py /opt/homevlad-console/bridge.py
+COPY docker/console-supervisor.conf /etc/supervisor/console.conf
+
+RUN install -d -m 0750 -o www-data -g www-data /run/homevlad-console \
+    && rm /var/www/html/console/bridge.py /var/www/html/console/homevlad-console.service \
+          /var/www/html/console/nginx.conf /var/www/html/console/README.md
 
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 777 /var/www/html/uploads \
-    && chmod -R 777 /var/www/html/logs \
-    && chmod -R 777 /var/www/html/backups
+    && chmod -R 755 /var/www/html/uploads \
+    && chmod -R 750 /var/www/html/logs \
+    && chmod -R 750 /var/www/html/backups
 
 COPY docker/crontab.txt /etc/crontab
 RUN chmod 0644 /etc/crontab
@@ -41,4 +62,4 @@ WORKDIR /var/www/html
 
 EXPOSE 80
 
-CMD ["sh", "-c", "/usr/local/bin/init.sh && cron && apache2-foreground"]
+CMD ["sh", "-c", "/usr/local/bin/init.sh && cron && exec supervisord -c /etc/supervisor/console.conf"]

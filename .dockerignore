@@ -9,3 +9,7 @@ uploads/*
 backups/*
 webroot/*
 *.log
+.env.*
+docker/proxmox-tls
+docker/ssl
+includes/config.php

@@ -28,8 +28,8 @@ foreach ($nodes as $node) {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $postData,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/x-www-form-urlencoded',
@@ -42,8 +42,6 @@ foreach ($nodes as $node) {
         
         if ($httpCode !== 200) {
             error_log("Failed to get ticket for node {$node['id']}: HTTP {$httpCode}");
-            error_log("Request data: " . print_r($postData, true));
-            error_log("Response: " . $response);
             curl_close($ch);
             continue;
         }
@@ -53,7 +51,6 @@ foreach ($nodes as $node) {
         $data = json_decode($response, true);
         if (!$data || !isset($data['data']['ticket'])) {
             error_log("Invalid ticket response from node {$node['id']}");
-            error_log("Response: " . $response);
             continue;
         }
         
