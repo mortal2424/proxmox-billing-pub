@@ -437,9 +437,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     top: 70px;
     width: 280px;
     height: auto;
-    --mint-text: #bdf3df;
-    --mint-focus: #bdf3df;
-    background: linear-gradient(180deg, var(--full-shell-start, #203b38), var(--full-shell-end, #294845));
+    background: linear-gradient(180deg, #0e1727 0%, #172438 100%);
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     z-index: 900;
     margin-bottom: 60px;
