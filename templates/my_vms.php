@@ -40,7 +40,10 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
-    <link rel="stylesheet" href="/css/workspace.css?v=4">
+    <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
+    <?php if ($workspaceLite): ?>
+        <link rel="stylesheet" href="/css/workspace.css?v=5">
+    <?php endif; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1114,8 +1117,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         }
     </style>
 </head>
-<body class="workspace">
-    <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+<body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
+    <?php if ($workspaceLite): ?>
+        <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+    <?php else: ?>
+        <?php include '../templates/headers/user_header.php'; ?>
+    <?php endif; ?>
 
     <!-- Кнопка меню для мобильных -->
     <button class="mobile-menu-toggle" id="mobileMenuToggle">
@@ -1127,9 +1134,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         <i class="fas fa-chevron-up"></i>
     </a>
 
+    <?php if ($workspaceLite): ?>
     <div class="workspace-layout">
         <?php require __DIR__ . '/headers/workspace_sidebar.php'; ?>
+    <?php endif; ?>
     <div class="main-container">
+        <?php if (!$workspaceLite) { include '../templates/headers/user_sidebar.php'; } ?>
 
         <div class="main-content">
             <!-- Прогресс бар загрузки -->
@@ -1303,7 +1313,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             </div>
         </div>
     </div>
-    </div>
+    <?php if ($workspaceLite): ?></div><?php endif; ?>
 
     <?php
     // Подключаем общий футер
@@ -1324,7 +1334,10 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         let memoryChart = null;
         let networkChart = null;
         let diskChart = null;
-        let guestView = localStorage.getItem('workspaceGuestView') === 'grid' ? 'grid' : 'compact';
+        const liteLayout = document.body.classList.contains('workspace');
+        const guestViewKey = liteLayout ? 'workspaceGuestView' : 'fullGuestView';
+        const savedGuestView = localStorage.getItem(guestViewKey);
+        let guestView = ['compact', 'grid'].includes(savedGuestView) ? savedGuestView : (liteLayout ? 'compact' : 'grid');
         let compactViewHtml = {
             vm: '',
             container: ''
@@ -2696,7 +2709,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             addContainerActionHandlers();
             filterGuests('vm');
             filterGuests('container');
-            localStorage.setItem('workspaceGuestView', guestView);
+            localStorage.setItem(guestViewKey, guestView);
         }
 
         function filterGuests(kind) {

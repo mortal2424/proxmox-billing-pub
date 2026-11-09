@@ -25,6 +25,7 @@ if ($workspaceCurrent === 'vm_settings.php') {
             <details>
                 <summary>Аккаунт</summary>
                 <div class="portal-account-menu">
+                    <?php require __DIR__ . '/workspace_switch.php'; ?>
                     <a href="/templates/settings.php">Настройки</a>
                     <a href="/status/">Статус платформы</a>
                     <?php if (!empty($user['is_admin'])): ?><a href="/admin/">Администрирование</a><?php endif; ?>
@@ -38,12 +39,13 @@ if ($workspaceCurrent === 'vm_settings.php') {
 <script>
 (() => {
     const button = document.getElementById('portal-theme');
-    const key = 'homevlad-portal-theme';
+    const key = 'homevlad-theme-choice';
     const apply = dark => {
         document.body.classList.toggle('dark-theme', dark);
         button.setAttribute('aria-pressed', String(dark));
     };
-    let dark = localStorage.getItem(key) === 'dark';
+    let dark = (localStorage.getItem(key) ?? localStorage.getItem('homevlad-portal-theme')
+        ?? localStorage.getItem('theme')) === 'dark';
     apply(dark);
     button.addEventListener('click', () => {
         dark = !dark;

@@ -403,3 +403,9 @@ body.workspace .workspace-layout > .support-main { min-width: 0; }
     body.workspace-docs .workspace-layout .main-container { gap: 16px; }
     body.workspace-docs .workspace-layout .docs-sidebar-right { margin: 0; }
 }
+
+.portal-account-menu .portal-layout-switch {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+}

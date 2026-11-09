@@ -135,6 +135,12 @@
                     <div class="menu-divider"></div>
 
                     <div class="profile-links">
+                        <?php if (isset($workspaceLite)): ?>
+                            <?php require __DIR__ . '/workspace_switch.php'; ?>
+                            <button type="button" class="menu-link portal-layout-switch" id="profile-theme-toggle">
+                                Светлая / тёмная тема
+                            </button>
+                        <?php endif; ?>
                         <a href="/templates/settings.php" class="menu-link">
                             <i class="fas fa-user-cog"></i> Настройки профиля
                         </a>
@@ -386,6 +392,14 @@ html {
 }
 
 /* ========== ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ========== */
+.admin-header.centered-header .portal-layout-switch {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
 .admin-header.centered-header .theme-switcher {
     display: flex;
     align-items: center;
@@ -1076,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Ключи для localStorage
     const THEME_KEY = 'theme';
+    const PORTAL_THEME_KEY = 'homevlad-theme-choice';
     const MANUAL_THEME_KEY = 'manual_theme';
     const LAST_AUTO_CHANGE_KEY = 'last_auto_theme_date';
     const MANUAL_OVERRIDE_KEY = 'manual_override_active';
@@ -1173,6 +1188,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Инициализация темы при загрузке страницы
     function initTheme() {
+        const portalTheme = localStorage.getItem(PORTAL_THEME_KEY);
+        if (portalTheme === 'dark' || portalTheme === 'light') {
+            setTheme(portalTheme === 'dark');
+            return;
+        }
+
         const savedTheme = localStorage.getItem(THEME_KEY);
         const manualTheme = localStorage.getItem(MANUAL_THEME_KEY);
         const lastAutoChangeDate = localStorage.getItem(LAST_AUTO_CHANGE_KEY);
@@ -1207,9 +1228,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (themeToggle) {
         themeToggle.addEventListener('change', function() {
             const isDark = this.checked;
+            localStorage.setItem(PORTAL_THEME_KEY, isDark ? 'dark' : 'light');
             setManualTheme(isDark);
         });
     }
+
+    document.getElementById('profile-theme-toggle')?.addEventListener('click', () => {
+        if (themeToggle) {
+            themeToggle.checked = !themeToggle.checked;
+            themeToggle.dispatchEvent(new Event('change'));
+        }
+    });
 
     // Эффект при скролле
     if (header) {
@@ -1328,6 +1357,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Проверяем изменение времени каждую минуту
     setInterval(function() {
+        if (localStorage.getItem(PORTAL_THEME_KEY)) return;
         const overrideActive = isManualOverrideActive();
 
         if (!overrideActive) {

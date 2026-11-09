@@ -288,13 +288,23 @@ $listUrl = '/templates/support.php?tab=' . $tab;
     <title>Поддержка | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/themes.css">
-    <link rel="stylesheet" href="/css/workspace.css?v=4">
+    <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
+    <?php if ($workspaceLite): ?>
+        <link rel="stylesheet" href="/css/workspace.css?v=5">
+    <?php endif; ?>
     <link rel="stylesheet" href="/css/support.css">
 </head>
-<body class="support-page workspace">
-<?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+<body class="support-page<?= $workspaceLite ? ' workspace' : '' ?>">
+<?php if ($workspaceLite): ?>
+        <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+    <?php else: ?>
+        <?php include __DIR__ . '/headers/user_header.php'; ?>
+    <?php endif; ?>
+    <?php if ($workspaceLite): ?>
     <div class="workspace-layout">
         <?php require __DIR__ . '/headers/workspace_sidebar.php'; ?>
+    <?php endif; ?>
+<?php if (!$workspaceLite) { include __DIR__ . '/headers/user_sidebar.php'; } ?>
 <main class="main-content support-main">
     <div class="support-shell">
         <header class="support-heading">
@@ -439,6 +449,6 @@ $listUrl = '/templates/support.php?tab=' . $tab;
         <?php endif; ?>
     </div>
 </main>
-    </div>
+    <?php if ($workspaceLite): ?></div><?php endif; ?>
 </body>
 </html>

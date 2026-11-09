@@ -526,7 +526,10 @@ $title = "Telegram Bot | HomeVlad Cloud";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
-    <link rel="stylesheet" href="/css/workspace.css?v=4">
+    <?php require __DIR__ . '/headers/workspace_preference.php'; ?>
+    <?php if ($workspaceLite): ?>
+        <link rel="stylesheet" href="/css/workspace.css?v=5">
+    <?php endif; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1278,12 +1281,19 @@ $title = "Telegram Bot | HomeVlad Cloud";
         }
     </style>
 </head>
-<body class="workspace">
-    <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+<body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
+    <?php if ($workspaceLite): ?>
+        <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
+    <?php else: ?>
+        <?php include '../templates/headers/user_header.php'; ?>
+    <?php endif; ?>
 
+    <?php if ($workspaceLite): ?>
     <div class="workspace-layout">
         <?php require __DIR__ . '/headers/workspace_sidebar.php'; ?>
+    <?php endif; ?>
     <div class="main-container">
+        <?php if (!$workspaceLite) { include '../templates/headers/user_sidebar.php'; } ?>
 
         <div class="main-content">
             <!-- Заголовок страницы -->
@@ -1665,7 +1675,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             <?php endif; ?>
         </div>
     </div>
-    </div>
+    <?php if ($workspaceLite): ?></div><?php endif; ?>
 
     <?php
     // Подключаем общий футер из файла - ТОЛЬКО если файл существует
