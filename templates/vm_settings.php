@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
-    <link rel="stylesheet" href="/css/workspace.css?v=3">
+    <link rel="stylesheet" href="/css/workspace.css?v=4">
     <title>Настройки <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнера' ?> | <?= htmlspecialchars($_ENV['APP_NAME']) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -716,6 +716,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <i class="fas fa-chevron-up"></i>
     </a>
 
+    <div class="workspace-layout">
+        <?php require __DIR__ . '/headers/workspace_sidebar.php'; ?>
     <div class="main-container">
 
         <div class="main-content">
@@ -838,6 +840,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <?php include '../templates/headers/user_footer.php'; ?>

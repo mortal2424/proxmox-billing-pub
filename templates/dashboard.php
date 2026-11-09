@@ -47,7 +47,6 @@ $resources = [
     ['Хранилище', 'disk', 'max_disk', ' ГБ', 1],
 ];
 $money = static fn ($value) => number_format((float) $value, 2, ',', ' ') . ' ₽';
-$workspaceSidebar = true;
 $running = (int) $usage['running'];
 $total = (int) $usage['guests'];
 ?>
@@ -59,16 +58,13 @@ $total = (int) $usage['guests'];
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Инфраструктура | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/workspace.css?v=3">
-    <link rel="stylesheet" href="/css/cloud-overview.css?v=2">
+    <link rel="stylesheet" href="/css/workspace.css?v=4">
+    <link rel="stylesheet" href="/css/cloud-overview.css?v=3">
 </head>
 <body class="workspace cloud-overview">
     <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
-    <div class="cloud-layout">
-        <aside class="cloud-sidebar">
-            <p class="cloud-sidebar-label">Личный кабинет</p>
-            <?php require __DIR__ . '/headers/workspace_links.php'; ?>
-        </aside>
+    <div class="workspace-layout">
+        <?php require __DIR__ . '/headers/workspace_sidebar.php'; ?>
         <main class="cloud-main">
             <section class="cloud-hero" aria-labelledby="cloud-title">
                 <div>

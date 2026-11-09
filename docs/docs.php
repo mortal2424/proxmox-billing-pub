@@ -336,7 +336,7 @@ $title = "Документация | HomeVlad Cloud";
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/css/themes.css">
-    <link rel="stylesheet" href="/css/workspace.css?v=3">
+    <link rel="stylesheet" href="/css/workspace.css?v=4">
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
@@ -1716,6 +1716,8 @@ $title = "Документация | HomeVlad Cloud";
     <!-- Оверлей для мобильного правого сайдбара -->
     <div class="docs-sidebar-right-overlay" id="docsSidebarRightOverlay"></div>
 
+    <div class="workspace-layout">
+        <?php require __DIR__ . '/../templates/headers/workspace_sidebar.php'; ?>
     <div class="main-container">
 
         <div class="main-content">
@@ -2258,6 +2260,7 @@ $title = "Документация | HomeVlad Cloud";
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <?php

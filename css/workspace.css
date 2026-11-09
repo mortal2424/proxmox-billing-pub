@@ -346,3 +346,60 @@ body.workspace .modern-footer { margin-left: 0; width: 100%; }
     .workspace .portal-header .workspace-nav { gap: 0 7px; }
     .portal-header .workspace-nav a { font-size: .8rem; padding-inline: 4px; }
 }
+
+.workspace-layout {
+    display: grid;
+    grid-template-columns: 198px minmax(0, 1fr);
+    gap: 22px;
+    max-width: 1220px;
+    margin-inline: auto;
+    padding: clamp(14px, 3vw, 26px) 20px 36px;
+}
+.workspace-sidebar {
+    align-self: start;
+    position: sticky;
+    top: 20px;
+    border: 1px solid var(--workspace-border);
+    border-radius: 15px;
+    background: var(--workspace-surface);
+}
+.workspace-sidebar-label {
+    margin: 0;
+    padding: 15px 14px 10px;
+    font-size: .75rem;
+    font-weight: 750;
+    color: var(--workspace-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+.workspace .workspace-sidebar .workspace-nav {
+    display: grid;
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+.workspace-sidebar .workspace-nav a i { width: 1.2em; text-align: center; }
+.workspace-sidebar .workspace-nav a[aria-current] { box-shadow: inset 3px 0 var(--mint-text); }
+
+@media (max-width: 980px) {
+    .workspace-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .workspace-sidebar { position: static; }
+    .workspace-sidebar-label { display: none; }
+    .workspace .workspace-sidebar .workspace-nav { display: flex; }
+    .workspace-sidebar .workspace-nav a[aria-current] { box-shadow: none; }
+}
+@media (max-width: 400px) {
+    .workspace-layout { padding-inline: 12px; }
+}
+
+.workspace-layout > .main-container { min-width: 0; width: 100%; }
+body.workspace .workspace-layout .main-content { padding: 0 0 18px; min-width: 0; }
+body.workspace .workspace-layout > .support-main { min-width: 0; }
+@media (min-width: 993px) and (max-width: 1199px) {
+    body.workspace-docs .workspace-layout .main-container { display: block; }
+    body.workspace-docs .workspace-layout .docs-sidebar-right { margin: 12px 0 0; }
+}
+@media (min-width: 1200px) {
+    body.workspace-docs .workspace-layout .main-container { gap: 16px; }
+    body.workspace-docs .workspace-layout .docs-sidebar-right { margin: 0; }
+}

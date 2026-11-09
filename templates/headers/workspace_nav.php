@@ -33,9 +33,7 @@ if ($workspaceCurrent === 'vm_settings.php') {
             </details>
         </div>
     </div>
-<?php if (empty($workspaceSidebar)): ?>
-    <?php require __DIR__ . '/workspace_links.php'; ?>
-<?php endif; ?>
+
 </header>
 <script>
 (() => {

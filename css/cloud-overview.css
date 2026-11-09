@@ -90,48 +90,4 @@ body.cloud-overview {
     .cloud-status { grid-column: 2; }
 }
 
-.cloud-layout {
-    display: grid;
-    grid-template-columns: 198px minmax(0, 1fr);
-    gap: 22px;
-    max-width: 1220px;
-    margin-inline: auto;
-    padding: clamp(14px, 3vw, 26px) 20px 36px;
-}
-.cloud-layout .cloud-main { width: 100%; margin: 0; padding: 0; }
-.cloud-sidebar {
-    align-self: start;
-    position: sticky;
-    top: 20px;
-    border: 1px solid var(--workspace-border);
-    border-radius: 15px;
-    background: var(--workspace-surface);
-}
-.cloud-sidebar-label {
-    margin: 0;
-    padding: 15px 14px 10px;
-    font-size: .75rem;
-    font-weight: 750;
-    color: var(--workspace-muted);
-    text-transform: uppercase;
-    letter-spacing: .06em;
-}
-.cloud-overview .cloud-sidebar .workspace-nav {
-    display: grid;
-    margin: 0;
-    border: 0;
-    background: transparent;
-}
-.cloud-sidebar .workspace-nav a i { width: 1.2em; text-align: center; }
-.cloud-sidebar .workspace-nav a[aria-current] { box-shadow: inset 3px 0 var(--mint-text); }
-
-@media (max-width: 980px) {
-    .cloud-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-    .cloud-sidebar { position: static; }
-    .cloud-sidebar-label { display: none; }
-    .cloud-overview .cloud-sidebar .workspace-nav { display: flex; }
-    .cloud-sidebar .workspace-nav a[aria-current] { box-shadow: none; }
-}
-@media (max-width: 400px) {
-    .cloud-layout { padding-inline: 12px; }
-}
+.workspace-layout .cloud-main { width: 100%; margin: 0; padding: 0; }
