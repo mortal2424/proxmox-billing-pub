@@ -1056,8 +1056,8 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 <a href="/templates/billing.php#payment-form">Пополнить баланс</a>
             </div>
 
-            <!-- Статистика -->
-            <div class="stats-grid">
+            <h2 class="workspace-section-title">Сводка аккаунта</h2>
+            <div class="stats-grid workspace-summary">
                 <!-- Запущенные ВМ -->
                 <div class="stat-card">
                     <div class="stat-header">
@@ -1255,55 +1255,24 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 </div>
 
                 <?php if (count($vms) > 0): ?>
-                    <div class="vm-grid">
+                    <ul class="workspace-recent">
                         <?php foreach ($vms as $vm): ?>
-                            <div class="vm-card">
-                                <div class="vm-header">
-                                    <h3 class="vm-name"><?= htmlspecialchars($vm['hostname']) ?></h3>
-                                    <span class="vm-status <?= $vm['status'] === 'running' ? 'status-running' : 'status-stopped' ?>">
-                                        <?= $vm['status'] === 'running' ? 'Запущена' : 'Остановлена' ?>
-                                    </span>
+                            <li>
+                                <div>
+                                    <strong><?= htmlspecialchars($vm['hostname']) ?></strong>
+                                    <small><?= $vm['vm_type'] === 'lxc' ? 'LXC' : 'QEMU' ?> · №<?= (int) $vm['vm_id'] ?></small>
                                 </div>
-
-                                <div class="vm-specs">
-                                    <div class="vm-spec">
-                                        <i class="fas fa-microchip"></i>
-                                        <span><?= $vm['cpu'] ?> vCPU</span>
-                                    </div>
-                                    <div class="vm-spec">
-                                        <i class="fas fa-memory"></i>
-                                        <span><?= ($vm['ram'] / 1024)?> GB RAM</span>
-                                    </div>
-                                    <div class="vm-spec">
-                                        <i class="fas fa-hdd"></i>
-                                        <span><?= $vm['disk'] ?> GB SSD</span>
-                                    </div>
-                                    <div class="vm-spec">
-                                        <i class="fas fa-network-wired"></i>
-                                        <span><?= $vm['ip_address'] ?? 'DHCP' ?></span>
-                                    </div>
-                                </div>
-
-                                <div class="vm-actions">
-                                    <?php if ($vm['status'] !== 'running'): ?>
-                                        <button class="vm-action-btn" onclick="showNotification('Функция запуска будет реализована в следующих версиях', 'info')">
-                                            <i class="fas fa-play"></i> Запустить
-                                        </button>
-                                    <?php else: ?>
-                                        <button class="vm-action-btn warning" onclick="showNotification('Функция перезагрузки будет реализована в следующих версиях', 'info')">
-                                            <i class="fas fa-sync-alt"></i> Перезагрузить
-                                        </button>
-                                        <button class="vm-action-btn danger" onclick="showNotification('Функция остановки будет реализована в следующих версиях', 'info')">
-                                            <i class="fas fa-stop"></i> Остановить
-                                        </button>
-                                    <?php endif; ?>
-                                    <button class="vm-action-btn" onclick="openVmDetails(<?= $vm['id'] ?>)">
-                                        <i class="fas fa-info-circle"></i> Подробнее
-                                    </button>
-                                </div>
-                            </div>
+                                <span><?= match ($vm['status']) {
+                                    'running' => 'Работает',
+                                    'suspended' => 'Приостановлено',
+                                    'creating' => 'Создаётся',
+                                    default => 'Остановлено',
+                                } ?></span>
+                                <span><?= (int) $vm['cpu'] ?> vCPU · <?= (int) $vm['disk'] ?> ГБ</span>
+                                <a href="/templates/my_vms.php?guest=<?= (int) $vm['vm_id'] ?>&amp;type=<?= $vm['vm_type'] === 'lxc' ? 'lxc' : 'qemu' ?>">Управление →</a>
+                            </li>
                         <?php endforeach; ?>
-                    </div>
+                    </ul>
                 <?php else: ?>
                     <div class="empty-state">
                         <div class="empty-icon">
@@ -1317,19 +1286,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 <?php endif; ?>
             </div>
 
-            <!-- Последние действия -->
-            <div class="activity-section">
-                <h2 class="section-title">
-                    <i class="fas fa-history"></i> Последние действия
-                </h2>
 
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <i class="fas fa-history"></i>
-                    </div>
-                    <p class="empty-text">Здесь будет отображаться история ваших действий</p>
-                </div>
-            </div>
         </div>
     </div>
 

@@ -96,7 +96,6 @@ body.workspace.dark-theme {
 }
 .workspace .vm-list-header { flex-wrap: wrap; gap: 10px; }
 .workspace .vm-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr)); }
-.workspace .vm-grid.compact-view { grid-template-columns: 1fr; }
 .workspace .workspace-no-results { grid-column: 1 / -1; }
 
 @media (max-width: 620px) {
@@ -110,3 +109,100 @@ body.workspace.dark-theme {
 .workspace .workspace-vm-tools .search-box { max-width: 100%; }
 .workspace .vm-card { min-width: 0; }
 .workspace .vm-card .vm-name { overflow-wrap: anywhere; }
+
+.workspace .workspace-section-title {
+    margin: 22px 0 10px;
+    color: var(--workspace-ink);
+    font-size: 1.12rem;
+}
+.workspace .workspace-summary {
+    display: block;
+    overflow: hidden;
+    background: var(--workspace-surface);
+    border: 1px solid var(--workspace-border);
+    border-radius: 12px;
+}
+.workspace .workspace-summary .stat-card {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(90px, .6fr) minmax(120px, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--workspace-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    animation: none;
+    transform: none;
+}
+.workspace .workspace-summary .stat-card:last-child { border-bottom: 0; }
+.workspace .workspace-summary .stat-card::before { display: none; }
+.workspace .workspace-summary :is(.stat-header, .stat-value, .quota-progress) { margin: 0; }
+.workspace .workspace-summary .stat-icon { width: 34px; height: 34px; border-radius: 7px; }
+.workspace .workspace-summary .stat-value { font-size: 1.12rem; overflow-wrap: anywhere; }
+.workspace .workspace-summary .stat-details { color: var(--workspace-muted); }
+
+.workspace .vm-grid:has(> .vm-card.compact) {
+    display: block;
+    background: var(--workspace-surface);
+    border: 1px solid var(--workspace-border);
+    border-radius: 12px;
+}
+.workspace .vm-grid > .vm-card.compact {
+    display: grid;
+    grid-template-columns: minmax(155px, 1fr) minmax(250px, 1.5fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--workspace-border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+}
+.workspace .vm-grid > .vm-card.compact:last-child { border-bottom: 0; }
+.workspace .vm-card.compact::before { display: none; }
+.workspace .vm-card.compact :is(.vm-card-header, .vm-specs, .vm-actions) { margin: 0; }
+.workspace .vm-card.compact .vm-card-header { display: block; }
+.workspace .vm-card.compact .vm-specs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.workspace .vm-card.compact .vm-spec { padding: 4px; background: transparent; min-width: 0; }
+.workspace .vm-card.compact .spec-info { flex-wrap: wrap; overflow-wrap: anywhere; }
+.workspace .vm-card.compact .vm-actions { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.workspace .vm-card.compact .vm-action-btn { flex: none; min-width: 38px; min-height: 38px; padding: 5px; }
+
+@media (max-width: 1200px) {
+    .workspace .vm-grid > .vm-card.compact { grid-template-columns: minmax(140px, 1fr) minmax(170px, 1.2fr); }
+    .workspace .vm-card.compact .vm-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 620px) {
+    .workspace .workspace-summary .stat-card { grid-template-columns: minmax(0, 1fr) minmax(75px, auto); gap: 7px; }
+    .workspace .workspace-summary :is(.stat-details, .quota-progress) { grid-column: 1 / -1; }
+    .workspace .vm-grid > .vm-card.compact { grid-template-columns: 1fr; gap: 8px; }
+}
+
+.workspace-recent {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+    background: var(--workspace-surface);
+    border: 1px solid var(--workspace-border);
+    border-radius: 12px;
+}
+.workspace-recent li {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 15px;
+    overflow-wrap: anywhere;
+}
+.workspace-recent li + li { border-top: 1px solid var(--workspace-border); }
+.workspace-recent small { display: block; color: var(--workspace-muted); margin-top: 3px; }
+.workspace-recent a { color: var(--mint-text); font-weight: 650; }
+@media (max-width: 620px) {
+    .workspace-recent li { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

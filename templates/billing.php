@@ -1857,7 +1857,7 @@ $title = "Биллинг | HomeVlad Cloud";
             </div>
 
             <!-- Статистика -->
-            <div class="stats-grid">
+            <div class="stats-grid workspace-summary">
                 <!-- Текущий баланс -->
                 <div class="stat-card balance">
                     <div class="stat-header">

@@ -1364,7 +1364,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             </div>
 
             <!-- Статистика -->
-            <div class="stats-grid">
+            <div class="stats-grid workspace-summary">
                 <div class="stat-card">
                     <div class="stat-header">
                         <div class="stat-icon">

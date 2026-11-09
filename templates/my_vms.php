@@ -1162,7 +1162,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             </div>
 
             <!-- Статистика будет загружена через AJAX -->
-            <div class="stats-grid" id="stats-grid">
+            <div class="stats-grid workspace-summary" id="stats-grid">
                 <!-- Заполнится через AJAX -->
                 <div class="stat-card skeleton"></div>
                 <div class="stat-card skeleton"></div>
@@ -1180,10 +1180,10 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                     <div class="workspace-vm-tools">
                         <div class="view-toggle">
-                            <button class="view-toggle-btn active" data-view="grid" title="Плиточный вид">
+                            <button class="view-toggle-btn" data-view="grid" title="Карточки" aria-label="Карточки" aria-pressed="false">
                                 <i class="fas fa-th-large"></i>
                             </button>
-                            <button class="view-toggle-btn" data-view="compact" title="Компактный вид">
+                            <button class="view-toggle-btn active" data-view="compact" title="Строки" aria-label="Строки" aria-pressed="true">
                                 <i class="fas fa-list"></i>
                             </button>
                         </div>
@@ -1217,10 +1217,10 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                     <div class="workspace-vm-tools">
                         <div class="view-toggle">
-                            <button class="view-toggle-btn active" data-view="grid" title="Плиточный вид">
+                            <button class="view-toggle-btn" data-view="grid" title="Карточки" aria-label="Карточки" aria-pressed="false">
                                 <i class="fas fa-th-large"></i>
                             </button>
-                            <button class="view-toggle-btn" data-view="compact" title="Компактный вид">
+                            <button class="view-toggle-btn active" data-view="compact" title="Строки" aria-label="Строки" aria-pressed="true">
                                 <i class="fas fa-list"></i>
                             </button>
                         </div>
@@ -1329,6 +1329,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         let memoryChart = null;
         let networkChart = null;
         let diskChart = null;
+        let guestView = localStorage.getItem('workspaceGuestView') === 'grid' ? 'grid' : 'compact';
         let compactViewHtml = {
             vm: '',
             container: ''
@@ -1390,6 +1391,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                     loadVmMetrics(currentVmId, this.value, currentVmType);
                 }
             });
+
+            const guestQuery = new URLSearchParams(window.location.search);
+            const guestId = guestQuery.get('guest');
+            if (/^[0-9]+$/.test(guestId ?? '')) {
+                const searchId = guestQuery.get('type') === 'lxc' ? 'container-search' : 'vm-search';
+                document.getElementById(searchId).value = guestId;
+            }
+            syncGuestViewButtons();
 
             // Переключение вида
             document.querySelectorAll('.view-toggle-btn').forEach(btn => {
@@ -1575,10 +1584,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                     containersResponse.json()
                 ]);
 
+                gridViewHtml = {vm: '', container: ''};
+                compactViewHtml = {vm: '', container: ''};
+                allVmsLoaded = allContainersLoaded = false;
+
                 // Обработка VM (qemu)
                 if (vmsData.success && vmsData.vms.length > 0) {
-                    gridViewHtml.vm = '';
-                    compactViewHtml.vm = '';
 
                     // Загружаем метрики для всех VM
                     const metricsPromises = vmsData.vms.map(vm =>
@@ -1613,7 +1624,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                 <div class="vm-card-header">
                                     <div>
                                         <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${vm.status === 'running' ? 'Запущена' : 'Остановлена'}
+                                            ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
                                         </span>
                                         <span class="vm-id">VMID: ${vm.vm_id}</span>
                                     </div>
@@ -1734,7 +1745,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
                                     <div>
                                         <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${vm.status === 'running' ? 'Запущена' : 'Остановлена'}
+                                            ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
                                         </span>
                                         <span class="vm-id">VMID: ${vm.vm_id}</span>
                                     </div>
@@ -1800,7 +1811,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         compactViewHtml.vm += compactHtml;
                     });
 
-                    document.getElementById('vm-list').innerHTML = gridViewHtml.vm;
+                    document.getElementById('vm-list').innerHTML = guestView === 'grid' ? gridViewHtml.vm : compactViewHtml.vm;
                     allVmsLoaded = true;
                     addVmActionHandlers();
                 } else {
@@ -1819,8 +1830,6 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                 // Обработка контейнеров (lxc)
                 if (containersData.success && containersData.containers.length > 0) {
-                    gridViewHtml.container = '';
-                    compactViewHtml.container = '';
 
                     // Загружаем метрики для всех контейнеров
                     const metricsPromises = containersData.containers.map(ct =>
@@ -1855,7 +1864,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                 <div class="vm-card-header">
                                     <div>
                                         <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${ct.status === 'running' ? 'Запущен' : 'Остановлен'}
+                                            ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}
                                         </span>
                                         <span class="vm-id">CTID: ${ct.vm_id}</span>
                                     </div>
@@ -1976,7 +1985,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
                                     <div>
                                         <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${ct.status === 'running' ? 'Запущен' : 'Остановлен'}
+                                            ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}
                                         </span>
                                         <span class="vm-id">CTID: ${ct.vm_id}</span>
                                     </div>
@@ -2042,7 +2051,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                         compactViewHtml.container += compactHtml;
                     });
 
-                    document.getElementById('container-list').innerHTML = gridViewHtml.container;
+                    document.getElementById('container-list').innerHTML = guestView === 'grid' ? gridViewHtml.container : compactViewHtml.container;
                     allContainersLoaded = true;
                     addContainerActionHandlers();
                 } else {
@@ -2674,38 +2683,25 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             }
         }
 
-        // Переключение вида карточек
-        function toggleView(viewType) {
-            // Обновляем активные кнопки
-            document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.view === viewType);
+        function syncGuestViewButtons() {
+            document.querySelectorAll('.view-toggle-btn').forEach(button => {
+                const selected = button.dataset.view === guestView;
+                button.classList.toggle('active', selected);
+                button.setAttribute('aria-pressed', String(selected));
             });
+        }
 
-            if (viewType === 'compact') {
-                document.getElementById('vm-list').innerHTML = compactViewHtml.vm;
-                document.getElementById('container-list').innerHTML = compactViewHtml.container;
-
-                // Применяем компактный стиль
-                document.querySelectorAll('.vm-card').forEach(card => {
-                    card.classList.add('compact');
-                });
-            } else {
-                document.getElementById('vm-list').innerHTML = gridViewHtml.vm;
-                document.getElementById('container-list').innerHTML = gridViewHtml.container;
-
-                // Убираем компактный стиль
-                document.querySelectorAll('.vm-card').forEach(card => {
-                    card.classList.remove('compact');
-                });
-            }
-
-            // Обновляем обработчики событий
+        function toggleView(viewType) {
+            guestView = viewType;
+            syncGuestViewButtons();
+            const markup = guestView === 'grid' ? gridViewHtml : compactViewHtml;
+            if (markup.vm) document.getElementById('vm-list').innerHTML = markup.vm;
+            if (markup.container) document.getElementById('container-list').innerHTML = markup.container;
             addVmActionHandlers();
             addContainerActionHandlers();
-
             filterGuests('vm');
             filterGuests('container');
-            localStorage.setItem('vmViewType', viewType);
+            localStorage.setItem('workspaceGuestView', guestView);
         }
 
         function filterGuests(kind) {
