@@ -54,7 +54,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
-    <link rel="stylesheet" href="/css/workspace.css">
+    <link rel="stylesheet" href="/css/workspace.css?v=3">
     <title>Панель управления | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -997,10 +997,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     </style>
 </head>
 <body class="workspace">
-    <?php
-    // Подключаем обновленную шапку
-    include '../templates/headers/user_header.php';
-    ?>
+    <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
 
     <!-- Кнопка вверх -->
     <a href="#" class="scroll-to-top" id="scrollToTop">
@@ -1028,33 +1025,65 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     </div>
 
     <div class="main-container">
-        <?php
-        // Подключаем обновленный сайдбар
-        include '../templates/headers/user_sidebar.php';
-        ?>
 
         <div class="main-content">
-            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
-            <!-- Заголовок страницы -->
-            <div class="page-header">
-                <div class="workspace-title">
-                    <h1 class="page-title">
-                    <i class="fas fa-tachometer-alt"></i> Панель управления
-                </h1>
-                    <p>Баланс, лимиты и состояние серверов в одном месте.</p>
+            <section class="portal-overview" aria-labelledby="portal-overview-title">
+                <div class="portal-intro">
+                    <p class="portal-label">ЛИЧНЫЙ КАБИНЕТ</p>
+                    <h1 id="portal-overview-title">Обзор</h1>
+                    <p>Ваши серверы, ресурсы и состояние счёта.</p>
+                    <a class="portal-primary" href="/templates/order_vm.php">＋ Заказать сервер</a>
                 </div>
-                <div class="header-actions">
-                    <button class="btn-refresh" onclick="window.location.reload()">
-                        <i class="fas fa-sync-alt"></i> Обновить
-                    </button>
+                <div class="portal-balance">
+                    <p>Доступный баланс</p>
+                    <strong><?= number_format((float) $user['balance'], 2, ',', ' ') ?> ₽</strong>
+                    <a href="/templates/billing.php#payment-form">Пополнить счёт →</a>
                 </div>
+            </section>
+
+            <!-- Виртуальные машины -->
+            <div class="vm-section">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="section-title">
+                        <i class="fas fa-server"></i> Ваши виртуальные машины
+                    </h2>
+                    <a href="/templates/my_vms.php" class="quick-action-btnn" style="padding: 8px 16px;">
+                        <i class="fas fa-list"></i> Все ВМ
+                    </a>
+                </div>
+
+                <?php if (count($vms) > 0): ?>
+                    <ul class="workspace-recent">
+                        <?php foreach ($vms as $vm): ?>
+                            <li>
+                                <div>
+                                    <strong><?= htmlspecialchars($vm['hostname']) ?></strong>
+                                    <small><?= $vm['vm_type'] === 'lxc' ? 'LXC' : 'QEMU' ?> · №<?= (int) $vm['vm_id'] ?></small>
+                                </div>
+                                <span><?= match ($vm['status']) {
+                                    'running' => 'Работает',
+                                    'suspended' => 'Приостановлено',
+                                    'creating' => 'Создаётся',
+                                    default => 'Остановлено',
+                                } ?></span>
+                                <span><?= (int) $vm['cpu'] ?> vCPU · <?= (int) $vm['disk'] ?> ГБ</span>
+                                <a href="/templates/my_vms.php?guest=<?= (int) $vm['vm_id'] ?>&amp;type=<?= $vm['vm_type'] === 'lxc' ? 'lxc' : 'qemu' ?>">Управление →</a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-cloud"></i>
+                        </div>
+                        <p class="empty-text">У вас пока нет виртуальных машин</p>
+                        <a href="/templates/order_vm.php" class="quick-action-btnn">
+                            <i class="fas fa-plus"></i> Заказать ВМ
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
 
-            <div class="workspace-actions" aria-label="Частые действия">
-                <a href="/templates/order_vm.php">Заказать сервер</a>
-                <a href="/templates/my_vms.php">Открыть мои ВМ</a>
-                <a href="/templates/billing.php#payment-form">Пополнить баланс</a>
-            </div>
 
             <h2 class="workspace-section-title">Сводка аккаунта</h2>
             <div class="stats-grid workspace-summary">
@@ -1243,48 +1272,6 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 </div>
             </div>
 
-            <!-- Виртуальные машины -->
-            <div class="vm-section">
-                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 class="section-title">
-                        <i class="fas fa-server"></i> Ваши виртуальные машины
-                    </h2>
-                    <a href="/templates/my_vms.php" class="quick-action-btnn" style="padding: 8px 16px;">
-                        <i class="fas fa-list"></i> Все ВМ
-                    </a>
-                </div>
-
-                <?php if (count($vms) > 0): ?>
-                    <ul class="workspace-recent">
-                        <?php foreach ($vms as $vm): ?>
-                            <li>
-                                <div>
-                                    <strong><?= htmlspecialchars($vm['hostname']) ?></strong>
-                                    <small><?= $vm['vm_type'] === 'lxc' ? 'LXC' : 'QEMU' ?> · №<?= (int) $vm['vm_id'] ?></small>
-                                </div>
-                                <span><?= match ($vm['status']) {
-                                    'running' => 'Работает',
-                                    'suspended' => 'Приостановлено',
-                                    'creating' => 'Создаётся',
-                                    default => 'Остановлено',
-                                } ?></span>
-                                <span><?= (int) $vm['cpu'] ?> vCPU · <?= (int) $vm['disk'] ?> ГБ</span>
-                                <a href="/templates/my_vms.php?guest=<?= (int) $vm['vm_id'] ?>&amp;type=<?= $vm['vm_type'] === 'lxc' ? 'lxc' : 'qemu' ?>">Управление →</a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php else: ?>
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="fas fa-cloud"></i>
-                        </div>
-                        <p class="empty-text">У вас пока нет виртуальных машин</p>
-                        <a href="/templates/order_vm.php" class="quick-action-btnn">
-                            <i class="fas fa-plus"></i> Заказать ВМ
-                        </a>
-                    </div>
-                <?php endif; ?>
-            </div>
 
 
         </div>

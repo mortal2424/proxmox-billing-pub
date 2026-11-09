@@ -288,15 +288,13 @@ $listUrl = '/templates/support.php?tab=' . $tab;
     <title>Поддержка | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/css/themes.css">
-    <link rel="stylesheet" href="/css/workspace.css">
+    <link rel="stylesheet" href="/css/workspace.css?v=3">
     <link rel="stylesheet" href="/css/support.css">
 </head>
 <body class="support-page workspace">
-<?php include __DIR__ . '/headers/user_header.php'; ?>
-<?php include __DIR__ . '/headers/user_sidebar.php'; ?>
+<?php require __DIR__ . '/headers/workspace_nav.php'; ?>
 <main class="main-content support-main">
     <div class="support-shell">
-            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
         <header class="support-heading">
             <div>
                 <p class="support-kicker">HomeVlad Cloud</p>

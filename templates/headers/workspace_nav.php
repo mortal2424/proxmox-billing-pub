@@ -14,10 +14,47 @@ if ($workspaceCurrent === 'vm_settings.php') {
     $workspaceCurrent = 'my_vms.php';
 }
 ?>
-<nav class="workspace-nav" aria-label="Быстрые переходы">
+<header class="portal-header">
+    <div class="portal-top">
+        <a class="portal-brand" href="/templates/dashboard.php">
+            <span class="portal-mark" aria-hidden="true">H</span>
+            <span>HomeVlad <small>Cloud</small></span>
+        </a>
+        <div class="portal-account">
+            <button id="portal-theme" type="button" aria-pressed="false" aria-label="Тёмная тема">◐</button>
+            <details>
+                <summary>Аккаунт</summary>
+                <div class="portal-account-menu">
+                    <a href="/templates/settings.php">Настройки</a>
+                    <a href="/status/">Статус платформы</a>
+                    <?php if (!empty($user['is_admin'])): ?><a href="/admin/">Администрирование</a><?php endif; ?>
+                    <a href="/login/logout.php">Выйти</a>
+                </div>
+            </details>
+        </div>
+    </div>
+<nav class="workspace-nav" aria-label="Разделы кабинета">
     <?php foreach ($workspaceLinks as $page => [$url, $label, $icon]): ?>
         <a href="<?= $url ?>"<?= $page === $workspaceCurrent ? ' aria-current="page"' : '' ?>>
             <i class="fas <?= $icon ?>" aria-hidden="true"></i><span><?= $label ?></span>
         </a>
     <?php endforeach; ?>
 </nav>
+</header>
+<script>
+(() => {
+    const button = document.getElementById('portal-theme');
+    const key = 'homevlad-portal-theme';
+    const apply = dark => {
+        document.body.classList.toggle('dark-theme', dark);
+        button.setAttribute('aria-pressed', String(dark));
+    };
+    let dark = localStorage.getItem(key) === 'dark';
+    apply(dark);
+    button.addEventListener('click', () => {
+        dark = !dark;
+        localStorage.setItem(key, dark ? 'dark' : 'light');
+        apply(dark);
+    });
+})();
+</script>

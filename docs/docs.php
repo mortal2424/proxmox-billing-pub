@@ -336,7 +336,7 @@ $title = "Документация | HomeVlad Cloud";
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/css/themes.css">
-    <link rel="stylesheet" href="/css/workspace.css">
+    <link rel="stylesheet" href="/css/workspace.css?v=3">
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
@@ -1705,11 +1705,8 @@ $title = "Документация | HomeVlad Cloud";
         }
     </style>
 </head>
-<body class="workspace">
-    <?php
-    // Подключаем обновленную шапку
-    include '../templates/headers/user_header.php';
-    ?>
+<body class="workspace workspace-docs">
+    <?php require __DIR__ . '/../templates/headers/workspace_nav.php'; ?>
 
     <!-- Кнопка вверх -->
     <a href="#" class="scroll-to-top" id="scrollToTop">
@@ -1720,13 +1717,8 @@ $title = "Документация | HomeVlad Cloud";
     <div class="docs-sidebar-right-overlay" id="docsSidebarRightOverlay"></div>
 
     <div class="main-container">
-        <?php
-        // Подключаем обновленный сайдбар
-        include '../templates/headers/user_sidebar.php';
-        ?>
 
         <div class="main-content">
-            <?php require __DIR__ . '/../templates/headers/workspace_nav.php'; ?>
             <!-- Кнопка для показа правого сайдбара на мобильных -->
             <button class="btn btn-outline" id="toggleDocsSidebarBtn" style="margin-bottom: 20px; display: none;">
                 <i class="fas fa-book"></i> Навигация по документации

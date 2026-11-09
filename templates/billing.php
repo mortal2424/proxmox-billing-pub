@@ -641,7 +641,7 @@ $title = "Биллинг | HomeVlad Cloud";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
-    <link rel="stylesheet" href="/css/workspace.css">
+    <link rel="stylesheet" href="/css/workspace.css?v=3">
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1670,10 +1670,7 @@ $title = "Биллинг | HomeVlad Cloud";
     </style>
 </head>
 <body class="workspace">
-    <?php
-    // Подключаем обновленную шапку
-    include '../templates/headers/user_header.php';
-    ?>
+    <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
 
     <!-- Кнопка вверх -->
     <a href="#" class="scroll-to-top" id="scrollToTop">
@@ -1826,13 +1823,8 @@ $title = "Биллинг | HomeVlad Cloud";
     </div>
 
     <div class="main-container">
-        <?php
-        // Подключаем обновленный сайдбар
-        include '../templates/headers/user_sidebar.php';
-        ?>
 
         <div class="main-content">
-            <?php require __DIR__ . '/headers/workspace_nav.php'; ?>
             <!-- Заголовок страницы -->
             <div class="page-header">
                 <div class="workspace-title">
