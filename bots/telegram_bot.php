@@ -1,20 +1,9 @@
 <?php
-// Настройка error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 'stderr');
-ini_set('log_errors', 1);
-ini_set('error_log', '/home/mortal/web/homevlad.ru/public_html/bots/logs/php_errors.log');
-
-// Инициализация логов
-$logDir = '/home/mortal/web/homevlad.ru/public_html/bots/logs';
-if (!file_exists($logDir)) {
-    mkdir($logDir, 0755, true);
-}
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/telegram_support.php';
 
 function logMessage($message) {
-    global $logDir;
-    $logFile = $logDir . '/bot.log';
-    file_put_contents($logFile, date('[Y-m-d H:i:s] ') . $message . PHP_EOL, FILE_APPEND);
+    error_log($message);
 }
 
 // Класс для управления подключением к БД с переподключением
@@ -24,10 +13,10 @@ class DatabaseManager {
 
     public function __construct() {
         $this->dbConfig = [
-            'host' => 'localhost',
-            'dbname' => '',
-            'user' => '',
-            'pass' => ''
+            'host' => DB_HOST,
+            'dbname' => DB_NAME,
+            'user' => DB_USER,
+            'pass' => DB_PASS
         ];
         $this->connect();
     }
@@ -108,23 +97,13 @@ function safeQuery($pdo, $query, $params = [], $requiredTables = ['users']) {
     }
 }
 
-// Инициализация базы данных
-try {
-    require_once __DIR__ . '/../includes/proxmox_functions.php';
-    $dbManager = new DatabaseManager();
-    $pdo = $dbManager->getConnection();
-    safeQuery($pdo, "SELECT 1");
-} catch (PDOException $e) {
-    logMessage("Database initialization ERROR: " . $e->getMessage());
-    exit(1);
-}
+require_once __DIR__ . '/../includes/proxmox_functions.php';
 
 class TelegramBot {
     private $pdo;
     private $token;
     private $processingChats = [];
     private $userVMs = [];
-    private $proxmoxApi;
     private $processedCallbacks = [];
     private $lastActionTime = [];
     private $dbManager;
@@ -133,52 +112,30 @@ class TelegramBot {
         $this->dbManager = $dbManager;
         $this->pdo = $dbManager->getConnection();
         $this->token = $token;
-        $this->initializeProxmoxApi();
     }
 
     private function reconnectDatabase() {
         try {
             logMessage("Attempting to reconnect to database...");
+            $previous = $this->pdo;
             $this->pdo = $this->dbManager->getConnection();
-            return true;
+            return $this->pdo !== $previous;
         } catch (PDOException $e) {
             logMessage("Reconnection failed: " . $e->getMessage());
             return false;
         }
     }
 
-    private function initializeProxmoxApi() {
-        try {
-            $nodeInfo = $this->getMainProxmoxNode();
-            if ($nodeInfo) {
-                $this->proxmoxApi = new ProxmoxAPI(
-                    $nodeInfo['hostname'],
-                    $nodeInfo['username'],
-                    $nodeInfo['password'],
-                    22,
-                    $nodeInfo['node_name'],
-                    $nodeInfo['id'],
-                    $this->pdo
-                );
-                logMessage("Proxmox API initialized successfully");
-            }
-        } catch (Exception $e) {
-            logMessage("Proxmox API initialization error: " . $e->getMessage());
-        }
-    }
-
-    private function getMainProxmoxNode() {
-        try {
-            $stmt = safeQuery($this->pdo, "SELECT * FROM proxmox_nodes ORDER BY id LIMIT 1");
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            logMessage("Failed to get Proxmox node: " . $e->getMessage());
-            if ($this->reconnectDatabase()) {
-                $stmt = safeQuery($this->pdo, "SELECT * FROM proxmox_nodes ORDER BY id LIMIT 1");
-                return $stmt->fetch(PDO::FETCH_ASSOC);
-            }
-            throw $e;
-        }
+    public function runQuickCommand(int $chatId, string $command): void
+    {
+        match ($command) {
+            'start', 'help', 'hello', 'commands' => $this->handleStartCommand($chatId),
+            'balance' => $this->handleBalanceCommand($chatId),
+            'vms' => $this->handleVmsCommand($chatId),
+            'support' => $this->handleSupportCommand($chatId),
+            'status', 'bot_status' => $this->sendMessage($chatId, '🟢 <b>Чат-бот HomeVlad на связи</b>'),
+            default => throw new InvalidArgumentException('Неизвестная команда'),
+        };
     }
 
     public function handleUpdate($update) {
@@ -200,14 +157,34 @@ class TelegramBot {
     }
 
     private function handleMessage($message) {
+        if (($message['chat']['type'] ?? '') !== 'private' ||
+            ($message['from']['id'] ?? null) !== ($message['chat']['id'] ?? null)) return;
         $chatId = $message['chat']['id'];
         $text = trim($message['text'] ?? '');
 
         try {
-            if ($text === '/start') {
+            if ($text === '') return;
+            $store = $this->pdo->prepare("INSERT INTO telegram_conversations
+                (user_id, message_id, message_text, message_type, telegram_id)
+                SELECT id, ?, ?, 'user', telegram_id FROM users
+                WHERE telegram_id = ? AND is_active = 1 AND NOT EXISTS (
+                    SELECT 1 FROM telegram_conversations c
+                    WHERE c.user_id = users.id AND c.telegram_id = users.telegram_id
+                    AND c.message_id = ? AND c.message_type = 'user'
+                )");
+            $store->execute([$message['message_id'], $text, $chatId, $message['message_id']]);
+            $command = strtolower(explode(' ', $text, 2)[0]);
+            $command = explode('@', $command, 2)[0];
+            if (in_array($command, ['/start', '/menu', '/help'], true)) {
                 $this->handleStartCommand($chatId);
-            } elseif ($text === '/vms') {
+            } elseif ($command === '/vms') {
                 $this->handleVmsCommand($chatId, 1);
+            } elseif ($command === '/balance') {
+                $this->handleBalanceCommand($chatId);
+            } elseif ($command === '/deposit') {
+                $this->handleDepositCommand($chatId);
+            } elseif ($command === '/support') {
+                $this->handleSupportCommand($chatId);
             } elseif (preg_match('/^\/vm_(\d+)$/', $text, $matches)) {
                 $vmId = $matches[1];
                 $this->showVMManagement($chatId, $vmId);
@@ -226,13 +203,14 @@ class TelegramBot {
     }
 
     private function handleCallback($callback) {
+        if (($callback['message']['chat']['type'] ?? '') !== 'private' ||
+            ($callback['from']['id'] ?? null) !== ($callback['message']['chat']['id'] ?? null)) return;
         $chatId = $callback['message']['chat']['id'];
         $callbackId = $callback['id'];
-        $messageId = $callback['message']['message_id'];
         $data = $callback['data'];
 
         // Уникальный ключ для идентификации callback'а
-        $callbackKey = $chatId . '_' . $messageId . '_' . $data;
+        $callbackKey = $callbackId;
 
         // Проверяем, не обрабатывался ли уже этот callback
         if (isset($this->processedCallbacks[$callbackKey])) {
@@ -323,7 +301,7 @@ class TelegramBot {
             FROM vms v
             JOIN users u ON u.id = v.user_id
             JOIN proxmox_nodes n ON n.id = v.node_id
-            WHERE u.telegram_id = ? AND v.vm_id = ?
+            WHERE u.telegram_id = ? AND u.is_active = 1 AND v.vm_id = ?
         ", [$chatId, $vmId]);
         $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -914,6 +892,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
     }
 
     private function answerCallbackQuery($callbackId, $text = null) {
+        if (!$callbackId) return;
         $data = ['callback_query_id' => $callbackId];
         if ($text !== null) {
             $data['text'] = $text;
@@ -947,7 +926,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                 JOIN users u ON u.id = v.user_id
                 LEFT JOIN tariffs t ON t.id = v.tariff_id
                 JOIN proxmox_nodes n ON n.id = v.node_id
-                WHERE u.telegram_id = ? AND v.vm_id = ?
+                WHERE u.telegram_id = ? AND u.is_active = 1 AND v.vm_id = ?
             ", [$chatId, $vmId]);
             $vm = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -1000,53 +979,39 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
 
     private function handleVMAction($chatId, $vmId, $action, $callbackId = null) {
         try {
-            // Проверяем права пользователя на эту VM
-            $stmt = safeQuery($this->pdo, "
-                SELECT v.* FROM vms v
-                JOIN users u ON u.id = v.user_id
-                WHERE u.telegram_id = ? AND v.vm_id = ?
-            ", [$chatId, $vmId]);
-            $vm = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$vm) {
-                throw new Exception("Виртуальная машина #{$vmId} не найдена или у вас нет к ней доступа");
+            $stmt = $this->pdo->prepare("SELECT v.*, n.hostname AS node_hostname, n.username,
+                n.password, n.node_name, n.ssh_port FROM vms v JOIN users u ON u.id = v.user_id
+                JOIN proxmox_nodes n ON n.id = v.node_id
+                WHERE u.telegram_id = ? AND u.is_active = 1 AND v.vm_id = ? AND n.is_active = 1
+                  AND NOT EXISTS (SELECT 1 FROM vms other WHERE other.vm_id = v.vm_id AND other.id <> v.id)
+                  LIMIT 2");
+            $stmt->execute([$chatId, $vmId]);
+            $matches = $stmt->fetchAll();
+            if (count($matches) !== 1 || !ctype_digit((string) $vmId)) {
+                throw new RuntimeException('ВМ недоступна или её ID неоднозначен. Откройте панель.');
             }
-
-            if (!$this->proxmoxApi) {
-                throw new Exception("Ошибка подключения к серверу Proxmox");
+            $vm = $matches[0];
+            $this->answerCallbackQuery($callbackId, "⏳ Выполняем команду");
+            if ($vm['status'] === 'suspended') {
+                throw new RuntimeException('ВМ приостановлена. Проверьте баланс в панели.');
             }
-
-            $result = null;
-            $actionName = '';
-            switch ($action) {
-                case 'start':
-                    $result = $this->proxmoxApi->startVM($vmId);
-                    $actionName = 'запуск';
-                    break;
-                case 'stop':
-                    $result = $this->proxmoxApi->stopVM($vmId);
-                    $actionName = 'остановка';
-                    break;
-                case 'reboot':
-                    $result = $this->proxmoxApi->rebootVM($vmId);
-                    $actionName = 'перезагрузка';
-                    break;
-                default:
-                    throw new Exception("Неизвестное действие");
+            $method = match ($action) {
+                'start', 'stop', 'reboot' => $action . ($vm['vm_type'] === 'lxc' ? 'Container' : 'VM'),
+                default => throw new InvalidArgumentException('Неизвестное действие')
+            };
+            $api = new ProxmoxAPI($vm['node_hostname'], $vm['username'], $vm['password'],
+                $vm['ssh_port'] ?: 22, $vm['node_name'], $vm['node_id'], $this->pdo);
+            $result = $api->$method((int) $vmId);
+            if (is_array($result) && ($result['success'] ?? true) === false) {
+                throw new RuntimeException('Proxmox отклонил действие. Проверьте состояние ВМ в панели.');
             }
-
-            if ($result && $result['success']) {
-                $this->answerCallbackQuery($callbackId, "✅ {$actionName} ВМ #{$vmId} выполнена");
-                $this->sendMessage($chatId, "✅ Виртуальная машина #{$vmId} ({$vm['hostname']}): {$actionName} выполнена успешно!");
-                $this->showVMManagement($chatId, $vmId);
-            } else {
-                throw new Exception($result['error'] ?? "Не удалось выполнить {$actionName} виртуальной машины");
-            }
+            unset($this->userVMs[$chatId]);
+            $this->sendMessage($chatId, "✅ Команда для ВМ #{$vmId} выполнена.");
+            $this->showVMManagement($chatId, $vmId);
 
         } catch (Exception $e) {
             logMessage("VM Action ERROR: " . $e->getMessage());
-            $this->answerCallbackQuery($callbackId, "⚠️ Ошибка: " . $e->getMessage());
-            $this->sendMessage($chatId, "⚠️ Ошибка: " . $e->getMessage());
+            $this->sendMessage($chatId, '⚠️ Не удалось выполнить действие. Проверьте состояние ВМ в панели.');
             $this->showVMManagement($chatId, $vmId);
         }
     }
@@ -1054,7 +1019,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
     private function handleStartCommand($chatId) {
         try {
             $user = safeQuery($this->pdo,
-                "SELECT * FROM users WHERE telegram_id = ?",
+                "SELECT * FROM users WHERE telegram_id = ? AND is_active = 1",
                 [$chatId]
             )->fetch();
 
@@ -1084,7 +1049,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
         try {
             if (!$user) {
                 $user = safeQuery($this->pdo,
-                    "SELECT * FROM users WHERE telegram_id = ?",
+                    "SELECT * FROM users WHERE telegram_id = ? AND is_active = 1",
                     [$chatId]
                 )->fetch();
             }
@@ -1141,7 +1106,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
                      JOIN users u ON v.user_id = u.id
                      LEFT JOIN tariffs t ON t.id = v.tariff_id
                      JOIN proxmox_nodes n ON n.id = v.node_id
-                     WHERE u.telegram_id = ?
+                     WHERE u.telegram_id = ? AND u.is_active = 1
                      ORDER BY v.id DESC",
                     [$chatId]
                 )->fetchAll();
@@ -1236,7 +1201,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
     private function handleBalanceCommand($chatId) {
         try {
             $user = safeQuery($this->pdo,
-                "SELECT balance, bonus_balance FROM users WHERE telegram_id = ?",
+                "SELECT balance, bonus_balance FROM users WHERE telegram_id = ? AND is_active = 1",
                 [$chatId]
             )->fetch();
 
@@ -1252,7 +1217,7 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
             $transactions = safeQuery($this->pdo,
                 "SELECT amount, description, created_at
                  FROM transactions
-                 WHERE user_id = (SELECT id FROM users WHERE telegram_id = ?)
+                 WHERE user_id = (SELECT id FROM users WHERE telegram_id = ? AND is_active = 1)
                  ORDER BY created_at DESC
                  LIMIT 5",
                 [$chatId]
@@ -1335,72 +1300,67 @@ private function sendDiskChart($chatId, $vmId, $metrics) {
         ];
 
         if ($replyMarkup) {
-            $data['reply_markup'] = json_encode($replyMarkup);
+            $data['reply_markup'] = $replyMarkup;
         }
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => "Content-Type: application/json\r\n",
-                'content' => json_encode($data),
-                'timeout' => 5
-            ]
-        ]);
-
-        $result = @file_get_contents(
-            "https://api.telegram.org/bot{$this->token}/sendMessage",
-            false,
-            $context
-        );
-
-        if ($result === false) {
-            logMessage("Failed to send message to chat $chatId");
-        }
-
+        $result = telegramApi($this->token, 'sendMessage', $data);
+        $stmt = $this->pdo->prepare("INSERT INTO telegram_conversations
+            (user_id, message_id, message_text, message_type, telegram_id)
+            SELECT id, ?, ?, 'bot', telegram_id FROM users WHERE telegram_id = ? AND is_active = 1");
+        $stmt->execute([$result['message_id'], trim(strip_tags($text)), $chatId]);
         return $result;
     }
 }
 
-// Конфигурация и запуск
-$botToken = '';
+// The panel loads the command handlers without starting a polling process.
+if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') !== __FILE__) return;
+require_once __DIR__ . '/../includes/cli_only.php';
 
+// Each token has one update consumer.
+$role = $argv[1] ?? 'chat';
+if (!in_array($role, ['chat', 'support'], true)) {
+    fwrite(STDERR, "Usage: php bots/telegram_bot.php chat|support\n");
+    exit(2);
+}
 try {
-    logMessage('=== BOT STARTED ===');
     $dbManager = new DatabaseManager();
-    $bot = new TelegramBot($dbManager, $botToken);
-    $lastUpdateId = 0;
-
+    $pdo = $dbManager->getConnection();
+    $botToken = trim((string) $pdo->query("SELECT bot_token FROM telegram_{$role}_bot ORDER BY id DESC LIMIT 1")->fetchColumn());
+    if (!preg_match('/^\d+:[A-Za-z0-9_-]+$/D', $botToken)) {
+        throw new RuntimeException('Настройте токен бота в панели');
+    }
+    $lock = fopen(sys_get_temp_dir() . '/homevlad-telegram-' . hash('sha256', $botToken) . '.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
+        throw new RuntimeException('Этот токен уже используется другим процессом');
+    }
+    $bot = $role === 'chat' ? new TelegramBot($dbManager, $botToken) : new TelegramSupportBot($pdo, $botToken);
+    $commands = $role === 'chat'
+        ? ['menu' => 'Главное меню', 'vms' => 'Мои ВМ и контейнеры', 'balance' => 'Баланс', 'deposit' => 'Пополнение', 'support' => 'Поддержка']
+        : ['menu' => 'Главное меню', 'tickets' => 'Мои обращения', 'new' => 'Создать обращение'];
+    telegramApi($botToken, 'setMyCommands', ['commands' => array_map(
+        static fn ($command, $description) => ['command' => $command, 'description' => $description],
+        array_keys($commands), array_values($commands)
+    )]);
+    $offset = 0;
     while (true) {
         try {
-            $response = file_get_contents(
-                "https://api.telegram.org/bot{$botToken}/getUpdates?offset=" . ($lastUpdateId + 1),
-                false,
-                stream_context_create(['http' => ['timeout' => 30]])
-            );
-
-            if ($response !== false) {
-                $data = json_decode($response, true);
-                if ($data && $data['ok'] && !empty($data['result'])) {
-                    foreach ($data['result'] as $update) {
-                        $bot->handleUpdate($update);
-                        $lastUpdateId = $update['update_id'];
-                    }
+            $updates = telegramApi($botToken, 'getUpdates', [
+                'offset' => $offset, 'timeout' => 25, 'allowed_updates' => ['message', 'callback_query']
+            ], 35);
+            foreach ($updates as $update) {
+                try {
+                    $bot->handleUpdate($update);
+                } catch (Throwable $error) {
+                    error_log('Telegram update failed: ' . get_class($error) . ' code=' . $error->getCode());
                 }
+                $offset = $update['update_id'] + 1;
             }
-
-            sleep(1);
-        } catch (PDOException $e) {
-            logMessage("Database ERROR in main loop: " . $e->getMessage());
-            sleep(5);
-            // Пробуем переподключиться в следующей итерации
-            $dbManager = new DatabaseManager();
-            $bot = new TelegramBot($dbManager, $botToken);
-        } catch (Exception $e) {
-            logMessage("Update ERROR: " . $e->getMessage());
-            sleep(5);
+        } catch (Throwable $error) {
+            error_log('Telegram worker failed: ' . get_class($error) . ' code=' . $error->getCode());
+            exit(1);
         }
     }
-} catch (Throwable $t) {
-    logMessage("FATAL ERROR: " . $t->getMessage());
+} catch (Throwable $error) {
+    error_log('Telegram startup failed: ' . ($error instanceof RuntimeException ? $error->getMessage() : get_class($error)));
     exit(1);
 }

@@ -1,0 +1,16 @@
+[Unit]
+Description=HomeVlad Telegram bot (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=mortal
+WorkingDirectory=/home/mortal/web/homevlad.ru/public_html
+ExecStart=/usr/bin/php bots/telegram_bot.php %i
+Restart=always
+RestartSec=8
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

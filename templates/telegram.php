@@ -54,6 +54,7 @@ function getBotSettings() {
 // Получаем настройки бота
 $bot_settings = getBotSettings();
 $bot_token = $bot_settings['bot_token'];
+$_SESSION['telegram_csrf'] ??= bin2hex(random_bytes(32));
 $bot_username = $bot_settings['bot_name'];
 
 // Создаем таблицы, если их нет
@@ -154,48 +155,6 @@ function getBotInfo() {
 }
 
 // Функция для получения обновлений от бота
-function getBotUpdates($offset = null) {
-    $bot_settings = getBotSettings();
-    $bot_token = $bot_settings['bot_token'];
-
-    $url = "https://api.telegram.org/bot{$bot_token}/getUpdates";
-
-    $params = [];
-    if ($offset !== null) {
-        $params['offset'] = $offset;
-    }
-    $params['timeout'] = 10;
-
-    if (!empty($params)) {
-        $url .= '?' . http_build_query($params);
-    }
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($http_code == 200) {
-        $response_data = json_decode($response, true);
-        if ($response_data['ok']) {
-            return [
-                'success' => true,
-                'updates' => $response_data['result']
-            ];
-        }
-    }
-
-    return [
-        'success' => false,
-        'error' => 'Ошибка получения обновлений'
-    ];
-}
-
-// Функция для получения ответа бота
 function getBotResponse($message, $user) {
     $message_lower = strtolower(trim($message));
 
@@ -285,7 +244,7 @@ $messages = [];
 if ($telegram_id) {
     $stmt = $pdo->prepare("
         SELECT * FROM telegram_conversations
-        WHERE (user_id = ? OR telegram_id = ?)
+        WHERE user_id = ? AND telegram_id = ?
         ORDER BY created_at ASC
         LIMIT 50
     ");
@@ -303,7 +262,7 @@ $stats = $pdo->query("
         MIN(created_at) as first_message_date,
         MAX(created_at) as last_message_date
     FROM telegram_conversations
-    WHERE user_id = $user_id OR telegram_id = $telegram_id
+    WHERE user_id = $user_id
 ")->fetch();
 
 // Проверяем статус бота
@@ -311,93 +270,20 @@ $bot_info = getBotInfo();
 $bot_status = $bot_info['success'] ? 'active' : 'inactive';
 $bot_name = $bot_info['success'] ? $bot_info['bot_info']['first_name'] : 'HomeVlad Bot';
 
-// Проверяем новые сообщения от Telegram (для AJAX запроса)
-if (isset($_GET['check_updates']) && $telegram_id) {
-    // Получаем последний update_id из базы
-    $last_check = $pdo->prepare("SELECT last_message_id FROM telegram_last_check WHERE user_id = ?");
-    $last_check->execute([$user_id]);
-    $last_check_data = $last_check->fetch();
-
-    $last_update_id = $last_check_data['last_message_id'] ?? 0;
-
-    // Получаем обновления
-    $updates = getBotUpdates($last_update_id + 1);
-
-    if ($updates['success']) {
-        $new_messages = [];
-        $last_message_id = $last_update_id;
-
-        foreach ($updates['updates'] as $update) {
-            if (isset($update['message']) && isset($update['message']['chat']['id'])) {
-                $chat_id = $update['message']['chat']['id'];
-
-                // Проверяем, что сообщение для этого пользователя
-                if ($chat_id == $telegram_id) {
-                    $message_id = $update['message']['message_id'];
-                    $text = $update['message']['text'] ?? '';
-
-                    if (!empty($text)) {
-                        // Проверяем, нет ли уже такого сообщения
-                        $stmt = $pdo->prepare("SELECT id FROM telegram_conversations WHERE message_id = ?");
-                        $stmt->execute([$message_id]);
-
-                        if (!$stmt->fetch()) {
-                            // Определяем тип сообщения (от пользователя или бота)
-                            $from_bot = isset($update['message']['from']['is_bot']) && $update['message']['from']['is_bot'];
-                            $message_type = $from_bot ? 'bot' : 'user';
-
-                            // Сохраняем сообщение
-                            $stmt = $pdo->prepare("
-                                INSERT INTO telegram_conversations
-                                (user_id, message_id, message_text, message_type, telegram_id)
-                                VALUES (?, ?, ?, ?, ?)
-                            ");
-                            $stmt->execute([$user_id, $message_id, $text, $message_type, $telegram_id]);
-
-                            $new_messages[] = [
-                                'id' => $pdo->lastInsertId(),
-                                'message_text' => $text,
-                                'message_type' => $message_type,
-                                'created_at' => date('Y-m-d H:i:s'),
-                                'message_id' => $message_id
-                            ];
-
-                            // Если сообщение от бота, помечаем как непрочитанное
-                            if ($message_type === 'bot') {
-                                $pdo->prepare("UPDATE telegram_conversations SET is_read = FALSE WHERE id = ?")
-                                    ->execute([$pdo->lastInsertId()]);
-                            }
-                        }
-                    }
-
-                    // Обновляем последний ID
-                    if ($message_id > $last_message_id) {
-                        $last_message_id = $message_id;
-                    }
-                }
-            }
-        }
-
-        // Обновляем последний проверенный ID
-        if ($last_check_data) {
-            $pdo->prepare("UPDATE telegram_last_check SET last_message_id = ?, last_check_time = NOW() WHERE user_id = ?")
-                ->execute([$last_message_id, $user_id]);
-        } else {
-            $pdo->prepare("INSERT INTO telegram_last_check (user_id, last_message_id) VALUES (?, ?)")
-                ->execute([$user_id, $last_message_id]);
-        }
-
-        // Отправляем JSON ответ с новыми сообщениями
-        if (isset($_GET['ajax'])) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => true,
-                'new_messages' => $new_messages,
-                'count' => count($new_messages)
-            ]);
-            exit;
-        }
+// The CLI worker consumes Telegram updates. The page reads saved messages only.
+if (isset($_GET['check_updates'], $_GET['ajax'])) {
+    header('Content-Type: application/json');
+    $messages = [];
+    if ($telegram_id) {
+        $afterId = max(0, (int) ($_GET['after_id'] ?? 0));
+        $stmt = $pdo->prepare('SELECT id, message_text, message_type, created_at
+            FROM telegram_conversations WHERE user_id = ? AND telegram_id = ? AND id > ?
+            ORDER BY id LIMIT 50');
+        $stmt->execute([$user_id, $telegram_id, $afterId]);
+        $messages = $stmt->fetchAll();
     }
+    echo json_encode(['success' => true, 'new_messages' => $messages, 'count' => count($messages)]);
+    exit;
 }
 
 // Обработка отправки сообщения (исправленная)
@@ -475,89 +361,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Обработка быстрых команд через AJAX
-    if (isset($_POST['quick_command']) && isset($_POST['ajax'])) {
+    if (isset($_POST['quick_command'], $_POST['ajax'])) {
+        header('Content-Type: application/json');
         try {
-            if (!$is_telegram_connected) {
-                throw new Exception("Telegram не подключен");
+            if (!is_string($_POST['telegram_csrf'] ?? null) ||
+                !hash_equals($_SESSION['telegram_csrf'], $_POST['telegram_csrf'])) {
+                http_response_code(403);
+                throw new RuntimeException('Обновите страницу и повторите команду');
             }
-
-            $command = $_POST['quick_command'];
-
-            // Определяем, что отправлять в зависимости от команды
-            $command_map = [
-                'start' => '/start',
-                'help' => '/help',
-                'balance' => '/balance',
-                'vms' => '/vms',
-                'support' => '/support',
-                'status' => '/status',
-                'settings' => '/settings',
-                'hello' => 'Привет! Как дела?',
-                'test' => 'Тестовое сообщение от быстрой команды',
-                'bot_status' => 'бот статус',
-                'commands' => 'команды'
-            ];
-
-            $message = $command_map[$command] ?? $command;
-
-            // Сохраняем сообщение пользователя в базу
-            $stmt = $pdo->prepare("
-                INSERT INTO telegram_conversations
-                (user_id, message_text, message_type, telegram_id)
-                VALUES (?, ?, 'user', ?)
-            ");
-            $stmt->execute([$user_id, $message, $telegram_id]);
-            $local_message_id = $pdo->lastInsertId();
-
-            // Отправляем сообщение в Telegram
-            $telegram_response = sendTelegramMessage($telegram_id, $message);
-
-            if (!$telegram_response['success']) {
-                throw new Exception("Ошибка отправки в Telegram");
+            if (!$telegram_id || !$bot_token || !$user['is_active']) {
+                throw new RuntimeException('Привяжите Telegram и проверьте настройки бота');
             }
-
-            // Обновляем message_id
-            if (isset($telegram_response['message_id'])) {
-                $pdo->prepare("UPDATE telegram_conversations SET message_id = ? WHERE id = ?")
-                    ->execute([$telegram_response['message_id'], $local_message_id]);
-            }
-
-            // Получаем ответ бота
-            $bot_response = getBotResponse($message, $user);
-
-            if ($bot_response) {
-                sleep(1);
-
-                // Отправляем ответ бота
-                $bot_telegram_response = sendTelegramMessage($telegram_id, $bot_response);
-
-                if ($bot_telegram_response['success']) {
-                    // Сохраняем ответ бота
-                    $pdo->prepare("
-                        INSERT INTO telegram_conversations
-                        (user_id, message_text, message_type, telegram_id, message_id)
-                        VALUES (?, ?, 'bot', ?, ?)
-                    ")->execute([$user_id, $bot_response, $telegram_id, $bot_telegram_response['message_id']]);
-                }
-            }
-
-            // Отправляем JSON ответ
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => true,
-                'message' => 'Команда отправлена',
-                'command' => $command
-            ]);
-            exit;
-
-        } catch (Exception $e) {
-            header('Content-Type: application/json');
-            echo json_encode([
-                'success' => false,
-                'error' => $e->getMessage()
-            ]);
-            exit;
+            require_once __DIR__ . '/../bots/telegram_bot.php';
+            (new TelegramBot(new DatabaseManager(), $bot_token))
+                ->runQuickCommand((int) $telegram_id, (string) $_POST['quick_command']);
+            echo json_encode(['success' => true]);
+        } catch (Throwable $error) {
+            echo json_encode(['success' => false, 'error' => 'Команда недоступна. Проверьте подключение Telegram.']);
         }
+        exit;
     }
 
     // Подключение Telegram
@@ -1919,7 +1741,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `quick_command=${command}&ajax=1`
+                    body: new URLSearchParams({quick_command: command, ajax: 1, telegram_csrf: <?= json_encode($_SESSION['telegram_csrf']) ?>})
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -1949,7 +1771,11 @@ $title = "Telegram Bot | HomeVlad Cloud";
 
         // Функция для проверки новых сообщений
         function checkForNewMessages() {
-            fetch('telegram.php?check_updates=1&ajax=1')
+            const afterId = Math.max(0, ...Array.from(
+                document.querySelectorAll('#chatMessages [data-message-id]'),
+                element => Number(element.dataset.messageId) || 0
+            ));
+            fetch('telegram.php?check_updates=1&ajax=1&after_id=' + afterId)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.new_messages && data.new_messages.length > 0) {
