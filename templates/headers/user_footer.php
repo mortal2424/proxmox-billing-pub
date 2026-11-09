@@ -139,7 +139,7 @@
 <style>
 /* ========== ОСНОВНЫЕ СТИЛИ ФУТЕРА ========== */
 .modern-footer {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
     color: #cbd5e1;
     padding: 60px 0 30px;
     margin-top: auto;
@@ -188,14 +188,14 @@
 .footer-logo-icon {
     width: 50px;
     height: 50px;
-    background: linear-gradient(135deg, #00bcd4, #0097a7);
+    background: linear-gradient(135deg, #007b72, #00635f);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 24px;
     color: white;
-    box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
 }
 
 .footer-logo-text {
@@ -673,7 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 tooltip.textContent = title;
                 tooltip.style.cssText = `
                     position: absolute;
-                    background: #1e293b;
+                    background: #172438;
                     color: white;
                     padding: 6px 12px;
                     border-radius: 6px;

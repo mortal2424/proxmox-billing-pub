@@ -524,6 +524,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -532,8 +533,8 @@ $title = "Telegram Bot | HomeVlad Cloud";
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -548,15 +549,15 @@ $title = "Telegram Bot | HomeVlad Cloud";
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -597,7 +598,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -668,7 +669,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             font-size: 20px;
             color: white;
             background: var(--secondary-gradient);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .stat-icon.success {
@@ -715,7 +716,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             font-size: 24px;
             color: white;
             background: var(--secondary-gradient);
-            box-shadow: 0 6px 20px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 6px 20px rgba(13, 148, 136, 0.3);
         }
 
         .bot-status-icon.active {
@@ -729,12 +730,12 @@ $title = "Telegram Bot | HomeVlad Cloud";
         .bot-status-info h3 {
             font-size: 20px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 4px;
         }
 
         body.dark-theme .bot-status-info h3 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .bot-status-info p {
@@ -792,14 +793,14 @@ $title = "Telegram Bot | HomeVlad Cloud";
             font-size: 20px;
             font-weight: 600;
             margin-bottom: 20px;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .commands-grid {
@@ -823,8 +824,8 @@ $title = "Telegram Bot | HomeVlad Cloud";
 
         .command-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.1);
-            border-color: rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.1);
+            border-color: rgba(13, 148, 136, 0.3);
         }
 
         .command-icon {
@@ -843,12 +844,12 @@ $title = "Telegram Bot | HomeVlad Cloud";
         .command-title {
             font-size: 14px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 4px;
         }
 
         body.dark-theme .command-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .command-description {
@@ -931,7 +932,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
         .bot-message {
             align-self: flex-start;
             background: white;
-            color: #1e293b;
+            color: #172438;
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-bottom-left-radius: 4px;
         }
@@ -1004,7 +1005,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             border: 1px solid rgba(148, 163, 184, 0.3);
             border-radius: 24px;
             background: rgba(248, 250, 252, 0.8);
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
             resize: none;
             min-height: 48px;
@@ -1020,8 +1021,8 @@ $title = "Telegram Bot | HomeVlad Cloud";
 
         .message-textarea:focus {
             outline: none;
-            border-color: #00bcd4;
-            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+            border-color: #007b72;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         /* Кнопки */
@@ -1047,7 +1048,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
         }
 
         .btn-success {
@@ -1077,9 +1078,9 @@ $title = "Telegram Bot | HomeVlad Cloud";
         }
 
         .btn-outline:hover {
-            border-color: #00bcd4;
-            color: #00bcd4;
-            background: rgba(0, 188, 212, 0.05);
+            border-color: #007b72;
+            color: var(--mint-text);
+            background: rgba(13, 148, 136, 0.05);
         }
 
         /* Уведомления */
@@ -1191,7 +1192,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
         .typing-dot {
             width: 8px;
             height: 8px;
-            background: #00bcd4;
+            background: #007b72;
             border-radius: 50%;
             animation: typing 1.4s infinite;
         }
@@ -1272,7 +1273,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
     </style>
 </head>
@@ -1435,7 +1436,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
                     </p>
                     <form method="POST" style="display: flex; gap: 12px; align-items: flex-end;">
                         <div style="flex: 1;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #172438;">
                                 Ваш Telegram ID
                             </label>
                             <input type="text" name="telegram_id"
@@ -1443,7 +1444,7 @@ $title = "Telegram Bot | HomeVlad Cloud";
                                    placeholder="Пример: 123456789" required>
                             <div style="font-size: 12px; color: #64748b; margin-top: 6px;">
                                 Чтобы получить свой Telegram ID, напишите <code>/start</code> боту
-                                <a href="https://t.me/homevlad_chat_bot" target="_blank" style="color: #00bcd4;">@homevlad_chat_bot</a>
+                                <a href="https://t.me/homevlad_chat_bot" target="_blank" style="color: var(--mint-text);">@homevlad_chat_bot</a>
                             </div>
                         </div>
                         <button type="submit" name="connect_telegram" class="btn btn-primary">

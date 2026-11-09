@@ -11,6 +11,7 @@ $title = "Доступ запрещен | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,15 +19,15 @@ $title = "Доступ запрещен | HomeVlad Cloud";
     <link rel="icon" href="/img/cloud.png" type="image/png">
     <style>
         :root {
-            --primary: #00bcd4;
-            --primary-dark: #0097a7;
+            --primary: #007b72;
+            --primary-dark: #00635f;
             --danger: #ef4444;
             --danger-dark: #dc2626;
             --warning: #f59e0b;
             --success: #10b981;
-            --dark: #0f172a;
+            --dark: #0e1727;
             --darker: #020617;
-            --light: #f8fafc;
+            --light: #f7fafc;
             --gray: #64748b;
             --gray-dark: #334155;
         }
@@ -64,7 +65,7 @@ $title = "Доступ запрещен | HomeVlad Cloud";
 
         .bg-particle {
             position: absolute;
-            background: rgba(0, 188, 212, 0.1);
+            background: rgba(13, 148, 136, 0.1);
             border-radius: 50%;
             animation: float 15s infinite ease-in-out;
         }
@@ -285,7 +286,7 @@ $title = "Доступ запрещен | HomeVlad Cloud";
 
         .btn-primary:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.4);
         }
 
         .btn-secondary {

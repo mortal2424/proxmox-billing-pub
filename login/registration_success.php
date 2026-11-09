@@ -27,6 +27,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -34,15 +35,15 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --purple-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
             --gold-gradient: linear-gradient(135deg, #f59e0b, #d97706);
-            --light-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --light-bg: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
             --card-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            --text-primary: #1e293b;
+            --text-primary: #172438;
             --text-secondary: #64748b;
             --text-light: #94a3b8;
         }
@@ -106,13 +107,13 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         .logo-image {
             height: 45px;
             width: auto;
-            filter: drop-shadow(0 4px 12px rgba(0, 188, 212, 0.3));
+            filter: drop-shadow(0 4px 12px rgba(13, 148, 136, 0.3));
         }
 
         .logo-text {
             font-size: 22px;
             font-weight: 800;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -138,16 +139,16 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         }
 
         .nav-btn-primary {
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
-            border: 1px solid rgba(0, 188, 212, 0.3);
+            background: linear-gradient(135deg, #007b72, #00635f);
+            border: 1px solid rgba(13, 148, 136, 0.3);
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .nav-btn-primary:hover {
-            background: linear-gradient(135deg, #0097a7, #00838f);
+            background: linear-gradient(135deg, #00635f, #00635f);
             transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
         }
 
         /* Основное содержимое */
@@ -158,7 +159,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
             justify-content: center;
             padding: 140px 20px 60px;
             min-height: 100vh;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             position: relative;
             overflow: hidden;
         }
@@ -171,7 +172,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(circle at 10% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 10% 20%, rgba(13, 148, 136, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
             animation: gradientShift 15s ease infinite alternate;
         }
@@ -388,7 +389,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
 
         .feature-card:hover {
             transform: translateY(-4px);
-            border-color: rgba(0, 188, 212, 0.3);
+            border-color: rgba(13, 148, 136, 0.3);
             box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
         }
 
@@ -403,7 +404,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
             margin: 0 auto 16px;
             font-size: 24px;
             color: white;
-            box-shadow: 0 8px 20px rgba(0, 188, 212, 0.2);
+            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.2);
         }
 
         .feature-title {
@@ -465,12 +466,12 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         .btn-primary {
             background: var(--secondary-gradient);
             color: white;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         .btn-primary:hover {
             transform: translateY(-4px) scale(1.05);
-            box-shadow: 0 15px 35px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 15px 35px rgba(13, 148, 136, 0.4);
         }
 
         .btn-secondary {
@@ -482,7 +483,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
 
         .btn-secondary:hover {
             background: white;
-            border-color: #00bcd4;
+            border-color: #007b72;
             transform: translateY(-4px);
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
         }
@@ -505,7 +506,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         }
 
         .tutorial-link a {
-            color: #00bcd4;
+            color: var(--mint-text);
             text-decoration: none;
             font-weight: 500;
             font-size: 15px;
@@ -516,7 +517,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         }
 
         .tutorial-link a:hover {
-            color: #0097a7;
+            color: var(--mint-text);
             gap: 12px;
         }
 
@@ -540,7 +541,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
 
         .footer-bottom {
@@ -739,7 +740,7 @@ $title = "Регистрация завершена! | HomeVlad Cloud";
         /* Тёмная тема */
         @media (prefers-color-scheme: dark) {
             body {
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             }
 
             .success-card {

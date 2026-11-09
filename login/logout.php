@@ -15,6 +15,7 @@ session_destroy();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Выход | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -22,13 +23,13 @@ session_destroy();
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
-            --light-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --light-bg: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
             --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-            --text-primary: #1e293b;
+            --text-primary: #172438;
             --text-secondary: #64748b;
         }
 
@@ -91,13 +92,13 @@ session_destroy();
         .logo-image {
             height: 45px;
             width: auto;
-            filter: drop-shadow(0 4px 12px rgba(0, 188, 212, 0.3));
+            filter: drop-shadow(0 4px 12px rgba(13, 148, 136, 0.3));
         }
 
         .logo-text {
             font-size: 22px;
             font-weight: 800;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -112,7 +113,7 @@ session_destroy();
             justify-content: center;
             padding: 120px 20px 60px;
             min-height: 100vh;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             position: relative;
             /* УБИРАЕМ overflow: hidden */
         }
@@ -125,7 +126,7 @@ session_destroy();
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(circle at 10% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 10% 20%, rgba(13, 148, 136, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
         }
 
@@ -193,7 +194,7 @@ session_destroy();
             font-size: 36px;
             font-weight: 700;
             margin-bottom: 16px;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
+            background: linear-gradient(135deg, #0e1727, #172438);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -247,7 +248,7 @@ session_destroy();
         .btn-main {
             flex: 1;
             padding: 18px 30px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 12px;
             color: white;
@@ -259,22 +260,22 @@ session_destroy();
             align-items: center;
             justify-content: center;
             gap: 10px;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         .btn-main:hover {
-            background: linear-gradient(135deg, #0097a7, #00838f);
+            background: linear-gradient(135deg, #00635f, #00635f);
             transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.4);
         }
 
         .btn-secondary {
             flex: 1;
             padding: 18px 30px;
             background: rgba(248, 250, 252, 0.8);
-            border: 2px solid rgba(0, 188, 212, 0.3);
+            border: 2px solid rgba(13, 148, 136, 0.3);
             border-radius: 12px;
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 16px;
             font-weight: 600;
             text-decoration: none;
@@ -286,9 +287,9 @@ session_destroy();
         }
 
         .btn-secondary:hover {
-            background: rgba(0, 188, 212, 0.1);
+            background: rgba(13, 148, 136, 0.1);
             transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.2);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.2);
         }
 
         /* Футер */
@@ -308,7 +309,7 @@ session_destroy();
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
 
         .footer-bottom {
@@ -448,7 +449,7 @@ session_destroy();
         /* Тёмная тема */
         @media (prefers-color-scheme: dark) {
             body {
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             }
 
             .logout-card {
@@ -471,7 +472,7 @@ session_destroy();
 
             .btn-secondary {
                 background: rgba(15, 23, 42, 0.8);
-                color: #00bcd4;
+                color: var(--mint-text);
             }
 
             .logout-title {

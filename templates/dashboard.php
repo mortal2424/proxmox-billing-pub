@@ -52,6 +52,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Панель управления | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -62,8 +63,8 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -79,15 +80,15 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -131,7 +132,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -181,7 +182,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 16px 16px 0 0;
         }
 
@@ -213,8 +214,8 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             justify-content: center;
             font-size: 24px;
             color: white;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            background: linear-gradient(135deg, #007b72, #00635f);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .stat-icon.bonus {
@@ -233,11 +234,11 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             font-size: 32px;
             font-weight: 700;
             margin: 8px 0;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .stat-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .stat-label {
@@ -326,14 +327,14 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             font-size: 20px;
             font-weight: 600;
             margin-bottom: 20px;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .quick-actions-gridd {
@@ -439,11 +440,11 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         .vm-name {
             font-size: 16px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .vm-name {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .vm-status {
@@ -486,7 +487,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         }
 
         .vm-spec i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 14px;
         }
 
@@ -649,7 +650,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         /* Кнопка обновления */
         .btn-refresh {
             padding: 8px 16px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 10px;
             color: white;
@@ -663,7 +664,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 
         .btn-refresh:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         /* === ОБЩИЙ ФУТЕР === */
@@ -692,7 +693,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
 
         /* Кнопка вверх (адаптированная для dashboard) */
@@ -702,14 +703,14 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             right: 30px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             text-decoration: none;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
             transition: all 0.3s ease;
             opacity: 0;
             visibility: hidden;
@@ -723,7 +724,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 
         .scroll-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.5);
         }
 
         /* Уведомления */
@@ -757,7 +758,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         }
 
         .notification.info {
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
         }
 
         /* Модальное окно для детальной информации ВМ */
@@ -817,14 +818,14 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         .modal-title {
             font-size: 24px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 12px;
         }
 
         body.dark-theme .modal-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .modal-close {
@@ -870,13 +871,13 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             font-size: 18px;
             font-weight: 600;
             margin-bottom: 16px;
-            color: #1e293b;
+            color: #172438;
             padding-bottom: 12px;
-            border-bottom: 2px solid #00bcd4;
+            border-bottom: 2px solid #007b72;
         }
 
         body.dark-theme .info-section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .info-item {
@@ -897,12 +898,12 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         }
 
         .info-value {
-            color: #1e293b;
+            color: #172438;
             font-weight: 600;
         }
 
         body.dark-theme .info-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Графики статистики */
@@ -931,12 +932,12 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 20px;
-            color: #1e293b;
+            color: #172438;
             text-align: center;
         }
 
         body.dark-theme .chart-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Стили для загрузки */
@@ -953,7 +954,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
             width: 40px;
             height: 40px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #00bcd4;
+            border-top: 4px solid #007b72;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -1778,7 +1779,7 @@ function generateVmDetailsHTML(data) {
             // Определяем цветовую схему в зависимости от темы
             const isDarkTheme = document.body.classList.contains('dark-theme');
             const gridColor = isDarkTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-            const textColor = isDarkTheme ? '#f1f5f9' : '#1e293b';
+            const textColor = isDarkTheme ? '#edf4f7' : '#172438';
 
             // График CPU
             const cpuCtx = document.getElementById('cpuChart').getContext('2d');
@@ -1789,8 +1790,8 @@ function generateVmDetailsHTML(data) {
                     datasets: [{
                         label: 'Использование CPU',
                         data: cpuData,
-                        borderColor: '#00bcd4',
-                        backgroundColor: 'rgba(0, 188, 212, 0.1)',
+                        borderColor: '#007b72',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
                         borderWidth: 2,
                         fill: true,
                         tension: 0.4

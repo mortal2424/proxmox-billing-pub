@@ -292,6 +292,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -301,8 +302,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -318,15 +319,15 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -370,7 +371,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -402,7 +403,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .form-section h3 {
             font-size: 18px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 25px;
             display: flex;
             align-items: center;
@@ -410,11 +411,11 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         body.dark-theme .form-section h3 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .form-section h3 i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 20px;
         }
 
@@ -458,25 +459,25 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .vm-type-btn:hover {
-            border-color: #00bcd4;
-            color: #00bcd4;
+            border-color: #007b72;
+            color: var(--mint-text);
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.1);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.1);
         }
 
         .vm-type-btn:hover i {
-            color: #00bcd4;
+            color: var(--mint-text);
         }
 
         .vm-type-btn.active {
-            border-color: #00bcd4;
-            background: rgba(0, 188, 212, 0.05);
-            color: #00bcd4;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.15);
+            border-color: #007b72;
+            background: rgba(13, 148, 136, 0.05);
+            color: var(--mint-text);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.15);
         }
 
         .vm-type-btn.active i {
-            color: #00bcd4;
+            color: var(--mint-text);
         }
 
         /* Выбор типа тарифа */
@@ -507,14 +508,14 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .tariff-type-btn:hover {
-            border-color: #00bcd4;
-            color: #00bcd4;
+            border-color: #007b72;
+            color: var(--mint-text);
         }
 
         .tariff-type-btn.active {
-            border-color: #00bcd4;
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            border-color: #007b72;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
         }
 
         /* Тарифы */
@@ -548,9 +549,9 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .tariff-card:hover {
-            border-color: #00bcd4;
+            border-color: #007b72;
             transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.15);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.15);
         }
 
         .tariff-card input[type="radio"] {
@@ -559,7 +560,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .tariff-card input[type="radio"]:checked + label {
-            color: #00bcd4;
+            color: var(--mint-text);
         }
 
         .tariff-card input[type="radio"]:checked ~ label:before {
@@ -569,7 +570,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             right: -10px;
             width: 30px;
             height: 30px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             color: white;
             border-radius: 50%;
             display: flex;
@@ -577,7 +578,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             justify-content: center;
             font-weight: bold;
             font-size: 16px;
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .tariff-card label {
@@ -589,12 +590,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .tariff-name {
             font-size: 18px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 15px;
         }
 
         body.dark-theme .tariff-name {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .tariff-specs p {
@@ -611,21 +612,21 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .tariff-specs i {
-            color: #00bcd4;
+            color: var(--mint-text);
             width: 16px;
         }
 
         .tariff-price {
             font-size: 24px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
             margin-top: 15px;
             padding-top: 15px;
             border-top: 1px solid rgba(148, 163, 184, 0.1);
         }
 
         body.dark-theme .tariff-price {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .tariff-date {
@@ -673,7 +674,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .custom-configurator h4 {
             font-size: 16px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
@@ -681,7 +682,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         body.dark-theme .custom-configurator h4 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .custom-config-row {
@@ -711,12 +712,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .custom-config-group label {
             display: block;
             margin-bottom: 15px;
-            color: #1e293b;
+            color: #172438;
             font-weight: 500;
         }
 
         body.dark-theme .custom-config-group label {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .custom-config-group input[type="range"] {
@@ -733,19 +734,19 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 8px rgba(13, 148, 136, 0.3);
         }
 
         .custom-config-group input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             cursor: pointer;
             border: none;
-            box-shadow: 0 4px 8px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 8px rgba(13, 148, 136, 0.3);
         }
 
         .custom-config-value {
@@ -753,8 +754,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             text-align: center;
             font-size: 24px;
             font-weight: 700;
-            color: #00bcd4;
-            background: rgba(0, 188, 212, 0.1);
+            color: var(--mint-text);
+            background: rgba(13, 148, 136, 0.1);
             padding: 10px;
             border-radius: 8px;
         }
@@ -793,15 +794,15 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             border-top: 2px solid rgba(148, 163, 184, 0.2);
             font-size: 18px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .custom-price-total {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .custom-price-total span {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 20px;
         }
 
@@ -813,12 +814,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         .form-label {
             display: block;
             margin-bottom: 8px;
-            color: #1e293b;
+            color: #172438;
             font-weight: 500;
         }
 
         body.dark-theme .form-label {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .form-control {
@@ -827,7 +828,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-radius: 10px;
             background: white;
-            color: #1e293b;
+            color: #172438;
             font-size: 15px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -835,13 +836,13 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         body.dark-theme .form-control {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #00bcd4;
-            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+            border-color: #007b72;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .text-muted {
@@ -865,10 +866,10 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
         .hostname-generator button {
             padding: 8px 16px;
-            background: rgba(0, 188, 212, 0.1);
-            border: 1px solid rgba(0, 188, 212, 0.2);
+            background: rgba(13, 148, 136, 0.1);
+            border: 1px solid rgba(13, 148, 136, 0.2);
             border-radius: 8px;
-            color: #00bcd4;
+            color: var(--mint-text);
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -878,7 +879,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .hostname-generator button:hover {
-            background: rgba(0, 188, 212, 0.2);
+            background: rgba(13, 148, 136, 0.2);
             transform: translateY(-1px);
         }
 
@@ -887,7 +888,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             display: block;
             width: 100%;
             padding: 18px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 12px;
             color: white;
@@ -904,7 +905,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
         .btn-submit:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.4);
         }
 
         .btn-submit:disabled {
@@ -996,18 +997,18 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .timer-icon {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 18px;
         }
 
         .timer-value {
             font-size: 20px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .timer-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* VNC кнопка */
@@ -1075,7 +1076,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             left: 0;
             height: 100%;
             width: 0;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 3px;
             transition: width 0.3s ease;
         }
@@ -1101,16 +1102,16 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .resources-info p {
             background: rgba(30, 41, 59, 0.3);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .resources-info i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 18px;
         }
 
@@ -1142,7 +1143,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         }
 
         .quota-alert a {
-            color: #00bcd4;
+            color: var(--mint-text);
             text-decoration: none;
             font-weight: 500;
         }
@@ -1170,7 +1171,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             left: 20px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 12px;
             color: white;
             font-size: 24px;
@@ -1178,7 +1179,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             z-index: 1000;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         @media (max-width: 992px) {
@@ -1245,7 +1246,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
         /* Стили для выпадающего списка хранилищ */
 .storages-select {

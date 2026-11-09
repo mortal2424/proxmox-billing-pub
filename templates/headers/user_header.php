@@ -206,7 +206,7 @@ html {
 
 /* ========== СТИЛЬ ШАПКИ С ЦВЕТОВОЙ СХЕМОЙ КАК У ФУТЕРА ========== */
 .admin-header.centered-header.modern-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     position: sticky;
     top: 0;
@@ -248,14 +248,14 @@ html {
 .admin-header.centered-header .logo-icon {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, #00bcd4, #0097a7);
+    background: linear-gradient(135deg, #007b72, #00635f);
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-size: 20px;
-    box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
 .admin-header.centered-header .logo-text {
@@ -380,7 +380,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid #0f172a;
+    border: 2px solid #0e1727;
     box-shadow: 0 2px 8px rgba(255, 71, 87, 0.4);
     line-height: 1;
 }
@@ -485,7 +485,7 @@ html {
     width: 32px;
     height: 32px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #00bcd4, #0097a7);
+    background: linear-gradient(135deg, #007b72, #00635f);
     color: white;
     display: flex;
     align-items: center;
@@ -628,7 +628,7 @@ html {
 
 .admin-header.centered-header .profile-header {
     padding: 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
     border-bottom: 1px solid #e5e7eb;
 }
 
@@ -636,7 +636,7 @@ html {
     width: 60px;
     height: 60px;
     border-radius: 16px;
-    background: linear-gradient(135deg, #00bcd4, #0097a7);
+    background: linear-gradient(135deg, #007b72, #00635f);
     display: flex;
     align-items: center;
     justify-content: center;

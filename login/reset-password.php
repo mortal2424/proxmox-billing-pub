@@ -48,12 +48,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
                 <head>
                     <meta charset='UTF-8'>
                     <style>
-                        body { font-family: 'Inter', sans-serif; color: #1e293b; }
+                        body { font-family: 'Inter', sans-serif; color: #172438; }
                         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                        .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 30px; text-align: center; border-radius: 15px 15px 0 0; }
+                        .header { background: linear-gradient(135deg, #0e1727 0%, #172438 100%); padding: 30px; text-align: center; border-radius: 15px 15px 0 0; }
                         .logo { color: white; font-size: 24px; font-weight: 800; }
-                        .content { background: #f8fafc; padding: 30px; }
-                        .reset-btn { display: inline-block; background: linear-gradient(135deg, #00bcd4, #0097a7); color: white; padding: 16px 32px; text-decoration: none; border-radius: 10px; font-weight: 600; margin: 20px 0; }
+                        .content { background: #f7fafc; padding: 30px; }
+                        .reset-btn { display: inline-block; background: linear-gradient(135deg, #007b72, #00635f); color: white; padding: 16px 32px; text-decoration: none; border-radius: 10px; font-weight: 600; margin: 20px 0; }
                         .warning { background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0; }
                     </style>
                 </head>
@@ -160,6 +160,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Восстановление пароля | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -167,16 +168,16 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
     <link rel="icon" href="../img/cloud.png" type="image/png">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
             --purple-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            --light-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --light-bg: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
             --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-            --text-primary: #1e293b;
+            --text-primary: #172438;
             --text-secondary: #64748b;
             --text-light: #94a3b8;
         }
@@ -239,13 +240,13 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         .logo-image {
             height: 45px;
             width: auto;
-            filter: drop-shadow(0 4px 12px rgba(0, 188, 212, 0.3));
+            filter: drop-shadow(0 4px 12px rgba(13, 148, 136, 0.3));
         }
 
         .logo-text {
             font-size: 22px;
             font-weight: 800;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -284,16 +285,16 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         }
 
         .nav-btn-primary {
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
-            border: 1px solid rgba(0, 188, 212, 0.3);
+            background: linear-gradient(135deg, #007b72, #00635f);
+            border: 1px solid rgba(13, 148, 136, 0.3);
             color: white;
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .nav-btn-primary:hover {
-            background: linear-gradient(135deg, #0097a7, #00838f);
+            background: linear-gradient(135deg, #00635f, #00635f);
             transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
         }
 
         /* Основное содержимое */
@@ -304,7 +305,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
             justify-content: center;
             padding: 140px 20px 60px;
             min-height: 100vh;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             position: relative;
         }
 
@@ -316,7 +317,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(circle at 10% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 10% 20%, rgba(13, 148, 136, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
         }
 
@@ -457,7 +458,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
             font-size: 32px;
             font-weight: 700;
             margin-bottom: 12px;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
+            background: linear-gradient(135deg, #0e1727, #172438);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -584,9 +585,9 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         }
 
         .notification.info {
-            background: linear-gradient(135deg, rgba(0, 188, 212, 0.1), rgba(0, 151, 167, 0.1));
-            border: 1px solid rgba(0, 188, 212, 0.2);
-            color: #0097a7;
+            background: linear-gradient(135deg, rgba(13, 148, 136, 0.1), rgba(0, 99, 95, 0.1));
+            border: 1px solid rgba(13, 148, 136, 0.2);
+            color: var(--mint-text);
         }
 
         .notification i {
@@ -633,8 +634,8 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
 
         .email-highlight {
             font-weight: 700;
-            color: #00bcd4;
-            background: rgba(0, 188, 212, 0.1);
+            color: var(--mint-text);
+            background: rgba(13, 148, 136, 0.1);
             padding: 4px 12px;
             border-radius: 8px;
             display: inline-block;
@@ -677,7 +678,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         }
 
         .auth-link {
-            color: #00bcd4;
+            color: var(--mint-text);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
@@ -688,7 +689,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         }
 
         .auth-link:hover {
-            color: #0097a7;
+            color: var(--mint-text);
             transform: translateX(3px);
         }
 
@@ -721,7 +722,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
 
         .footer-bottom {
@@ -856,7 +857,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
         /* Тёмная тема */
         @media (prefers-color-scheme: dark) {
             body {
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             }
 
             .auth-card {
@@ -910,7 +911,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
             }
 
             .email-highlight {
-                background: rgba(0, 188, 212, 0.2);
+                background: rgba(13, 148, 136, 0.2);
             }
         }
     </style>

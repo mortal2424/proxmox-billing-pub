@@ -1,0 +1,20 @@
+:root {
+    --mint-text: #006878;
+    --mint-focus: #007b72;
+}
+
+body.dark-theme, [data-theme="dark"] {
+    --mint-text: #79e0dc;
+    --mint-focus: #79e0dc;
+}
+
+.admin-sidebar {
+    --mint-text: #79e0dc;
+    --mint-focus: #79e0dc;
+}
+
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--mint-focus);
+    outline-offset: 3px;
+}

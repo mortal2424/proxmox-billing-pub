@@ -38,6 +38,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -48,8 +49,8 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -65,15 +66,15 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -117,7 +118,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -189,7 +190,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 16px 16px 0 0;
         }
 
@@ -209,8 +210,8 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             justify-content: center;
             font-size: 24px;
             color: white;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            background: linear-gradient(135deg, #007b72, #00635f);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .stat-icon.warning {
@@ -225,11 +226,11 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             font-size: 32px;
             font-weight: 700;
             margin: 8px 0;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .stat-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .stat-label {
@@ -305,14 +306,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         .section-title {
             font-size: 20px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Сетка ВМ */
@@ -353,12 +354,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         .vm-name {
             font-size: 16px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 5px;
         }
 
         body.dark-theme .vm-name {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .vm-id {
@@ -421,12 +422,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         .spec-icon {
             width: 24px;
             height: 24px;
-            background: rgba(0, 188, 212, 0.1);
+            background: rgba(13, 148, 136, 0.1);
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 12px;
         }
 
@@ -442,12 +443,12 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         .spec-value {
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             font-size: 13px;
         }
 
         body.dark-theme .spec-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Мини-прогресс бары в карточках ВМ */
@@ -550,7 +551,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         }
 
         .vm-spec-tf i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 12px;
             width: 16px;
         }
@@ -652,14 +653,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         }
 
         .view-toggle-btn.active {
-            background: rgba(0, 188, 212, 0.1);
-            border-color: rgba(0, 188, 212, 0.2);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            border-color: rgba(13, 148, 136, 0.2);
+            color: var(--mint-text);
         }
 
         .view-toggle-btn:hover {
-            border-color: #00bcd4;
-            color: #00bcd4;
+            border-color: #007b72;
+            color: var(--mint-text);
         }
 
         .search-box {
@@ -680,7 +681,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-radius: 8px;
             background: white;
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
             width: 200px;
         }
@@ -688,7 +689,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         body.dark-theme .search-box input {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Пустое состояние */
@@ -715,7 +716,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         /* Кнопка заказать */
         .btn-order {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 12px;
             color: white;
@@ -730,13 +731,13 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         .btn-order:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         /* Кнопка обновления */
         .btn-refresh {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 10px;
             color: white;
@@ -750,7 +751,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         .btn-refresh:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         /* Скелетон для загрузки */
@@ -912,11 +913,11 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         .metrics-modal-title {
             font-size: 24px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .metrics-modal-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .metrics-modal-close {
@@ -941,11 +942,11 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         .timeframe-filter label {
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .timeframe-filter label {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .timeframe-filter select {
@@ -953,14 +954,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-radius: 10px;
             background: white;
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
         }
 
         body.dark-theme .timeframe-filter select {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .metrics-grid {
@@ -1000,14 +1001,14 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             right: 30px;
             width: 50px;
             height: 50px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             text-decoration: none;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
             transition: all 0.3s ease;
             opacity: 0;
             visibility: hidden;
@@ -1021,7 +1022,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
         .scroll-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.5);
         }
 
         /* Уведомления */
@@ -1055,7 +1056,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
         }
 
         .notification.info {
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
         }
 
         /* Кнопка меню для мобильных */
@@ -1066,7 +1067,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             left: 15px;
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 8px;
             color: white;
@@ -1108,7 +1109,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
     </style>
 </head>

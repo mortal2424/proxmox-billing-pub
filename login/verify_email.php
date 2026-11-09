@@ -127,6 +127,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Подтверждение email | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -135,15 +136,15 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
     <style>
         /* ОСНОВНЫЕ ПЕРЕМЕННЫЕ */
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             --secondary-gradient: linear-gradient(135deg, #0ea5e9, #0284c7);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
-            --light-bg: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            --light-bg: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
             --card-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-            --text-primary: #1e293b;
+            --text-primary: #172438;
             --text-secondary: #64748b;
             --text-light: #94a3b8;
             --border-color: #cbd5e1;
@@ -178,7 +179,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
             justify-content: center;
             padding: 40px 20px;
             min-height: 100vh;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
             position: relative;
         }
 
@@ -190,7 +191,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
             right: 0;
             bottom: 0;
             background:
-                radial-gradient(circle at 10% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 10% 20%, rgba(13, 148, 136, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 40%);
         }
 
@@ -249,7 +250,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
             font-size: 32px;
             font-weight: 700;
             margin-bottom: 12px;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
+            background: linear-gradient(135deg, #0e1727, #172438);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -334,7 +335,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
         }
 
         .form-label i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 14px;
         }
 
@@ -352,9 +353,9 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 
         .form-control:focus {
             outline: none;
-            border-color: #00bcd4;
+            border-color: #007b72;
             background: white;
-            box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.1);
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
         }
 
         .form-control::placeholder {
@@ -368,7 +369,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
             text-align: center;
             font-weight: 700;
             color: var(--text-primary);
-            border: 2px solid rgba(0, 188, 212, 0.3);
+            border: 2px solid rgba(13, 148, 136, 0.3);
             border-radius: 12px;
             padding: 16px;
             background: rgba(248, 250, 252, 0.8);
@@ -379,15 +380,15 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 
         .verification-code-input:focus {
             outline: none;
-            border-color: #00bcd4;
+            border-color: #007b72;
             background: white;
-            box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.1);
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
         }
 
         /* ИНФОРМАЦИЯ */
         .verification-info {
-            background: rgba(0, 188, 212, 0.05);
-            border: 2px solid rgba(0, 188, 212, 0.1);
+            background: rgba(13, 148, 136, 0.05);
+            border: 2px solid rgba(13, 148, 136, 0.1);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 32px;
@@ -396,7 +397,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 
         .verification-email {
             font-weight: 700;
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 18px;
             margin: 8px 0;
             word-break: break-all;
@@ -419,13 +420,13 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
             justify-content: center;
             gap: 10px;
             margin-bottom: 24px;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #0097a7, #00838f);
+            background: linear-gradient(135deg, #00635f, #00635f);
             transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.4);
         }
 
         /* ССЫЛКИ */
@@ -435,7 +436,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
         }
 
         .auth-link {
-            color: #00bcd4;
+            color: var(--mint-text);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
@@ -446,7 +447,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
         }
 
         .auth-link:hover {
-            color: #0097a7;
+            color: var(--mint-text);
             transform: translateX(3px);
         }
 
@@ -509,7 +510,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
         /* ТЁМНАЯ ТЕМА */
         @media (prefers-color-scheme: dark) {
             body {
-                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             }
 
             .auth-card {
@@ -525,7 +526,7 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 
             .form-control:focus {
                 background: rgba(15, 23, 42, 1);
-                border-color: #00bcd4;
+                border-color: #007b72;
             }
 
             .auth-title {
@@ -536,13 +537,13 @@ if (isset($_GET['resend']) && $_GET['resend'] == '1' && !empty($email)) {
 
             .verification-code-input {
                 background: rgba(15, 23, 42, 0.8);
-                border-color: rgba(0, 188, 212, 0.3);
+                border-color: rgba(13, 148, 136, 0.3);
                 color: #cbd5e1;
             }
 
             .verification-info {
-                background: rgba(0, 188, 212, 0.1);
-                border-color: rgba(0, 188, 212, 0.2);
+                background: rgba(13, 148, 136, 0.1);
+                border-color: rgba(13, 148, 136, 0.2);
             }
         }
     </style>

@@ -329,6 +329,7 @@ $title = "Документация | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -337,24 +338,24 @@ $title = "Документация | HomeVlad Cloud";
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
             --info-gradient: linear-gradient(135deg, #3b82f6, #2563eb);
             --purple-gradient: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            --docs-bg: #f8fafc;
+            --docs-bg: #f7fafc;
             --docs-sidebar-bg: #ffffff;
             --docs-content-bg: #ffffff;
             --docs-border: #e2e8f0;
-            --docs-text: #1e293b;
+            --docs-text: #172438;
             --docs-text-secondary: #64748b;
             --docs-text-muted: #94a3b8;
-            --docs-hover: #f1f5f9;
+            --docs-hover: #edf4f7;
             --docs-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
             --docs-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --docs-accent: #00bcd4;
+            --docs-accent: #007b72;
             --docs-success: #10b981;
             --docs-warning: #f59e0b;
             --docs-danger: #ef4444;
@@ -370,15 +371,15 @@ $title = "Документация | HomeVlad Cloud";
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -442,7 +443,7 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         body.dark-theme .docs-sidebar-right-header h3 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-sidebar-right-header h3 i {
@@ -465,7 +466,7 @@ $title = "Документация | HomeVlad Cloud";
 
         body.dark-theme .docs-search-right input {
             background: rgba(30, 41, 59, 0.5);
-            color: #f1f5f9;
+            color: #edf4f7;
             border-color: rgba(255, 255, 255, 0.1);
         }
 
@@ -504,7 +505,7 @@ $title = "Документация | HomeVlad Cloud";
 
         body.dark-theme .docs-category-link-right:hover {
             background: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-category-link-right.active {
@@ -579,7 +580,7 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         body.dark-theme .docs-header h1 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-header h1 i {
@@ -650,7 +651,7 @@ $title = "Документация | HomeVlad Cloud";
             color: white;
             margin-right: 12px;
             flex-shrink: 0;
-            background: linear-gradient(135deg, var(--docs-accent), #0097a7);
+            background: linear-gradient(135deg, var(--docs-accent), #00635f);
         }
 
         .docs-card-title {
@@ -665,7 +666,7 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         body.dark-theme .docs-card-title h3 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-card-category {
@@ -771,7 +772,7 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         body.dark-theme .docs-article-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-article-meta {
@@ -872,7 +873,7 @@ $title = "Документация | HomeVlad Cloud";
         body.dark-theme .docs-article-content h4,
         body.dark-theme .docs-article-content h5,
         body.dark-theme .docs-article-content h6 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .docs-article-content h1 { font-size: 2em; }
@@ -1332,7 +1333,7 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--docs-accent), #0097a7);
+            background: linear-gradient(135deg, var(--docs-accent), #00635f);
             color: white;
         }
 
@@ -1499,7 +1500,7 @@ $title = "Документация | HomeVlad Cloud";
             font-size: 20px;
             color: white;
             margin: 0 auto 15px;
-            background: linear-gradient(135deg, var(--docs-accent), #0097a7);
+            background: linear-gradient(135deg, var(--docs-accent), #00635f);
         }
 
         .docs-stat-value {
@@ -1686,7 +1687,7 @@ $title = "Документация | HomeVlad Cloud";
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
     </style>
 </head>
@@ -1850,7 +1851,7 @@ $title = "Документация | HomeVlad Cloud";
                                     <?php foreach ($featured_docs as $doc): ?>
                                         <div class="docs-card">
                                             <div class="docs-card-header">
-                                                <div class="docs-card-icon" style="background: <?= $doc['category_color'] ?? '#00bcd4' ?>;">
+                                                <div class="docs-card-icon" style="background: <?= $doc['category_color'] ?? '#007b72' ?>;">
                                                     <i class="fas <?= $doc['category_icon'] ?? 'fa-file' ?>"></i>
                                                 </div>
                                                 <div class="docs-card-title">
@@ -2548,7 +2549,7 @@ $title = "Документация | HomeVlad Cloud";
             }
 
             .notification.info {
-                background: linear-gradient(135deg, #00bcd4, #0097a7);
+                background: linear-gradient(135deg, #007b72, #00635f);
             }
 
             .scroll-to-top {
@@ -2557,14 +2558,14 @@ $title = "Документация | HomeVlad Cloud";
                 right: 30px;
                 width: 50px;
                 height: 50px;
-                background: linear-gradient(135deg, #00bcd4, #0097a7);
+                background: linear-gradient(135deg, #007b72, #00635f);
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 color: white;
                 text-decoration: none;
-                box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+                box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
                 transition: all 0.3s ease;
                 opacity: 0;
                 visibility: hidden;
@@ -2578,7 +2579,7 @@ $title = "Документация | HomeVlad Cloud";
 
             .scroll-to-top:hover {
                 transform: translateY(-5px);
-                box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+                box-shadow: 0 12px 30px rgba(13, 148, 136, 0.5);
             }
         `;
         document.head.appendChild(style);

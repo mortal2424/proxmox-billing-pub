@@ -174,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Настройки <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнера' ?> | <?= htmlspecialchars($_ENV['APP_NAME']) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -182,8 +183,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -199,15 +200,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -251,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -320,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border-radius: 16px 16px 0 0;
         }
 
@@ -344,18 +345,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .card-header h5 {
             font-size: 18px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .card-header h5 {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .card-header i {
-            color: #00bcd4;
+            color: var(--mint-text);
             font-size: 20px;
         }
 
@@ -383,12 +384,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
         }
 
         body.dark-theme .form-group label {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .form-control {
@@ -397,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid rgba(148, 163, 184, 0.3);
             border-radius: 10px;
             background: rgba(248, 250, 252, 0.5);
-            color: #1e293b;
+            color: #172438;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             transition: all 0.3s ease;
@@ -406,13 +407,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         body.dark-theme .form-control {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.2);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #00bcd4;
-            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+            border-color: #007b72;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .tariff-select {
@@ -421,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid rgba(148, 163, 184, 0.3);
             border-radius: 10px;
             background: rgba(248, 250, 252, 0.5);
-            color: #1e293b;
+            color: #172438;
             font-family: 'Inter', sans-serif;
             font-size: 14px;
             transition: all 0.3s ease;
@@ -431,17 +432,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         body.dark-theme .tariff-select {
             background: rgba(30, 41, 59, 0.5);
             border-color: rgba(255, 255, 255, 0.2);
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .tariff-select option {
             background: white;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .tariff-select option {
-            background: #1e293b;
-            color: #f1f5f9;
+            background: #172438;
+            color: #edf4f7;
         }
 
         .form-row {
@@ -469,13 +470,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
 
         .btn-danger {
@@ -559,13 +560,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .disk-info-item div,
         .network-info-item div {
             font-size: 14px;
-            color: #1e293b;
+            color: #172438;
             font-weight: 500;
         }
 
         body.dark-theme .disk-info-item div,
         body.dark-theme .network-info-item div {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .sdn-alias {
@@ -590,7 +591,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(148, 163, 184, 0.1);
-            border-top: 3px solid #00bcd4;
+            border-top: 3px solid #007b72;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -629,7 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Кнопка обновления */
         .btn-refresh {
             padding: 8px 16px;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             border: none;
             border-radius: 10px;
             color: white;
@@ -643,7 +644,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn-refresh:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         /* Стили для темы */
@@ -701,7 +702,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
     </style>
     <script src="/js/theme.js" defer></script>
@@ -1064,7 +1065,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         div.className = 'network-form';
 
         let networkContent = `
-            <h6 style="margin-bottom: 12px; color: #1e293b; font-size: 14px; font-weight: 600;">
+            <h6 style="margin-bottom: 12px; color: #172438; font-size: 14px; font-weight: 600;">
                 <i class="fas fa-ethernet"></i> Интерфейс ${net.id}
             </h6>
             <div class="network-info">
@@ -1142,7 +1143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         form.innerHTML = `
-            <h6 style="margin-bottom: 12px; color: #1e293b; font-size: 14px; font-weight: 600;">
+            <h6 style="margin-bottom: 12px; color: #172438; font-size: 14px; font-weight: 600;">
                 <i class="fas fa-plus-circle"></i> Добавить интерфейс
             </h6>
             <div class="form-row">

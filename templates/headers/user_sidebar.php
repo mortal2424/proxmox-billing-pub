@@ -437,7 +437,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     top: 70px;
     width: 280px;
     height: auto;
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(180deg, #0e1727 0%, #172438 100%);
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     z-index: 900;
     margin-bottom: 60px;
@@ -470,14 +470,14 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 .sidebar-logo-icon {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, #00bcd4, #0097a7);
+    background: linear-gradient(135deg, #007b72, #00635f);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-size: 18px;
-    box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
 }
 
 .sidebar-title {
@@ -551,7 +551,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     align-items: center;
     justify-content: center;
     font-size: 10px;
-    border: 2px solid #0f172a;
+    border: 2px solid #0e1727;
 }
 
 .sidebar-user-info {
@@ -590,7 +590,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .user-stat i {
-    color: #00bcd4;
+    color: var(--mint-text);
     font-size: 12px;
 }
 
@@ -632,9 +632,9 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .quick-action-btn.primary {
-    background: rgba(0, 188, 212, 0.15);
-    border-color: rgba(0, 188, 212, 0.3);
-    color: #00bcd4;
+    background: rgba(13, 148, 136, 0.15);
+    border-color: rgba(13, 148, 136, 0.3);
+    color: var(--mint-text);
 }
 
 .quick-action-btn.success {
@@ -674,7 +674,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid #0f172a;
+    border: 2px solid #0e1727;
 }
 
 /* Использование ресурсов */
@@ -717,7 +717,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .resource-label i {
-    color: #00bcd4;
+    color: var(--mint-text);
     font-size: 12px;
     width: 16px;
     text-align: center;
@@ -762,7 +762,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .progress-fill.cpu {
-    background: linear-gradient(90deg, #00bcd4, #0097a7);
+    background: linear-gradient(90deg, #007b72, #00635f);
 }
 
 .progress-fill.ram {
@@ -820,7 +820,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     top: 0;
     bottom: 0;
     width: 3px;
-    background: linear-gradient(180deg, #00bcd4, #0097a7);
+    background: linear-gradient(180deg, #007b72, #00635f);
     border-radius: 0 3px 3px 0;
 }
 
@@ -875,10 +875,10 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 .menu-active-indicator {
     width: 8px;
     height: 8px;
-    background: #00bcd4;
+    background: #007b72;
     border-radius: 50%;
     margin-left: 12px;
-    box-shadow: 0 0 8px rgba(0, 188, 212, 0.8);
+    box-shadow: 0 0 8px rgba(13, 148, 136, 0.8);
 }
 
 .menu-badge {
@@ -896,9 +896,9 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .menu-badge.count {
-    background: rgba(0, 188, 212, 0.2);
-    color: #00bcd4;
-    border: 1px solid rgba(0, 188, 212, 0.3);
+    background: rgba(13, 148, 136, 0.2);
+    color: var(--mint-text);
+    border: 1px solid rgba(13, 148, 136, 0.3);
 }
 
 .menu-badge.balance {
@@ -972,7 +972,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 .total-value {
     font-size: 14px;
     font-weight: 700;
-    color: #00bcd4;
+    color: var(--mint-text);
 }
 
 .system-status {
@@ -1071,7 +1071,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .footer-link:hover {
-    color: #00bcd4;
+    color: var(--mint-text);
 }
 
 .logout-btn {

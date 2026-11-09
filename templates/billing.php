@@ -438,7 +438,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
                 color: #64748b;
             }
             .company-info {
-                background-color: #f1f5f9;
+                background-color: #edf4f7;
                 padding: 12px 15px;
                 border-radius: 5px;
                 margin-bottom: 12px;
@@ -460,7 +460,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
             }
             .details-block {
                 flex: 1;
-                background-color: #f1f5f9;
+                background-color: #edf4f7;
                 padding: 10px 12px;
                 border-radius: 5px;
                 border: 1px solid #e2e8f0;
@@ -494,7 +494,7 @@ function generateInvoicePDF($pdo, $user_id, $invoice_number, $amount, $legal_ent
             }
             .total {
                 text-align: right;
-                background-color: #f1f5f9;
+                background-color: #edf4f7;
                 padding: 10px 12px;
                 border-radius: 5px;
                 margin-bottom: 15px;
@@ -639,6 +639,7 @@ $title = "Биллинг | HomeVlad Cloud";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title><?= $title ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -648,8 +649,8 @@ $title = "Биллинг | HomeVlad Cloud";
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -665,15 +666,15 @@ $title = "Биллинг | HomeVlad Cloud";
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -717,7 +718,7 @@ $title = "Биллинг | HomeVlad Cloud";
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -804,7 +805,7 @@ $title = "Биллинг | HomeVlad Cloud";
             font-size: 24px;
             color: white;
             background: var(--secondary-gradient);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .stat-icon.balance {
@@ -827,11 +828,11 @@ $title = "Биллинг | HomeVlad Cloud";
             font-size: 32px;
             font-weight: 700;
             margin: 8px 0;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .stat-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .stat-label {
@@ -870,14 +871,14 @@ $title = "Биллинг | HomeVlad Cloud";
             font-size: 20px;
             font-weight: 600;
             margin-bottom: 20px;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Методы оплаты */
@@ -904,13 +905,13 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .payment-method-card:hover {
             transform: translateY(-4px);
-            border-color: #00bcd4;
-            box-shadow: 0 8px 24px rgba(0, 188, 212, 0.15);
+            border-color: #007b72;
+            box-shadow: 0 8px 24px rgba(13, 148, 136, 0.15);
         }
 
         .payment-method-card.active {
-            border-color: #00bcd4;
-            background: rgba(0, 188, 212, 0.05);
+            border-color: #007b72;
+            background: rgba(13, 148, 136, 0.05);
         }
 
         .payment-method-icon {
@@ -938,11 +939,11 @@ $title = "Биллинг | HomeVlad Cloud";
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 8px;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .payment-method-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .payment-method-description {
@@ -1025,14 +1026,14 @@ $title = "Биллинг | HomeVlad Cloud";
         }
 
         .history-tab:hover {
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
         }
 
         .history-tab.active {
             background: var(--secondary-gradient);
             color: white;
-            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
         }
 
         .history-content {
@@ -1079,7 +1080,7 @@ $title = "Биллинг | HomeVlad Cloud";
            border: 1px solid rgba(148, 163, 184, 0.3);
            border-radius: 8px;
            background: white;
-           color: #1e293b;
+           color: #172438;
            font-size: 14px;
            cursor: pointer;
            transition: all 0.3s ease;
@@ -1093,7 +1094,7 @@ $title = "Биллинг | HomeVlad Cloud";
         }
 
         .filter-group select:hover {
-            border-color: #00bcd4;
+            border-color: #007b72;
         }
 
         /* Платежи и списания */
@@ -1117,18 +1118,18 @@ $title = "Биллинг | HomeVlad Cloud";
         .payment-item:hover, .debit-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-            border-color: rgba(0, 188, 212, 0.3);
+            border-color: rgba(13, 148, 136, 0.3);
         }
 
         .payment-description, .debit-description {
             font-weight: 500;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 4px;
         }
 
         body.dark-theme .payment-description,
         body.dark-theme .debit-description {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .payment-date, .debit-date {
@@ -1174,8 +1175,8 @@ $title = "Биллинг | HomeVlad Cloud";
         }
 
         .debit-balance-type.main {
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
         }
 
         .debit-balance-type.bonus {
@@ -1197,8 +1198,8 @@ $title = "Биллинг | HomeVlad Cloud";
         .page-link {
             padding: 8px 16px;
             border-radius: 8px;
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
             text-decoration: none;
             font-weight: 500;
             transition: all 0.3s ease;
@@ -1208,7 +1209,7 @@ $title = "Биллинг | HomeVlad Cloud";
         }
 
         .page-link:hover {
-            background: rgba(0, 188, 212, 0.2);
+            background: rgba(13, 148, 136, 0.2);
             transform: translateY(-2px);
         }
 
@@ -1226,7 +1227,7 @@ $title = "Биллинг | HomeVlad Cloud";
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .form-label {
@@ -1239,7 +1240,7 @@ $title = "Биллинг | HomeVlad Cloud";
             border: 1px solid rgba(148, 163, 184, 0.3);
             border-radius: 8px;
             background: white;
-            color: #1e293b;
+            color: #172438;
             font-size: 16px;
             transition: all 0.3s ease;
         }
@@ -1252,8 +1253,8 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .form-control:focus {
             outline: none;
-            border-color: #00bcd4;
-            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+            border-color: #007b72;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .btn {
@@ -1277,7 +1278,7 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
         }
 
         .btn-success {
@@ -1343,7 +1344,7 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .tooltip-header {
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 1px solid rgba(148, 163, 184, 0.2);
@@ -1358,13 +1359,13 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .tooltip-icon {
             margin-right: 6px;
-            color: #00bcd4;
+            color: var(--mint-text);
             width: 16px;
         }
 
         .tooltip-value {
             font-weight: 500;
-            color: #1e293b;
+            color: #172438;
         }
 
         /* Модальное окно графиков */
@@ -1413,14 +1414,14 @@ $title = "Биллинг | HomeVlad Cloud";
         .modal-title {
             font-size: 20px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .modal-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .close-modal {
@@ -1456,14 +1457,14 @@ $title = "Биллинг | HomeVlad Cloud";
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 16px;
-            color: #1e293b;
+            color: #172438;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         body.dark-theme .chart-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .chart-wrapper {
@@ -1525,14 +1526,14 @@ $title = "Биллинг | HomeVlad Cloud";
         }
 
         .graph-tab:hover {
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
         }
 
         .graph-tab.active {
             background: var(--secondary-gradient);
             color: white;
-            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
         }
 
         .graph-content {
@@ -1649,7 +1650,7 @@ $title = "Биллинг | HomeVlad Cloud";
             justify-content: center;
             color: white;
             text-decoration: none;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
             transition: all 0.3s ease;
             opacity: 0;
             visibility: hidden;
@@ -1663,7 +1664,7 @@ $title = "Биллинг | HomeVlad Cloud";
 
         .scroll-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.5);
         }
     </style>
 </head>
@@ -1975,7 +1976,7 @@ $title = "Биллинг | HomeVlad Cloud";
                             <p><strong>Получатель:</strong> Компания</p>
                         </div>
 
-                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(0, 188, 212, 0.05); border-radius: 8px;">
+                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(13, 148, 136, 0.05); border-radius: 8px;">
                             <h4><i class="fas fa-info-circle"></i> Инструкция по оплате:</h4>
                             <ol style="margin-top: 8px; padding-left: 20px;">
                                 <li>Откройте приложение вашего банка</li>
@@ -2011,7 +2012,7 @@ $title = "Биллинг | HomeVlad Cloud";
                             <small style="color: #64748b; font-size: 12px;">Укажите это слово в комментарии к переводу</small>
                         </div>
 
-                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(0, 188, 212, 0.05); border-radius: 8px;">
+                        <div class="payment-instructions" style="margin-top: 20px; padding: 16px; background: rgba(13, 148, 136, 0.05); border-radius: 8px;">
                             <h4><i class="fas fa-info-circle"></i> Инструкция по оплате:</h4>
                             <p>Выполните перевод по указанным реквизитам через приложение вашего банка. Обязательно укажите контрольное слово в комментарии.</p>
                         </div>
@@ -2889,11 +2890,11 @@ $title = "Биллинг | HomeVlad Cloud";
             const ctx = canvas.getContext('2d');
 
             // Фон
-            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#0f172a' : '#ffffff';
+            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#0e1727' : '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Заголовок
-            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#f1f5f9' : '#1e293b';
+            ctx.fillStyle = document.body.classList.contains('dark-theme') ? '#edf4f7' : '#172438';
             ctx.font = 'bold 24px Inter';
             ctx.textAlign = 'center';
             ctx.fillText('Аналитика потребления платформы', canvas.width / 2, 50);
@@ -3108,7 +3109,7 @@ $title = "Биллинг | HomeVlad Cloud";
                 background: ${type === 'success' ? 'linear-gradient(135deg, #10b981, #059669)' :
                            type === 'error' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
                            type === 'warning' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                           'linear-gradient(135deg, #00bcd4, #0097a7)'};
+                           'linear-gradient(135deg, #007b72, #00635f)'};
             `;
 
             document.body.appendChild(notification);

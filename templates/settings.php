@@ -208,6 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/user-palette.css">
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Настройки | HomeVlad Cloud</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -216,8 +217,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="/css/themes.css">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            --secondary-gradient: linear-gradient(135deg, #00bcd4, #0097a7);
+            --primary-gradient: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+            --secondary-gradient: linear-gradient(135deg, #007b72, #00635f);
             --success-gradient: linear-gradient(135deg, #10b981, #059669);
             --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
             --danger-gradient: linear-gradient(135deg, #ef4444, #dc2626);
@@ -233,15 +234,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #1e293b;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf4f7 100%);
+            color: #172438;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
 
         body.dark-theme {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
             color: #cbd5e1;
         }
 
@@ -285,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .page-title {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            background: linear-gradient(135deg, #007b72, #00635f);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -349,7 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 20px;
             color: white;
             background: var(--secondary-gradient);
-            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
             margin-bottom: 12px;
         }
 
@@ -367,11 +368,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .profile-stat-value {
             font-size: 24px;
             font-weight: 700;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .profile-stat-value {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         /* Секции настроек */
@@ -413,11 +414,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .section-title {
             font-size: 20px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .section-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .section-subtitle {
@@ -485,7 +486,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .avatar-upload-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
         }
 
         .avatar-remove-btn {
@@ -531,7 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
         }
 
@@ -545,7 +546,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid rgba(148, 163, 184, 0.3);
             border-radius: 8px;
             background: white;
-            color: #1e293b;
+            color: #172438;
             font-size: 14px;
             transition: all 0.3s ease;
         }
@@ -558,8 +559,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .form-input:focus {
             outline: none;
-            border-color: #00bcd4;
-            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+            border-color: #007b72;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .form-input:disabled {
@@ -615,11 +616,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .telegram-title {
             font-size: 18px;
             font-weight: 600;
-            color: #1e293b;
+            color: #172438;
         }
 
         body.dark-theme .telegram-title {
-            color: #f1f5f9;
+            color: #edf4f7;
         }
 
         .telegram-status {
@@ -654,7 +655,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
         }
 
         .btn-success {
@@ -694,9 +695,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .btn-outline:hover {
-            border-color: #00bcd4;
-            color: #00bcd4;
-            background: rgba(0, 188, 212, 0.05);
+            border-color: #007b72;
+            color: var(--mint-text);
+            background: rgba(13, 148, 136, 0.05);
         }
 
         /* Уведомления */
@@ -815,14 +816,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .settings-tab:hover {
-            background: rgba(0, 188, 212, 0.1);
-            color: #00bcd4;
+            background: rgba(13, 148, 136, 0.1);
+            color: var(--mint-text);
         }
 
         .settings-tab.active {
             background: var(--secondary-gradient);
             color: white;
-            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
         }
 
         .tab-content {
@@ -930,7 +931,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             color: white;
             text-decoration: none;
-            box-shadow: 0 8px 25px rgba(0, 188, 212, 0.4);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.4);
             transition: all 0.3s ease;
             opacity: 0;
             visibility: hidden;
@@ -944,7 +945,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .scroll-to-top:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 188, 212, 0.5);
+            box-shadow: 0 12px 30px rgba(13, 148, 136, 0.5);
         }
 
         /* === ОБЩИЙ ФУТЕР === */
@@ -973,7 +974,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             left: 0;
             right: 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(0, 188, 212, 0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
 
         /* Индикатор сложности пароля */
@@ -1332,8 +1333,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    placeholder="Пример: 123456789">
                             <span class="form-hint">
                                 Чтобы получить свой Telegram ID, напишите <code>/start</code> боту
-                                <a href="https://t.me/homevlad_notify_bot" target="_blank" style="color: #00bcd4;">@homevlad_notify_bot</a>
-                                или используйте <a href="https://t.me/userinfobot" target="_blank" style="color: #00bcd4;">@userinfobot</a>
+                                <a href="https://t.me/homevlad_notify_bot" target="_blank" style="color: var(--mint-text);">@homevlad_notify_bot</a>
+                                или используйте <a href="https://t.me/userinfobot" target="_blank" style="color: var(--mint-text);">@userinfobot</a>
                             </span>
                         </div>
 
@@ -1750,7 +1751,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             input:checked + .slider {
-                background-color: #00bcd4;
+                background-color: #007b72;
             }
 
             input:checked + .slider:before {
