@@ -210,9 +210,28 @@ html {
     text-size-adjust: 100%;
 }
 
-/* ========== СТИЛЬ ШАПКИ С ЦВЕТОВОЙ СХЕМОЙ КАК У ФУТЕРА ========== */
+body:has(> .modern-header.centered-header) {
+    --full-shell-start: #285d51;
+    --full-shell-end: #347164;
+    --full-page-base: #f3f8f5;
+    --full-page-glow: #aee4d099;
+    --full-page-grid: #35715a0d;
+    background-color: var(--full-page-base);
+    background-image:
+        radial-gradient(ellipse 72% 470px at 92% 0, var(--full-page-glow), transparent),
+        linear-gradient(var(--full-page-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--full-page-grid) 1px, transparent 1px);
+    background-size: auto, 36px 36px, 36px 36px;
+}
+body.dark-theme:has(> .modern-header.centered-header) {
+    --full-shell-start: #25443c;
+    --full-shell-end: #31554a;
+    --full-page-base: #17221f;
+    --full-page-glow: #2e6a514d;
+    --full-page-grid: #b0e3c80c;
+}
 .admin-header.centered-header.modern-header {
-    background: linear-gradient(135deg, #0e1727 0%, #172438 100%);
+    background: linear-gradient(135deg, var(--full-shell-start, #285d51), var(--full-shell-end, #347164));
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     position: sticky;
     top: 0;
