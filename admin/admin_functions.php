@@ -191,6 +191,7 @@ function sendTelegramNotification($chat_id, $message) {
     $options = [
         'http' => [
             'method' => 'POST',
+            'timeout' => 5,
             'header' => "Content-Type:application/x-www-form-urlencoded\r\n",
             'content' => http_build_query($data)
         ]
@@ -198,7 +199,7 @@ function sendTelegramNotification($chat_id, $message) {
 
     try {
         $context = stream_context_create($options);
-        $result = file_get_contents($url, false, $context);
+        $result = @file_get_contents($url, false, $context);
         if ($result === false) {
             throw new Exception("Telegram API request failed");
         }
@@ -275,6 +276,8 @@ function sendNotificationToSupport($ticket_id) {
         $ticket_url = "https://homevlad.ru/admin/ticket.php?ticket_id=" . $ticket['id'];
         $department = getDepartmentText($ticket['department']);
 
+        $admins = $pdo->query("SELECT email FROM users WHERE is_admin = 1 AND email IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
+
         // Telegram сообщение для администраторов
         if (defined('TELEGRAM_CHAT_ID') && TELEGRAM_CHAT_ID) {
             $tg_message = "📌 <b>Новый тикет #{$ticket['id']}</b>\n";
@@ -307,8 +310,6 @@ function sendNotificationToSupport($ticket_id) {
         ";
 
         // Получаем список администраторов
-        $admins = $pdo->query("SELECT email FROM users WHERE is_admin = 1 AND email IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
-
         foreach ($admins as $admin_email) {
             sendEmailNotification($admin_email, $email_subject, $email_content);
         }

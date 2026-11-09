@@ -37,6 +37,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['close_ticket'])) {
     exit;
 }
 
+function finishSupportSubmission(int $ticketId, string $message): never
+{
+    $_SESSION['success_message'] = $message;
+    session_write_close();
+    header('Location: support.php?ticket_id=' . $ticketId, true, 303);
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+    try {
+        sendNotificationToSupport($ticketId);
+    } catch (Throwable $error) {
+        error_log('Support notification failed for ticket ' . $ticketId . ': ' . get_class($error));
+    }
+    exit;
+}
+
 // Обработка создания нового тикета
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_ticket'])) {
     try {
@@ -111,14 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_ticket'])) {
             }
         }
 
-        // Отправляем уведомление поддержке
-        if (function_exists('sendNotificationToSupport')) {
-            sendNotificationToSupport($ticket_id);
-        }
-
-        $_SESSION['success_message'] = "✅ Тикет #$ticket_id успешно создан! Мы ответим вам в ближайшее время.";
-        header("Location: support.php?ticket_id=" . $ticket_id, true, 303);
-        exit;
+        finishSupportSubmission((int) $ticket_id, "Обращение #$ticket_id создано.");
     } catch (Exception $e) {
         $_SESSION['error_message'] = "❌ Ошибка: " . $e->getMessage();
     }
@@ -204,13 +214,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply_ticket'])) {
 
         $pdo->commit();
 
-        // Отправляем уведомление администраторам
-        if (function_exists('sendNotificationToSupport')) {
-            sendNotificationToSupport($ticket_id);
+        finishSupportSubmission($ticket_id, 'Ваш ответ отправлен.');
+    } catch (PDOException $error) {
+        if ($pdo->inTransaction()) {
+            try {
+                $pdo->rollBack();
+            } catch (PDOException $rollbackError) {
+                error_log('Support reply rollback failed: ' . $rollbackError->getCode());
+            }
         }
-
-        $_SESSION['success_message'] = "✅ Ваш ответ отправлен!";
-        header("Location: support.php?ticket_id=" . $ticket_id, true, 303);
+        error_log('Support reply database error: ' . $error->getCode());
+        $_SESSION['error_message'] = 'Не удалось подтвердить сохранение ответа. Проверьте переписку перед повторной отправкой.';
+        header('Location: support.php?ticket_id=' . $ticket_id, true, 303);
         exit;
     } catch (Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
