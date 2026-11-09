@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/version.php';
 // ajax_get_system_info.php - AJAX получение информации о системе
 session_start();
 
@@ -23,13 +24,13 @@ try {
     $pdo = $db->getConnection();
     
     // Получаем текущую версию системы
-    $current_version = '2.5.1';
+    $current_version = HOMEVLAD_VERSION;
     $table_exists = $pdo->query("SHOW TABLES LIKE 'system_versions'")->rowCount() > 0;
     
     if ($table_exists) {
         $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
         if ($stmt->rowCount() > 0) {
-            $current_version = $stmt->fetchColumn();
+            $current_version = homevladVersion($stmt->fetchColumn());
         }
     }
     
@@ -82,7 +83,7 @@ try {
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage(),
-        'version' => '2.5.1',
+        'version' => HOMEVLAD_VERSION,
         'available_updates' => 0
     ]);
 }

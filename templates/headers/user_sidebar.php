@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/version.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 
@@ -15,7 +16,7 @@ $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
 // Получаем текущую версию системы из базы данных
-$current_version = '2.5.1'; // Версия по умолчанию
+$current_version = HOMEVLAD_VERSION; // Версия по умолчанию
 try {
     // Проверяем существование таблицы system_versions
     $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables
@@ -27,7 +28,7 @@ try {
         // Получаем последнюю версию из таблицы
         $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
         if ($stmt && $stmt->rowCount() > 0) {
-            $current_version = $stmt->fetchColumn();
+            $current_version = homevladVersion($stmt->fetchColumn());
         }
     }
 } catch (Exception $e) {

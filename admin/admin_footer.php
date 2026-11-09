@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/../includes/version.php';
 // Получаем информацию о системе
 $system_info = [];
-$system_version = '2.5.1'; // Версия по умолчанию
+$system_version = HOMEVLAD_VERSION; // Версия по умолчанию
 
 try {
     require_once '../includes/db.php';
@@ -15,7 +16,7 @@ try {
         // Получаем последнюю версию из таблицы
         $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
         if ($stmt->rowCount() > 0) {
-            $system_version = $stmt->fetchColumn();
+            $system_version = homevladVersion($stmt->fetchColumn());
         }
     }
 

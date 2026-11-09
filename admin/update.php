@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/version.php';
 // update.php - Система обновления HomeVlad Cloud
 session_start();
 
@@ -93,25 +94,15 @@ createRequiredDirectories();
 function getCurrentVersion($pdo) {
     try {
         $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
-        if ($stmt->rowCount() > 0) {
-            return $stmt->fetchColumn();
-        }
+        return homevladVersion($stmt->fetchColumn());
     } catch (Exception $e) {
         error_log("Ошибка получения текущей версии: " . $e->getMessage());
     }
-    return '2.5.1';
+    return HOMEVLAD_VERSION;
 }
 
-// Функция для сравнения версий
 function compareVersions($version1, $version2) {
-    $v1 = array_map('intval', explode('.', $version1));
-    $v2 = array_map('intval', explode('.', $version2));
-
-    for ($i = 0; $i < 3; $i++) {
-        if ($v1[$i] > $v2[$i]) return 1;
-        if ($v1[$i] < $v2[$i]) return -1;
-    }
-    return 0;
+    return version_compare(ltrim($version1, 'vV'), ltrim($version2, 'vV'));
 }
 
 // Получаем список доступных обновлений

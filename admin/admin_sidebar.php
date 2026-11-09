@@ -1,5 +1,6 @@
 
 <?php
+require_once __DIR__ . '/../includes/version.php';
 require_once '../includes/db.php';
 $db = new Database();
 $pdo = $db->getConnection();
@@ -10,7 +11,7 @@ $nodes_exists = safeQuery($pdo, "SHOW TABLES LIKE 'proxmox_nodes'")->rowCount() 
 $legal_exists = safeQuery($pdo, "SHOW TABLES LIKE 'legal_entity_info'")->rowCount() > 0;
 
 // Получаем текущую версию системы из базы данных
-$current_version = '2.5.1'; // Версия по умолчанию
+$current_version = HOMEVLAD_VERSION; // Версия по умолчанию
 try {
     // Проверяем существование таблицы system_versions
     $table_exists = safeQuery($pdo, "SHOW TABLES LIKE 'system_versions'")->rowCount() > 0;
@@ -19,7 +20,7 @@ try {
         // Получаем последнюю версию из таблицы
         $stmt = $pdo->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1");
         if ($stmt->rowCount() > 0) {
-            $current_version = $stmt->fetchColumn();
+            $current_version = homevladVersion($stmt->fetchColumn());
         }
     }
 } catch (Exception $e) {
