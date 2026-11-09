@@ -593,7 +593,8 @@ CREATE TABLE `proxmox_tickets` (
   `ticket` text NOT NULL,
   `csrf_token` text NOT NULL,
   `expires_at` datetime NOT NULL,
-  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 -- --------------------------------------------------------
@@ -1736,10 +1737,14 @@ ALTER TABLE `cluster_logs`
 --
 -- Ограничения внешнего ключа таблицы `docs`
 --
+-- Bundled wiki records reference the first administrator created after install.
+SET @wiki_fk_checks = @@FOREIGN_KEY_CHECKS;
+SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE `docs`
   ADD CONSTRAINT `docs_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `doc_categories` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `docs_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `docs_ibfk_3` FOREIGN KEY (`editor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+SET FOREIGN_KEY_CHECKS = @wiki_fk_checks;
 
 --
 -- Ограничения внешнего ключа таблицы `doc_bookmarks`
@@ -1791,9 +1796,13 @@ ALTER TABLE `doc_tag_relations`
 --
 -- Ограничения внешнего ключа таблицы `doc_versions`
 --
+-- Bundled wiki records reference the first administrator created after install.
+SET @wiki_fk_checks = @@FOREIGN_KEY_CHECKS;
+SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE `doc_versions`
   ADD CONSTRAINT `doc_versions_ibfk_1` FOREIGN KEY (`doc_id`) REFERENCES `docs` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `doc_versions_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+SET FOREIGN_KEY_CHECKS = @wiki_fk_checks;
 
 --
 -- Ограничения внешнего ключа таблицы `node_checks`
