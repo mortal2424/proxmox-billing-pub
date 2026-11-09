@@ -1,13 +1,57 @@
+/* Keep the content column shrinkable when a sidebar takes part of the viewport. */
+:is(.main-content, .dashboard-content, .dashboard-wrapper, main, .docs-content-inner) {
+    min-width: 0;
+}
+
+:is(.mobile-table-scroll, .table-responsive) {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.docs-article-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+@media (max-width: 1440px) {
+    body :is(.modal-dialog, .modal-content, .metrics-modal-content, .swal2-popup) {
+        box-sizing: border-box;
+        max-width: calc(100vw - 24px);
+    }
+
+    body .charts-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr));
+    }
+
+    body .metrics-grid, .main-content .settings-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr));
+    }
+
+    body :is(.page-header, .dashboard-header, .header-actions, .table-header) {
+        flex-wrap: wrap;
+    }
+}
+
+/* Admin pages must reserve the actual width of the sidebar. */
+@media (min-width: 993px) and (max-width: 1200px) {
+    body:has(#adminSidebar) {
+        --admin-sidebar-offset: 260px;
+    }
+
+    body:has(#adminSidebar.compact) {
+        --admin-sidebar-offset: 70px;
+    }
+
+    body:has(#adminSidebar) :is(.dashboard-wrapper, .settings-wrapper, .monitoring-wrapper,
+        .ticket-wrapper, .categories-wrapper, .cluster-wrapper, .edit-wrapper, .editor-wrapper,
+        .form-wrapper, .node-wrapper, .nodes-wrapper, .payment-add-wrapper, .quotas-wrapper) {
+        margin-left: var(--admin-sidebar-offset) !important;
+    }
+}
+
 @media (max-width: 767px) {
-    .main-content, .dashboard-content, main, .mobile-table-scroll {
-        min-width: 0;
-    }
-
-    .mobile-table-scroll {
-        max-width: 100%;
-        overflow-x: auto;
-    }
-
     .mobile-table-scroll > table {
         min-width: max-content;
     }
@@ -23,18 +67,8 @@
         height: auto;
     }
 
-    .modal-dialog, .swal2-popup {
-        max-width: calc(100vw - 24px);
-    }
-
     .modal-body {
         overflow-wrap: anywhere;
-    }
-}
-
-@media (min-width: 768px) {
-    .mobile-table-scroll {
-        display: contents;
     }
 }
 

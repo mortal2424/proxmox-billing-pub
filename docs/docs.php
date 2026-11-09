@@ -1557,6 +1557,19 @@ $title = "Документация | HomeVlad Cloud";
         }
 
         /* Адаптивность */
+        @media (min-width: 1201px) and (max-width: 1440px) {
+            .main-content, .sidebar-collapsed .main-content {
+                margin-right: 220px;
+                width: auto;
+                min-width: 0;
+            }
+
+            .docs-sidebar-right {
+                width: 220px;
+                padding: 16px;
+            }
+        }
+
         @media (max-width: 1200px) {
             .main-content {
                 margin-right: 70px;

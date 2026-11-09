@@ -4,8 +4,8 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
     });
 }
 
-document.querySelectorAll('main table, .main-content table, .dashboard-content table').forEach(table => {
-    if (table.closest('.mobile-table-scroll, .table-responsive')) return;
+function makeTableScrollable(table) {
+    if (table.closest('.mobile-table-scroll, .table-responsive, td, th')) return;
 
     const scrollArea = document.createElement('div');
     scrollArea.className = 'mobile-table-scroll';
@@ -14,4 +14,15 @@ document.querySelectorAll('main table, .main-content table, .dashboard-content t
     scrollArea.setAttribute('aria-label', table.caption?.textContent.trim() || 'Таблица с прокруткой');
     table.before(scrollArea);
     scrollArea.append(table);
-});
+}
+
+document.querySelectorAll('table').forEach(makeTableScrollable);
+new MutationObserver(records => {
+    for (const {addedNodes} of records) {
+        for (const node of addedNodes) {
+            if (!(node instanceof Element) || !node.isConnected) continue;
+            if (node.matches('table')) makeTableScrollable(node);
+            else node.querySelectorAll('table').forEach(makeTableScrollable);
+        }
+    }
+}).observe(document.body, {childList: true, subtree: true});
