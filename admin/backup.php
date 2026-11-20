@@ -2435,7 +2435,8 @@ function cleanupOldBackups() {
             },
             body: JSON.stringify({
                 days: 30,
-                keep: 10
+                keep: 10,
+                csrf_token: <?= json_encode($_SESSION['backup_csrf']) ?>
             })
         })
         .then(response => response.json())

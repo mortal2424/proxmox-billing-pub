@@ -1,34 +1,44 @@
 <?php
-require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-
 session_start();
-checkAuth();
-
-header('Content-Type: application/json');
-
-$days = $_POST['days'] ?? 30;
-$keep = $_POST['keep'] ?? 10;
-$backup_dir = __DIR__ . '/../../../backups/';
-
-$files = glob($backup_dir . 'backup_*.zip');
-$deleted = 0;
-
-if (count($files) > $keep) {
-    usort($files, function($a, $b) {
-        return filemtime($a) < filemtime($b);
-    });
-    
-    $cutoff_time = time() - ($days * 24 * 60 * 60);
-    
-    for ($i = $keep; $i < count($files); $i++) {
-        if (filemtime($files[$i]) < $cutoff_time) {
-            if (unlink($files[$i])) {
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/backup_functions.php';
+header('Content-Type: application/json; charset=utf-8');
+try {
+    if (!isAdmin() || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(403);
+        throw new RuntimeException('Доступ запрещён');
+    }
+    $input = json_decode(file_get_contents('php://input'), true, 8, JSON_THROW_ON_ERROR);
+    if (!is_string($input['csrf_token'] ?? null) || !isset($_SESSION['backup_csrf']) ||
+        !hash_equals($_SESSION['backup_csrf'], $input['csrf_token'])) {
+        http_response_code(403);
+        throw new RuntimeException('Неверный CSRF-токен');
+    }
+    $keep = filter_var($input['keep'] ?? 10, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000]]);
+    $days = filter_var($input['days'] ?? 30, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 36500]]);
+    if (!$keep || !$days) {
+        throw new RuntimeException('Некорректные параметры хранения');
+    }
+    $lock = fopen(BACKUP_DIR . '.retention.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX)) {
+        throw new RuntimeException('Очистка временно недоступна');
+    }
+    $deleted = 0;
+    try {
+        foreach (backupRetentionCandidates(BACKUP_DIR, $keep) as $file) {
+            if (filemtime($file) < time() - $days * 86400) {
+                if (!unlink($file)) throw new RuntimeException('Не удалось удалить копию');
                 $deleted++;
             }
         }
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
     }
+    echo json_encode(['success' => true, 'deleted' => $deleted]);
+} catch (Throwable $error) {
+    if (http_response_code() < 400) http_response_code(400);
+    echo json_encode(['success' => false, 'error' => $error instanceof JsonException
+        ? 'Некорректный запрос' : $error->getMessage()], JSON_UNESCAPED_UNICODE);
 }
-
-echo json_encode(['success' => true, 'deleted' => $deleted]);
-?>

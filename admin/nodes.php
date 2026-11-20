@@ -785,7 +785,7 @@ require 'admin_header.php';
             </div>
             <div class="section-actions">
                 <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary">
-                    <i class="fas fa-plus-circle"></i> Новый зона доступности
+                    <i class="fas fa-plus-circle"></i> Новая зона доступности
                 </a>
                 <a href="add_node.php" class="nodes-action-btn nodes-action-btn-secondary">
                     <i class="fas fa-server"></i> Добавить ноду
