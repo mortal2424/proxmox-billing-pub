@@ -89,7 +89,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
             throw new RuntimeException('Не удалось завершить создание архива');
         }
         chmod($filepath, 0600);
-        $pdo = (new Database())->getConnection();
+        try { $pdo = (new Database())->getConnection(); } catch (Throwable $connectionError) { error_log('Backup completed; log connection unavailable'); }
         // A schedule only prunes its own completed archives.
         try {
             cleanupOldBackups($backup_dir, (int) $keepCount, $scheduleId);

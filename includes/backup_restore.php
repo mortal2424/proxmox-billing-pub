@@ -149,6 +149,7 @@ function performBackupRestore(string $root, string $archive, string $mode, strin
             }
         } finally { $zip->close(); }
         if ($db) backupDatabaseCommand('export', $work . '/database-before.sql');
+        restoreWriteJson($work . '/plan.json', $journal);
         restoreWriteJson($journalPath, $journal); $started = true;
         ignore_user_abort(true); set_time_limit(0);
         if ($db) backupDatabaseCommand('import', $work . '/stage/database/database_dump.sql');

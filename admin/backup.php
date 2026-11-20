@@ -643,6 +643,10 @@ function saveAutoBackupSettings() {
 // Получаем список бэкапов и расписаний
 $backups = getBackupList();
 $schedules = getScheduledBackups();
+$backup_counts = [];
+foreach ($schedules as $schedule) {
+    $backup_counts[(int)$schedule['id']] = count(array_filter(glob(BACKUP_DIR . 'schedule_' . (int)$schedule['id'] . '_*.zip') ?: [], static fn($path) => is_file($path) && !is_link($path)));
+}
 $ftp_backups = getFTPBackups();
 
 // Вычисляем размеры бэкапов для статистики
@@ -2057,8 +2061,8 @@ require 'admin_header.php';
                             <div class="form-group">
                                 <label class="form-label">Хранить бэкапов</label>
                                 <input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
-                                <label><input type="checkbox" name="prune_existing" value="1"> После сохранения удалить старые копии этого расписания сверх нового лимита</label>
-                                <input type="number" name="keep_count" class="form-input"
+                                <label><input type="checkbox" name="prune_existing" value="1"> <span id="retentionOffer">Удалить старые копии этого расписания сверх нового лимита</span></label>
+                                <input type="number" name="keep_count" class="form-input" oninput="updateRetentionOffer()"
                                        value="10" min="1" max="50" style="width: 87%;">
                                 <small class="text-muted" style="font-size: 12px;">Старые бэкапы будут удаляться автоматически</small>
                             </div>
@@ -2244,11 +2248,26 @@ function handleCreateBackupWithProgress() {
     return false;
 }
 
+function updateRetentionOffer() {
+    const counts = <?= json_encode($backup_counts, JSON_FORCE_OBJECT) ?>;
+    const form = document.getElementById('scheduleForm');
+    const count = Number(counts[document.getElementById('scheduleId').value] || 0);
+    const keep = Number(form.querySelector('[name="keep_count"]').value);
+    const remove = Math.max(0, count - keep);
+    const checkbox = form.querySelector('[name="prune_existing"]');
+    checkbox.disabled = !Number.isInteger(keep) || keep < 1 || remove === 0;
+    if (checkbox.disabled) checkbox.checked = false;
+    document.getElementById('retentionOffer').textContent = remove > 0
+        ? `После сохранения удалить старые копии этого расписания: ${remove} из ${count}`
+        : `Существующих копий: ${count}. Удалять сверх лимита нечего`;
+}
+
 function showAddScheduleModal() {
     document.getElementById('scheduleModalTitle').innerHTML = '<i class="fas fa-clock"></i> Добавить расписание';
     document.getElementById('scheduleId').value = '0';
     document.getElementById('scheduleForm').reset();
     updateScheduleFields();
+    updateRetentionOffer();
     scheduleModal.show();
 }
 
@@ -2291,6 +2310,7 @@ function editSchedule(id) {
 
             form.querySelector('[name="keep_count"]').value = schedule.keep_count || 10;
             form.querySelector('[name="prune_existing"]').checked = false;
+            updateRetentionOffer();
             form.querySelector('[name="comment"]').value = schedule.comment || '';
 
             updateScheduleFields();

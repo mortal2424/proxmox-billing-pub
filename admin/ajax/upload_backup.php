@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/backup_functions.php';
+require_once __DIR__ . '/../../includes/backup_restore.php';
 
 session_start();
 
@@ -99,82 +100,17 @@ if (!in_array($mime_type, $allowed_types) && !preg_match('/^application\/.*zip/'
     exit;
 }
 
-// Проверяем, является ли файл валидным ZIP архивом
-$zip = new ZipArchive();
-if ($zip->open($uploaded_file['tmp_name']) !== TRUE) {
-    header('HTTP/1.1 400 Bad Request');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Файл не является корректным ZIP архивом'
-    ]);
+try {
+    $analysis = inspectBackupArchive($uploaded_file['tmp_name']);
+    $meta = $analysis['meta'];
+} catch (Throwable $error) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => $error instanceof RuntimeException ? $error->getMessage() : 'Повреждены метаданные архива']);
     exit;
 }
-
-// Проверяем наличие метаданных бэкапа
-$meta_json = $zip->getFromName('backup_meta.json', 65537);
-if (!$meta_json || strlen($meta_json) > 65536) {
-    $zip->close();
-    header('HTTP/1.1 400 Bad Request');
-    echo json_encode([
-        'success' => false,
-        'error' => 'В архиве отсутствуют метаданные бэкапа (backup_meta.json). Возможно, это не бэкап системы.'
-    ]);
-    exit;
-}
-
-$meta = json_decode($meta_json, true);
-if (!is_array($meta) || !in_array($meta['type'] ?? '', ['files', 'db', 'full'], true)) {
-    $zip->close();
-    header('HTTP/1.1 400 Bad Request');
-    echo json_encode([
-        'success' => false,
-        'error' => 'Архив не является бэкапом этой системы или повреждены метаданные'
-    ]);
-    exit;
-}
-
-// Проверяем версию системы для совместимости
-if (isset($meta['system_version'])) {
-    $current_version = defined('SYSTEM_VERSION') ? SYSTEM_VERSION : '1.0.0';
-    $uploaded_version = $meta['system_version'];
-
-    // Простая проверка совместимости (можно расширить)
-    if (version_compare($uploaded_version, '1.0.0', '<')) {
-        $zip->close();
-        header('HTTP/1.1 400 Bad Request');
-        echo json_encode([
-            'success' => false,
-            'error' => 'Версия бэкапа слишком старая для восстановления. Минимальная версия: 1.0.0',
-            'backup_version' => $uploaded_version,
-            'current_version' => $current_version
-        ]);
-        exit;
-    }
-}
-
-$zip->close();
-
-// Создаем уникальное имя файла, если файл с таким именем уже существует
 $original_filename = basename($uploaded_file['name']);
-$backup_dir = defined('BACKUP_DIR') ? BACKUP_DIR : __DIR__ . '/../../backups/';
-$target_filename = $original_filename;
-$counter = 1;
-
-while (file_exists($backup_dir . $target_filename)) {
-    // Если файл уже существует, добавляем суффикс с числом
-    $pathinfo = pathinfo($original_filename);
-    $target_filename = $pathinfo['filename'] . '_' . $counter . '.' . $pathinfo['extension'];
-    $counter++;
-
-    if ($counter > 100) {
-        header('HTTP/1.1 500 Internal Server Error');
-        echo json_encode([
-            'success' => false,
-            'error' => 'Не удалось сгенерировать уникальное имя файла'
-        ]);
-        exit;
-    }
-}
+$backup_dir = BACKUP_DIR;
+$target_filename = 'upload_' . date('Y-m-d_H-i-s') . '_' . bin2hex(random_bytes(12)) . '.zip';
 
 $target_path = $backup_dir . $target_filename;
 
