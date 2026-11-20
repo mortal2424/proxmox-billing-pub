@@ -1,0 +1,165 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.1",
+  "from": "2.5.1-beta7",
+  "source_commit": "dc81b5182091b9def59f93680c3d03aeb106a54e",
+  "changelog": "HomeVlad Cloud 2.5.1-beta8\n\nИсправлено подтверждение платежей: правильное поле истории, транзакция, блокировка платежа, защита от повторного зачисления и CSRF.\nИсправлена обработка создания ВМ/LXC при параметре vm_type в адресе. Добавлены проверки типа машины, доступности ноды и соответствия тарифа.\nВ консоли QEMU/LXC добавлены запуск, выключение ОС, перезагрузка и принудительная остановка с повторной проверкой доступа.\nОбновлены акценты админки и размеры форм тикетов, категорий и фильтров платежей.\nЛогические кластеры в настройках представлены зонами доступности.\nДобавлены сводка инфраструктуры, пользовательский мониторинг и мобильный API. CPU собирается как процент загрузки, устаревшие замеры отмечаются.\nХранилища ноды читаются через Proxmox и группируются по типам.\nИсправлены лимиты копий по расписаниям и обработчик очистки. Архив публикуется после завершения записи. Сохранена возможность явно удалить лишние копии при редактировании.\nДобавлены задания проверки нод каждые 5 минут и запуска расписаний копирования в Docker.\nЗаменён файловый обновлятор: GitHub-каталог, контрольные суммы, конфликты, блокировка параллельной установки, резервные копии и откат при обрабатываемых ошибках.\nДобавлены исходники единого приложения для iOS и Android. Debug и Release собираются; подпись распространения настраивается владельцем.\nСохранена асинхронная статистика ВМ из боевой установки.\n\nВ этом выпуске ещё не реализованы облачные образы, автоматический планировщик, пулы сетей и хранилищ, обнаружение кластерных нод, восстановление резервной копии и перевод узлов на API-токены.\nФормат пакета пока не выполняет миграции схемы БД и удаления файлов. После аварийного прерывания установки требуется проверка журнала восстановления.\nДля Docker после обновления исходников выполните docker compose up -d --build для применения расписаний и изменений образа.\n",
+  "files": {
+    ".htaccess": {
+      "before": "edc2939cbea9c6f12fa11caebafcf06362169401e343807f13099c3d55d69d59",
+      "sha256": "2b3c9c95d6027ce3aa66168849ad0a5bf679b647928a67e7b873b46f6b04e058"
+    },
+    "admin/add_cluster.php": {
+      "before": "98c75166803a6bc7e9a0c1791fa8a7915955cc455cef7645ae7d82a3aafaaa28",
+      "sha256": "00db1e56127744ab88f495a846e1d2aef4ec9b003d895b78496be5a57bc60965"
+    },
+    "admin/admin_functions.php": {
+      "before": "d2855c60747265ca8f12bbf6714dee00cad23c3fe5c7776733162eeef5515933",
+      "sha256": "d51e518c89ec03288a8e95eba453439f81a763741456928b56b68c27b2f4279a"
+    },
+    "admin/admin_header.php": {
+      "before": "4c10b1921cb272b4fa79bf780365ee45a86467c77914e5e7f15b17442d83490c",
+      "sha256": "077f2813ab13f6c4f656e85982711b5a91c9a75b0581a51278f5c656910d1511"
+    },
+    "admin/ajax/cleanup_backups.php": {
+      "before": "fbc5c313c3080b11100174d5fca3c7b022c395192b61e7d5da884674721678a2",
+      "sha256": "079d8bb37369bd45149fc87456b918039fcabf0eb481092d7d69104bb6d8122f"
+    },
+    "admin/ajax_apply_update.php": {
+      "before": "048a9f11194c282aa1c461a83babfba9eb8e68ef1f4e2c91662511ba1e356cf5",
+      "sha256": "6dd1d65c812ac273f46ae03e238e627b9432c8f57aa00f9d300c20493201c973"
+    },
+    "admin/backup.php": {
+      "before": "66d1bb933c38213249fff3b2d15312c0007acc55b72f2ca97ea13ee9f838a100",
+      "sha256": "25d1ea546f079940cae10d82b1cc6e6d1d6af43d1a7fa04bfd61fa805e19c2bd"
+    },
+    "admin/check_updates_count.php": {
+      "before": "8df2f46cb20d0b272fd900f4abf475e6e24941a10c62f79c69e172adc3ad9bee",
+      "sha256": "0a86a4f05a34b89f90ebe5a45b15829187c6256f40a3e53aa2d70163a97ab853"
+    },
+    "admin/css/customer-palette.css": {
+      "before": null,
+      "sha256": "644bb49f0433c4ac97e0bafd1eae181fb0af2f097e95abe648fea15b270aa789"
+    },
+    "admin/delete_cluster.php": {
+      "before": "930ea242fef8a83501faa074b7d5dd98cf94a6455ce87e7c660360aca6c4316e",
+      "sha256": "0d5036f8d2803c3a5ef23b7487cf5b6537d9e35be45b6d1e64895fff14ac9ce6"
+    },
+    "admin/edit_cluster.php": {
+      "before": "48fc6702459b233d2e1daa35fd226eadc593d485fbc1438752a6a99d5740daa3",
+      "sha256": "fcd42450bb22101407ef10e89889d7ef3eb7e1ef9dd8e06b36bad38bbd1e0ba0"
+    },
+    "admin/monitoring.php": {
+      "before": "9586997ff93cc9e185ebce8f17cbfc0ea79f1f0a4ed97b5e75df337c9ff57c5d",
+      "sha256": "2475cfb2f5de8b51ed9e38ca4759ac8c5408372e055387be3d8e90b478cbc969"
+    },
+    "admin/nodes.php": {
+      "before": "19bf7477681b381c8a9b21ec636b6b313e5cd64f49a3821600190327b0de9d76",
+      "sha256": "d2c2b8a45b8b232b8393360d9470ff7c9043430688f22fe8b3a77b4ae087302c"
+    },
+    "admin/payment_update.php": {
+      "before": "fcca7cf747951294eb3cd4baacc54d100339bc78cbd060b0248e5177b15618d8",
+      "sha256": "08155df8381afa931fb6d1f2ed03bc1e3e9be48abf3146f31b712153624b30e1"
+    },
+    "admin/payments.php": {
+      "before": "3a8284da08b8fd56298cf1f18333a0c64251e862407efebc40b2e18799390596",
+      "sha256": "8ca8afc7c4a05a9eb8a965930a834e355807f46b08b98ea1d81726662d875411"
+    },
+    "admin/proxmox.php": {
+      "before": "0d8d49ccc32432224e1335e125a7417a11ffd183228ffd247f419f1d8acf46fe",
+      "sha256": "59c3058f500233ee4f090a908da7f2deec2069e31c0e505408eb9b62ac5cea79"
+    },
+    "admin/update.php": {
+      "before": "de8e9bf55056345c5076529326507e279c7a98d69d0f5b69230d86d4a46d091d",
+      "sha256": "b3716a419e10485a2e2ebf207fc55598dbee6efdbc206bca53222e3901d9d1fa"
+    },
+    "api/mobile_dashboard.php": {
+      "before": null,
+      "sha256": "bf8decde2579b3fc545b59b0ef08c250c3aa43d73862f97483ad163cdf22161b"
+    },
+    "console/control.php": {
+      "before": null,
+      "sha256": "fa40d76b1579df4cc7aafec6a932c1b855716e46197133bc75f58667f01fb4d8"
+    },
+    "console/view.html": {
+      "before": "1bc5e6f6f4e31560ade2ceffa2bf3efb26211902343380d0a6e4ee6a5d2a9d9c",
+      "sha256": "01d6d1881f7a6c4a90fef0449f3b44fa9fab8b604f3291cd349912b76671062b"
+    },
+    "console/view.js": {
+      "before": "fd2764a2387c9119e96976dc855e82a941ebfdafb5c4d68bc4e86e6eccfd09ed",
+      "sha256": "b06245110d2f643478a2f50197014be9ee8d84452b5297b8d788ef0e3bc9b779"
+    },
+    "cronjobs/backup_cron.php": {
+      "before": "d885525656276a5c5f95dec8f74054bdcd61b033e32bc48d8f3358096ac2f6a9",
+      "sha256": "32fa03a94ba58c7c11b6a833214cfb9aa706b443c80bd7c47546b20a8e02b737"
+    },
+    "cronjobs/check_node_health.php": {
+      "before": null,
+      "sha256": "bd87f951acbffbe8a4a64097cf29d6fbbde902b5b53783e7355b3d0a47dcef4d"
+    },
+    "docker/crontab.txt": {
+      "before": "9aa9521369eb5922601db6f4e87b4c806a53bc6666b08e7169e8549e0742cc36",
+      "sha256": "65af6d96b9e7d43f44e6ce41c4eeb006c8a787cf1bb7c98bc78364197c0b199b"
+    },
+    "includes/backup_functions.php": {
+      "before": "ba293b6271cba2a4acd86ca3a0e649a67619407ce088bec72aa59f16d5839606",
+      "sha256": "2dff3f8badb4a9ba0b14191a607c1bad6713bd9c68333cd4b3ef914a717cc3f9"
+    },
+    "includes/console_launch.php": {
+      "before": "4df35d7fc19a3e338a0e28270cc74695054b020c33758a223ee5c3995126bd43",
+      "sha256": "4b1499fef0cca5b3e2b4cf75f2efa82632692eee91a4b7804619688230933b64"
+    },
+    "includes/db.php": {
+      "before": "7297a1839e219a4c627037fa3d973577fb0d42bc44e6da958c787a18f72e117b",
+      "sha256": "ebaee6daca9e8d63b1981270ff51d1ef94794cea2748ce8a98fb41b6ff8a2a90"
+    },
+    "includes/infrastructure_status.php": {
+      "before": null,
+      "sha256": "8a59d2740fac67a0fc450cd19e4612880f9c4224061768080ba305f7495dc597"
+    },
+    "includes/maintenance.php": {
+      "before": null,
+      "sha256": "41ef3756a1e9f8c7fa4853f9be959a1c898f84f4d0cf57e0169edb06d052f935"
+    },
+    "includes/payment_actions.php": {
+      "before": null,
+      "sha256": "2dd93342b147bf17498cea657dab7898f68446141cb3c0150c7884d139171d44"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "c97c22d34538c42a0d22f3c108337092d6d7833146005c1116d527649b6ed633",
+      "sha256": "346870560d020d6c93c4869aa8766e7831cc88c9dcda684a432c768c6e571f34"
+    },
+    "includes/ssh_functions.php": {
+      "before": "ca8695214a72f4ff8189ce0c477c12a34e81ab9de186902b375024737d2c02ab",
+      "sha256": "5c75b6034f859d74d3a5a3e190ce9c814ff4fd2f61b4fee12aedd1216c34144d"
+    },
+    "includes/update_catalog.php": {
+      "before": null,
+      "sha256": "784ce1cf663fcff6540af40e758a3a1f6e6c7845e4211e5e63479e595f3e19b4"
+    },
+    "includes/update_installer.php": {
+      "before": null,
+      "sha256": "5d2f5ed73214876b21ce6057f94d1b7b3a929687fa78044d16e6ff6c65e76f13"
+    },
+    "includes/version.php": {
+      "before": "e8c4f8041d227f60fc2d3cb28a02ab2a2722dd38d32dd9e81eb78046de25277a",
+      "sha256": "85fe5fcb7228d097762a14f680f67b5fe8d87288f0fba8e30cf9f1ed79e277e6"
+    },
+    "templates/headers/user_header.php": {
+      "before": "96df109673a6f0b40cbba1890f23ee4fe53d8c98cf4aef6780db5331e83b1c48",
+      "sha256": "e6c3433ea8efaeee2be6fb7e1cf7f1285b0b5b5ccf26fcbe4acd18a033246eac"
+    },
+    "templates/headers/workspace_nav.php": {
+      "before": "5474c1c0769dc8ed819ab3a44e6c227931ace4d4afc06a7ba8c90932c580474d",
+      "sha256": "2983334d981f7a7bc537d17c08544d0289f988ae610e87532fe916d8640389eb"
+    },
+    "templates/monitoring.php": {
+      "before": null,
+      "sha256": "5a29dc4e0db5ad93df11bfd45937d383b67a9dfb3404a1f1cd04b878ac60fb94"
+    },
+    "templates/order_vm.php": {
+      "before": "94e7465801ecee11180be7319c0d407e6e48cefd3fd38030bdebea0bb0bbb737",
+      "sha256": "c566325dd19feb43e7fed19599208f680c764aff198678d1d61a23b54552ce84"
+    }
+  }
+}
