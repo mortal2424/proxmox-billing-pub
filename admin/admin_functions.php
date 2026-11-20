@@ -107,7 +107,7 @@ function getNodeSSHInfo($hostname, $username, $password) {
         }
 
         // Proxmox storage inventory includes LVM, ZFS and shared backends omitted by df.
-        $stream = ssh2_exec($connection, 'pvesm status --output-format json');
+        $stream = ssh2_exec($connection, 'pvesh get "/nodes/$(hostname -s)/storage" --output-format json');
         if ($stream) {
             stream_set_blocking($stream, true);
             $inventory = json_decode(stream_get_contents($stream), true);
@@ -117,16 +117,17 @@ function getNodeSSHInfo($hostname, $username, $password) {
                 $result['storage_groups'] = [];
                 foreach ($inventory as $storage) {
                     $type = (string) ($storage['type'] ?? 'unknown');
-                    // pvesm reports capacities in KiB.
+                    // Proxmox API reports storage capacities in bytes.
                     $entry = [
                         'name' => (string) ($storage['storage'] ?? ''),
                         'type' => $type,
                         'active' => !empty($storage['active']),
-                        'total' => (int) ($storage['total'] ?? 0) * 1024,
-                        'used' => (int) ($storage['used'] ?? 0) * 1024,
-                        'available' => (int) ($storage['avail'] ?? 0) * 1024,
+                        'total' => (int) ($storage['total'] ?? 0),
+                        'used' => (int) ($storage['used'] ?? 0),
+                        'available' => (int) ($storage['avail'] ?? 0),
                     ];
                     $result['storages'][] = $entry;
+                    $result['storage_groups'][$type] ??= ['total' => 0, 'used' => 0, 'available' => 0];
                     if ($entry['active']) {
                         $result['storage_groups'][$type] ??= ['total' => 0, 'used' => 0, 'available' => 0];
                         foreach (['total', 'used', 'available'] as $capacity) {
