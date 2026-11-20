@@ -12,7 +12,7 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
-// Получаем список кластеров с количеством нод
+// Получаем список зон доступности с количеством нод
 $clusters = $pdo->query("
     SELECT c.*, COUNT(n.id) as nodes_count
     FROM proxmox_clusters c
@@ -21,7 +21,7 @@ $clusters = $pdo->query("
     ORDER BY c.name
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-// Получаем список нод с именами кластеров
+// Получаем список нод с именами зон доступности
 $nodes = $pdo->query("
     SELECT n.*, c.name as cluster_name
     FROM proxmox_nodes n
@@ -37,7 +37,7 @@ $activeNodes = count(array_filter($nodes, function($node) {
 }));
 $inactiveNodes = $totalNodes - $activeNodes;
 
-$title = "Управление нодами и кластерами | HomeVlad Cloud";
+$title = "Управление нодами и зоны доступностими | HomeVlad Cloud";
 require 'admin_header.php';
 ?>
 <!DOCTYPE html>
@@ -780,12 +780,12 @@ require 'admin_header.php';
         <!-- Шапка страницы -->
         <div class="nodes-header">
             <div class="nodes-header-left">
-                <h1><i class="fas fa-network-wired"></i> Управление нодами и кластерами</h1>
+                <h1><i class="fas fa-network-wired"></i> Управление нодами и зоны доступностими</h1>
                 <p>Мониторинг и управление серверами Proxmox</p>
             </div>
             <div class="section-actions">
                 <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary">
-                    <i class="fas fa-plus-circle"></i> Новый кластер
+                    <i class="fas fa-plus-circle"></i> Новый зона доступности
                 </a>
                 <a href="add_node.php" class="nodes-action-btn nodes-action-btn-secondary">
                     <i class="fas fa-server"></i> Добавить ноду
@@ -816,9 +816,9 @@ require 'admin_header.php';
                     </div>
                 </div>
                 <div class="node-stat-content">
-                    <h3>Кластеры</h3>
+                    <h3>Зоны доступности</h3>
                     <div class="node-stat-value"><?= $totalClusters ?></div>
-                    <p class="node-stat-subtext">Всего кластеров в системе</p>
+                    <p class="node-stat-subtext">Всего зон доступности в системе</p>
                 </div>
             </div>
 
@@ -871,10 +871,10 @@ require 'admin_header.php';
             </div>
         </div>
 
-        <!-- Секция кластеров -->
+        <!-- Секция зон доступности -->
         <div class="section-wrapper">
             <div class="section-header">
-                <h2><i class="fas fa-network-wired"></i> Список кластеров</h2>
+                <h2><i class="fas fa-network-wired"></i> Список зон доступности</h2>
                 <div class="section-actions">
                     <a href="add_cluster.php" class="btn-icon btn-edit">
                         <i class="fas fa-plus"></i>
@@ -934,10 +934,10 @@ require 'admin_header.php';
                 <?php else: ?>
                     <div class="no-data">
                         <i class="fas fa-network-wired"></i>
-                        <h3>Нет созданных кластеров</h3>
-                        <p>Создайте первый кластер для управления нодами</p>
+                        <h3>Нет созданных зон доступности</h3>
+                        <p>Создайте первый зона доступности для управления нодами</p>
                         <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary" style="margin-top: 15px;">
-                            <i class="fas fa-plus-circle"></i> Создать кластер
+                            <i class="fas fa-plus-circle"></i> Создать зона доступности
                         </a>
                     </div>
                 <?php endif; ?>
@@ -960,7 +960,7 @@ require 'admin_header.php';
                     <table class="nodes-table">
                         <thead>
                             <tr>
-                                <th>Кластер</th>
+                                <th>Зона доступности</th>
                                 <th>Нода</th>
                                 <th>Адрес</th>
                                 <th>Порт</th>
@@ -1046,7 +1046,7 @@ require 'admin_header.php';
 
     // Функции подтверждения удаления
     function confirmDeleteCluster() {
-        return confirm('Удалить этот кластер? Все связанные ноды также будут удалены.');
+        return confirm('Удалить этот зона доступности? Все связанные ноды также будут удалены.');
     }
 
     function confirmDeleteNode() {
@@ -1093,20 +1093,26 @@ require 'admin_header.php';
                         </div>
                 `;
 
-                if (data.disks && data.disks.length > 0) {
-                    html += `<div class="info-section">
-                        <h3><i class="fas fa-hdd"></i> Диски</h3>`;
-
-                    data.disks.forEach(disk => {
-                        html += `
-                            <div class="disk-info">
-                                <p><strong>${disk.name || 'Диск'}:</strong> ${disk.size || '0 GB'} (${disk.percent || '0%'} использовано)</p>
-                                <p><small>Монтирован в: ${disk.mount || 'не смонтирован'}</small></p>
-                            </div>
-                        `;
-                    });
-
-                    html += `</div>`;
+                if (Array.isArray(data.storages)) {
+                    const escapeStorage = value => String(value).replace(/[&<>"']/g, character =>
+                        ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[character]));
+                    const capacity = bytes => (Number(bytes || 0) / (1024 ** 3)).toLocaleString('ru-RU', {maximumFractionDigits: 1}) + ' ГиБ';
+                    html += '<div class="info-section"><h3>Хранилища Proxmox</h3>';
+                    for (const [type, totals] of Object.entries(data.storage_groups || {})) {
+                        const stores = data.storages.filter(storage => storage.type === type);
+                        html += '<details><summary>' + escapeStorage(type) + ' · всего ' +
+                            capacity(totals.total) + ' · свободно ' + capacity(totals.available) + '</summary>';
+                        for (const storage of stores) {
+                            html += '<p><strong>' + escapeStorage(storage.name) + '</strong> · ' +
+                                (storage.active ? 'Доступно' : 'Недоступно') + ' · всего ' +
+                                capacity(storage.total) + ', занято ' + capacity(storage.used) +
+                                ', свободно ' + capacity(storage.available) + '</p>';
+                        }
+                        html += '</details>';
+                    }
+                    html += '<p><small>Сумма логических ёмкостей. Общие и перекрывающиеся хранилища могут использовать одни физические диски.</small></p></div>';
+                } else {
+                    html += '<p>Информация о хранилищах Proxmox недоступна.</p>';
                 }
 
                 html += `</div>`;

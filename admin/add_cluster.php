@@ -22,19 +22,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $is_active = isset($_POST['is_active']) ? 1 : 0;
 
             if (empty($name)) {
-                throw new Exception("Имя кластера обязательно");
+                throw new Exception("Имя зоны доступности обязательно");
             }
 
-            // Проверка уникальности имени кластера
+            // Проверка уникальности имени зоны доступности
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_clusters WHERE name = ?");
             $stmt->execute([$name]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Кластер с таким именем уже существует");
+                throw new Exception("Зона доступности с таким именем уже существует");
             }
 
             // Валидация длины имени
             if (strlen($name) > 50) {
-                throw new Exception("Имя кластера не должно превышать 50 символов");
+                throw new Exception("Имя зоны доступности не должно превышать 50 символов");
             }
 
             // Валидация длины описания
@@ -61,20 +61,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $clusterId = $pdo->lastInsertId();
 
             // Логирование успешного создания
-            error_log("Кластер создан: ID = $clusterId, Name = $name");
+            error_log("Зона доступности создан: ID = $clusterId, Name = $name");
 
-            $_SESSION['success'] = "Кластер '{$name}' успешно создан";
+            $_SESSION['success'] = "Зона доступности '{$name}' успешно создан";
             header("Location: nodes.php");
             exit;
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
             // Логирование ошибки
-            error_log("Ошибка при создании кластера: " . $e->getMessage());
+            error_log("Ошибка при создании зоны доступности: " . $e->getMessage());
         }
     }
 }
 
-$title = "Добавление кластера | HomeVlad Cloud";
+$title = "Добавление зоны доступности | HomeVlad Cloud";
 require 'admin_header.php';
 ?>
 <!DOCTYPE html>
@@ -650,8 +650,8 @@ require 'admin_header.php';
         <!-- Шапка страницы -->
         <div class="form-header">
             <div class="form-header-left">
-                <h1><i class="fas fa-network-wired"></i> Добавление нового кластера</h1>
-                <p>Создайте новый кластер для организации Proxmox серверов</p>
+                <h1><i class="fas fa-network-wired"></i> Добавление нового зоны доступности</h1>
+                <p>Создайте новый зона доступности для организации Proxmox серверов</p>
             </div>
             <div class="form-header-right">
                 <a href="nodes.php" class="form-btn-icon form-btn-back" title="Вернуться к списку">
@@ -664,10 +664,10 @@ require 'admin_header.php';
         <div class="info-panel">
             <div class="info-panel-header">
                 <i class="fas fa-info-circle"></i>
-                <h3>Что такое кластер Proxmox?</h3>
+                <h3>Что такое зона доступности?</h3>
             </div>
             <div class="info-panel-body">
-                Кластер — это группа серверов Proxmox, объединенных для совместного управления ресурсами.
+                Зона доступности — логическая группа хостов для размещения машин. Она может включать узлы одного или нескольких кластеров Proxmox.
                 Это позволяет:
                 <ul class="info-panel-list">
                     <li>Объединить несколько нод в единую систему</li>
@@ -693,7 +693,7 @@ require 'admin_header.php';
         <!-- Карточка формы -->
         <div class="form-card">
             <div class="form-card-header">
-                <h2><i class="fas fa-plus-circle"></i> Основные параметры кластера</h2>
+                <h2><i class="fas fa-plus-circle"></i> Основные параметры зоны доступности</h2>
             </div>
             <div class="form-card-body">
                 <form method="POST" class="cluster-form" id="clusterForm">
@@ -702,12 +702,12 @@ require 'admin_header.php';
 
                     <div class="form-group">
                         <label class="form-label required">
-                            <i class="fas fa-tag"></i> Имя кластера
+                            <i class="fas fa-tag"></i> Имя зоны доступности
                         </label>
                         <input type="text"
                                name="name"
                                class="form-input"
-                               placeholder="Введите уникальное имя кластера"
+                               placeholder="Введите уникальное имя зоны доступности"
                                required
                                maxlength="50"
                                id="clusterName">
@@ -719,11 +719,11 @@ require 'admin_header.php';
 
                     <div class="form-group">
                         <label class="form-label">
-                            <i class="fas fa-align-left"></i> Описание кластера
+                            <i class="fas fa-align-left"></i> Описание зоны доступности
                         </label>
                         <textarea name="description"
                                   class="form-input"
-                                  placeholder="Опишите назначение кластера, особенности конфигурации и т.д."
+                                  placeholder="Опишите назначение зоны доступности, особенности конфигурации и т.д."
                                   maxlength="500"
                                   id="clusterDescription"></textarea>
                         <div class="char-counter" id="descCounter">
@@ -737,9 +737,9 @@ require 'admin_header.php';
                             <input type="checkbox" name="is_active" checked id="isActive">
                             <span class="checkmark"></span>
                             <span>
-                                <i class="fas fa-power-off"></i> Активный кластер
+                                <i class="fas fa-power-off"></i> Активный зона доступности
                                 <small style="display: block; color: var(--form-text-muted); font-weight: normal; margin-top: 4px;">
-                                    Неактивные кластеры не будут использоваться для создания новых ВМ
+                                    Неактивные зоны доступности не будут использоваться для создания новых ВМ
                                 </small>
                             </span>
                         </label>
@@ -750,7 +750,7 @@ require 'admin_header.php';
                                 name="add_cluster"
                                 class="form-btn form-btn-primary"
                                 id="submitBtn">
-                            <i class="fas fa-save"></i> Создать кластер
+                            <i class="fas fa-save"></i> Создать зона доступности
                         </button>
                         <a href="nodes.php" class="form-btn form-btn-secondary">
                             <i class="fas fa-times"></i> Отмена
@@ -768,9 +768,9 @@ require 'admin_header.php';
             </div>
             <div class="info-panel-body">
                 <ul class="info-panel-list">
-                    <li>Используйте понятные имена, отражающие назначение кластера</li>
-                    <li>Укажите описание для удобства управления несколькими кластерами</li>
-                    <li>Активируйте кластер только после полной настройки всех нод</li>
+                    <li>Используйте понятные имена, отражающие назначение зоны доступности</li>
+                    <li>Укажите описание для удобства управления несколькими зоны доступностими</li>
+                    <li>Активируйте зона доступности только после полной настройки всех нод</li>
                     <li>Проверьте подключение всех нод перед добавлением в продакшн</li>
                 </ul>
             </div>
@@ -836,13 +836,13 @@ require 'admin_header.php';
             }
         }
 
-        // Валидация имени кластера
+        // Валидация имени зоны доступности
         function validateName() {
             const name = clusterName.value.trim();
             const errorMessages = [];
 
             if (name.length === 0) {
-                errorMessages.push('Имя кластера обязательно');
+                errorMessages.push('Имя зоны доступности обязательно');
             }
 
             if (name.length > 50) {
@@ -928,7 +928,7 @@ require 'admin_header.php';
             //     .then(response => response.json())
             //     .then(data => {
             //         if (!data.available) {
-            //             showFieldError(this, ['Кластер с таким именем уже существует']);
+            //             showFieldError(this, ['Зона доступности с таким именем уже существует']);
             //         }
             //     });
         });

@@ -12,7 +12,7 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
-// Получаем данные кластера
+// Получаем данные зоны доступности
 $cluster = null;
 if (isset($_GET['id'])) {
     $stmt = $pdo->prepare("SELECT * FROM proxmox_clusters WHERE id = ?");
@@ -21,12 +21,12 @@ if (isset($_GET['id'])) {
 }
 
 if (!$cluster) {
-    $_SESSION['error'] = "Кластер не найден";
+    $_SESSION['error'] = "Зона доступности не найден";
     header("Location: nodes.php");
     exit;
 }
 
-// Получаем статистику кластера
+// Получаем статистику зоны доступности
 $cluster_stats = $pdo->prepare("
     SELECT
         COUNT(*) as total_nodes,
@@ -41,7 +41,7 @@ $cluster_stats = $pdo->prepare("
 $cluster_stats->execute([$cluster['id']]);
 $cluster_stats = $cluster_stats->fetch(PDO::FETCH_ASSOC);
 
-// Получаем список нод в кластере
+// Получаем список нод в зона доступностие
 $cluster_nodes = $pdo->prepare("
     SELECT
         n.*,
@@ -54,12 +54,12 @@ $cluster_nodes = $pdo->prepare("
 $cluster_nodes->execute([$cluster['id']]);
 $cluster_nodes = $cluster_nodes->fetchAll(PDO::FETCH_ASSOC);
 
-// Получаем историю изменений кластера
+// Получаем историю изменений зоны доступности
 $cluster_history = $pdo->prepare("
     SELECT
         'created' as type,
         created_at as date,
-        CONCAT('Кластер создан') as description
+        CONCAT('Зона доступности создан') as description
     FROM proxmox_clusters
     WHERE id = ?
 
@@ -68,7 +68,7 @@ $cluster_history = $pdo->prepare("
     SELECT
         'updated' as type,
         NOW() as date,
-        CONCAT('Кластер обновлен') as description
+        CONCAT('Зона доступности обновлен') as description
     FROM proxmox_clusters
     WHERE id = ?
 
@@ -94,19 +94,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Валидация
             if (empty($name)) {
-                throw new Exception("Имя кластера обязательно");
+                throw new Exception("Имя зоны доступности обязательно");
             }
 
-            // Проверка уникальности имени кластера
+            // Проверка уникальности имени зоны доступности
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_clusters WHERE name = ? AND id != ?");
             $stmt->execute([$name, $cluster['id']]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Кластер с таким именем уже существует");
+                throw new Exception("Зона доступности с таким именем уже существует");
             }
 
             // Валидация длины имени
             if (strlen($name) > 50) {
-                throw new Exception("Имя кластера не должно превышать 50 символов");
+                throw new Exception("Имя зоны доступности не должно превышать 50 символов");
             }
 
             // Валидация длины описания
@@ -123,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Порог балансировки нагрузки должен быть от 1 до 100%");
             }
 
-            // Проверка, можно ли деактивировать кластер
+            // Проверка, можно ли деактивировать зона доступности
             if ($cluster['is_active'] == 1 && $is_active == 0) {
-                // Проверяем, есть ли активные ВМ в кластере
+                // Проверяем, есть ли активные ВМ в зона доступностие
                 $stmt = $pdo->prepare("
                     SELECT COUNT(*)
                     FROM vms v
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $running_vms = $stmt->fetchColumn();
 
                 if ($running_vms > 0) {
-                    throw new Exception("Невозможно деактивировать кластер: в нем есть работающие ВМ ($running_vms шт.)");
+                    throw new Exception("Невозможно деактивировать зона доступности: в нем есть работающие ВМ ($running_vms шт.)");
                 }
             }
 
@@ -183,9 +183,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Логируем успешное обновление
-            error_log("Кластер обновлен: ID = {$cluster['id']}, Name = $name");
+            error_log("Зона доступности обновлен: ID = {$cluster['id']}, Name = $name");
 
-            // Если кластер переведен в режим обслуживания, останавливаем все ноды
+            // Если зона доступности переведен в режим обслуживания, останавливаем все ноды
             if ($maintenance_mode && !($cluster['maintenance_mode'] ?? 0)) {
                 $stmt = $pdo->prepare("UPDATE proxmox_nodes SET is_active = 0 WHERE cluster_id = ?");
                 $stmt->execute([$cluster['id']]);
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $log_stmt = $pdo->prepare("
                         INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                        VALUES (?, 'maintenance_mode', 'Кластер переведен в режим обслуживания', NOW())
+                        VALUES (?, 'maintenance_mode', 'Зона доступности переведен в режим обслуживания', NOW())
                     ");
                     $log_stmt->execute([$cluster['id']]);
                 } catch (Exception $e) {
@@ -224,18 +224,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $_SESSION['success'] = "Кластер '{$name}' успешно обновлен";
+            $_SESSION['success'] = "Зона доступности '{$name}' успешно обновлен";
             header("Location: nodes.php");
             exit;
 
         } catch (Exception $e) {
             $_SESSION['error'] = $e->getMessage();
             // Логирование ошибки
-            error_log("Ошибка при обновлении кластера: " . $e->getMessage());
+            error_log("Ошибка при обновлении зоны доступности: " . $e->getMessage());
         }
     }
 
-    // Обработка принудительной проверки всех нод кластера
+    // Обработка принудительной проверки всех нод зоны доступности
     if (isset($_POST['check_all_nodes'])) {
         try {
             // Обновляем время последней проверки для всех нод
@@ -246,18 +246,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $stmt->execute([$cluster['id']]);
 
-            // Добавляем запись в логи кластера
+            // Добавляем запись в логи зоны доступности
             try {
                 $log_stmt = $pdo->prepare("
                     INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                    VALUES (?, 'check_nodes', 'Запущена проверка всех нод кластера', NOW())
+                    VALUES (?, 'check_nodes', 'Запущена проверка всех нод зоны доступности', NOW())
                 ");
                 $log_stmt->execute([$cluster['id']]);
             } catch (Exception $e) {
                 // Игнорируем ошибку лога
             }
 
-            $_SESSION['success'] = "Запущена проверка всех нод кластера. Результаты будут доступны через несколько минут.";
+            $_SESSION['success'] = "Запущена проверка всех нод зоны доступности. Результаты будут доступны через несколько минут.";
             header("Location: edit_cluster.php?id=" . $cluster['id']);
             exit;
 
@@ -267,7 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$title = "Редактирование кластера | HomeVlad Cloud";
+$title = "Редактирование зоны доступности | HomeVlad Cloud";
 require 'admin_header.php';
 ?>
 <!DOCTYPE html>
@@ -1160,8 +1160,8 @@ require 'admin_header.php';
         <!-- Шапка страницы -->
         <div class="cluster-header">
             <div class="cluster-header-left">
-                <h1><i class="fas fa-edit"></i> Редактирование кластера</h1>
-                <p>Изменение параметров кластера <?= htmlspecialchars($cluster['name']) ?></p>
+                <h1><i class="fas fa-edit"></i> Редактирование зоны доступности</h1>
+                <p>Изменение параметров зоны доступности <?= htmlspecialchars($cluster['name']) ?></p>
             </div>
             <div class="cluster-header-right">
                 <a href="nodes.php" class="cluster-btn-icon cluster-btn-back" title="Вернуться к списку">
@@ -1205,7 +1205,7 @@ require 'admin_header.php';
                             
                             <div class="form-group">
                                 <label class="form-label required">
-                                    <i class="fas fa-tag"></i> Имя кластера
+                                    <i class="fas fa-tag"></i> Имя зоны доступности
                                 </label>
                                 <input type="text"
                                        name="name"
@@ -1222,7 +1222,7 @@ require 'admin_header.php';
 
                             <div class="form-group">
                                 <label class="form-label">
-                                    <i class="fas fa-align-left"></i> Описание кластера
+                                    <i class="fas fa-align-left"></i> Описание зоны доступности
                                 </label>
                                 <textarea name="description"
                                           class="form-input"
@@ -1282,8 +1282,8 @@ require 'admin_header.php';
                                            id="isActive">
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
-                                        <i class="fas fa-power-off"></i> Активный кластер
-                                        <span class="checkbox-hint">Кластер доступен для создания новых ВМ</span>
+                                        <i class="fas fa-power-off"></i> Активный зона доступности
+                                        <span class="checkbox-hint">Зона доступности доступен для создания новых ВМ</span>
                                     </span>
                                 </label>
 
@@ -1319,7 +1319,7 @@ require 'admin_header.php';
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
                                         <i class="fas fa-tools"></i> Режим обслуживания
-                                        <span class="checkbox-hint">Временно отключает кластер для технических работ</span>
+                                        <span class="checkbox-hint">Временно отключает зона доступности для технических работ</span>
                                     </span>
                                 </label>
                             </div>
@@ -1345,7 +1345,7 @@ require 'admin_header.php';
                 <!-- Карточка статуса -->
                 <div class="cluster-card cluster-status-card">
                     <div class="cluster-card-header cluster-status-header">
-                        <h2><i class="fas fa-chart-bar"></i> Статистика кластера</h2>
+                        <h2><i class="fas fa-chart-bar"></i> Статистика зоны доступности</h2>
                     </div>
                     <div class="cluster-card-body">
                         <div class="cluster-icon">
@@ -1375,7 +1375,7 @@ require 'admin_header.php';
                             <div class="status-indicatorr">
                                 <div class="indicator-label">Всего нод</div>
                                 <div class="indicator-value"><?= $cluster_stats['total_nodes'] ?? 0 ?></div>
-                                <div class="indicator-subtext">в кластере</div>
+                                <div class="indicator-subtext">в зона доступностие</div>
                             </div>
 
                             <div class="status-indicatorr">
@@ -1408,10 +1408,10 @@ require 'admin_header.php';
                     </div>
                 </div>
 
-                <!-- Список нод кластера -->
+                <!-- Список нод зоны доступности -->
                 <div class="cluster-card" style="margin-top: 24px;">
                     <div class="cluster-card-header">
-                        <h2><i class="fas fa-server"></i> Ноды кластера</h2>
+                        <h2><i class="fas fa-server"></i> Ноды зоны доступности</h2>
                         <span style="font-size: 12px; color: var(--cluster-text-muted);">
                             <?= $cluster_stats['total_nodes'] ?? 0 ?> нод
                         </span>
@@ -1479,14 +1479,14 @@ require 'admin_header.php';
 
                             <div style="text-align: center; margin-top: 16px;">
                                 <a href="nodes.php?cluster=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="padding: 8px 16px; font-size: 12px;">
-                                    <i class="fas fa-list"></i> Все ноды кластера
+                                    <i class="fas fa-list"></i> Все ноды зоны доступности
                                 </a>
                             </div>
                         <?php else: ?>
                             <div class="empty-state">
                                 <i class="fas fa-server"></i>
-                                <h3>Нет нод в кластере</h3>
-                                <p>Добавьте ноды для начала работы с кластером</p>
+                                <h3>Нет нод в зона доступностие</h3>
+                                <p>Добавьте ноды для начала работы с зона доступностиом</p>
                                 <a href="add_node.php?cluster_id=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-primary" style="margin-top: 10px;">
                                     <i class="fas fa-plus-circle"></i> Добавить ноду
                                 </a>
@@ -1572,19 +1572,19 @@ require 'admin_header.php';
         maintenanceMode.addEventListener('change', function() {
             if (this.checked) {
                 // При включении режима обслуживания показываем предупреждение
-                if (!confirm('Режим обслуживания отключит все ноды кластера. Продолжить?')) {
+                if (!confirm('Режим обслуживания отключит все ноды зоны доступности. Продолжить?')) {
                     this.checked = false;
                     return;
                 }
-                // Автоматически отключаем активность кластера
+                // Автоматически отключаем активность зоны доступности
                 isActive.checked = false;
             }
         });
 
         isActive.addEventListener('change', function() {
             if (this.checked && maintenanceMode.checked) {
-                // Нельзя активировать кластер в режиме обслуживания
-                alert('Нельзя активировать кластер в режиме обслуживания');
+                // Нельзя активировать зона доступности в режиме обслуживания
+                alert('Нельзя активировать зона доступности в режиме обслуживания');
                 this.checked = false;
             }
         });
@@ -1618,13 +1618,13 @@ require 'admin_header.php';
             }
         }
 
-        // Валидация имени кластера
+        // Валидация имени зоны доступности
         function validateName() {
             const name = clusterName.value.trim();
             const errorMessages = [];
 
             if (name.length === 0) {
-                errorMessages.push('Имя кластера обязательно');
+                errorMessages.push('Имя зоны доступности обязательно');
             }
 
             if (name.length > 50) {
@@ -1694,12 +1694,12 @@ require 'admin_header.php';
                 return false;
             }
 
-            // Проверка, что кластер не деактивируется с работающими ВМ
+            // Проверка, что зона доступности не деактивируется с работающими ВМ
             const originalIsActive = <?= $cluster['is_active'] ? 'true' : 'false' ?>;
             const newIsActive = isActive.checked;
 
             if (originalIsActive && !newIsActive) {
-                if (!confirm('Деактивация кластера может повлиять на работу виртуальных машин. Продолжить?')) {
+                if (!confirm('Деактивация зоны доступности может повлиять на работу виртуальных машин. Продолжить?')) {
                     return false;
                 }
             }

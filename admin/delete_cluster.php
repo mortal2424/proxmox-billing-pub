@@ -18,9 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
         $stmt = $pdo->prepare("DELETE FROM proxmox_clusters WHERE id = ?");
         $stmt->execute([$_POST['id']]);
         
-        $_SESSION['success'] = "Кластер и все связанные ноды успешно удалены";
+        $_SESSION['success'] = "Зона доступности и все связанные ноды успешно удалены";
     } catch (Exception $e) {
-        $_SESSION['error'] = "Ошибка при удалении кластера: " . $e->getMessage();
+        $_SESSION['error'] = "Ошибка при удалении зоны доступности: " . $e->getMessage();
     }
 }
 

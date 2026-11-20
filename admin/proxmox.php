@@ -882,7 +882,7 @@ require 'admin_header.php';
             </div>
         </div>
 
-        <!-- Кластеры -->
+        <!-- Зоны доступности -->
         <?php
         $clusters = array_unique(array_column($nodes, 'cluster_name'));
         ?>
@@ -892,14 +892,14 @@ require 'admin_header.php';
                     <i class="fas fa-sitemap"></i>
                 </div>
                 <?php if (count($clusters) > 1): ?>
-                <span class="dashboard-stat-trend dashboard-stat-trend-positive"><?= count($clusters) ?> кластера</span>
+                <span class="dashboard-stat-trend dashboard-stat-trend-positive"><?= count($clusters) ?> зоны доступности</span>
                 <?php endif; ?>
             </div>
             <div class="dashboard-stat-content">
-                <h3>Кластеры</h3>
+                <h3>Зоны доступности</h3>
                 <div class="dashboard-stat-value"><?= count($clusters) ?></div>
                 <p class="dashboard-stat-subtext">
-                    <?= !empty($clusters) ? htmlspecialchars(implode(', ', $clusters)) : 'Нет кластеров' ?>
+                    <?= !empty($clusters) ? htmlspecialchars(implode(', ', $clusters)) : 'Нет зон доступности' ?>
                 </p>
             </div>
         </div>
@@ -993,10 +993,10 @@ require 'admin_header.php';
                 </div>
             </div>
 
-            <!-- Статус кластеров -->
+            <!-- Статус зон доступности -->
             <div class="dashboard-widget" style="margin-top: 25px;">
                 <div class="dashboard-widget-header">
-                    <h3><i class="fas fa-sitemap"></i> Статус кластеров</h3>
+                    <h3><i class="fas fa-sitemap"></i> Статус зон доступности</h3>
                 </div>
                 <div class="dashboard-widget-body">
                     <div class="dashboard-status-grid">

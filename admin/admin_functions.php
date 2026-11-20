@@ -106,6 +106,37 @@ function getNodeSSHInfo($hostname, $username, $password) {
             }
         }
 
+        // Proxmox storage inventory includes LVM, ZFS and shared backends omitted by df.
+        $stream = ssh2_exec($connection, 'pvesm status --output-format json');
+        if ($stream) {
+            stream_set_blocking($stream, true);
+            $inventory = json_decode(stream_get_contents($stream), true);
+            fclose($stream);
+            if (is_array($inventory)) {
+                $result['storages'] = [];
+                $result['storage_groups'] = [];
+                foreach ($inventory as $storage) {
+                    $type = (string) ($storage['type'] ?? 'unknown');
+                    // pvesm reports capacities in KiB.
+                    $entry = [
+                        'name' => (string) ($storage['storage'] ?? ''),
+                        'type' => $type,
+                        'active' => !empty($storage['active']),
+                        'total' => (int) ($storage['total'] ?? 0) * 1024,
+                        'used' => (int) ($storage['used'] ?? 0) * 1024,
+                        'available' => (int) ($storage['avail'] ?? 0) * 1024,
+                    ];
+                    $result['storages'][] = $entry;
+                    if ($entry['active']) {
+                        $result['storage_groups'][$type] ??= ['total' => 0, 'used' => 0, 'available' => 0];
+                        foreach (['total', 'used', 'available'] as $capacity) {
+                            $result['storage_groups'][$type][$capacity] += $entry[$capacity];
+                        }
+                    }
+                }
+            }
+        }
+
         // 4. Получаем сетевую информацию
         $stream = ssh2_exec($connection, 'ip -o -4 addr show vmbr0 | awk \'{print $4}\' | cut -d/ -f1');
         stream_set_blocking($stream, true);
