@@ -24,7 +24,9 @@ try{
    $candidate=json_decode(file_get_contents($file),true,16,JSON_THROW_ON_ERROR);
    if(($candidate['node_id']??null)!==(int)$node['id']||($candidate['hostname']??'')!==$node['hostname']||($candidate['api_port']??0)!==$node['api_port'])throw new RuntimeException('Несовпадение подключения кандидата');
   }
-  $api=new ProxmoxApiClient($candidate);$policy=verifyHomevladTokenPermissions(fn($method,$path,$params)=>$api->request($method,$path,$params));
+  $api=new ProxmoxApiClient($candidate);
+  if(!$api->usesToken()||($candidate['username']??'')!==HOMEVLAD_SERVICE_USER.'!homevlad-node-'.(int)$node['id'].'-v1')throw new RuntimeException('Неожиданная учётная запись кандидата');
+  $policy=verifyHomevladTokenPermissions(fn($method,$path,$params)=>$api->request($method,$path,$params));
   $api->request('GET','/nodes/'.rawurlencode($node['node_name']).'/status');
   $api->request('GET','/nodes/'.rawurlencode($node['node_name']).'/qemu');
   $api->request('GET','/nodes/'.rawurlencode($node['node_name']).'/lxc');

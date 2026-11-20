@@ -76,6 +76,10 @@ function prepareHomevladToken(callable $request, array $node, string $directory)
         if(($saved['username']??'')!==HOMEVLAD_SERVICE_USER.'!'.$tokenName) throw new RuntimeException('Неожиданный идентификатор токена');
         $remote=$request('GET','/access/users/'.rawurlencode(HOMEVLAD_SERVICE_USER).'/token/'.$tokenName,[]);
         if(empty($remote['privsep'])) throw new RuntimeException('У токена отключено разделение прав');
+        $currentRoles=[];foreach($request('GET','/access/roles',[])as$role)$currentRoles[$role['roleid']]=$role;
+        foreach(homevladTokenRoles()as$name=>$policy) {
+            if(!isset($currentRoles[$name])||homevladPrivilegeSet($currentRoles[$name]['privs']??[])!==homevladPrivilegeSet($policy['privileges']))throw new RuntimeException('Роль подготовленного токена изменилась: '.$name);
+        }
         if(($saved['state']??'')==='prepared') {
             foreach(homevladTokenRoles()as$name=>$policy)$request('PUT','/access/acl',[
                 'path'=>$policy['path'],'tokens'=>$saved['username'],'roles'=>$name,'propagate'=>1]);
@@ -107,9 +111,10 @@ function prepareHomevladToken(callable $request, array $node, string $directory)
     try {
         $token = $request('POST',$base.'/'.$tokenName,['privsep'=>1,'comment'=>HOMEVLAD_SERVICE_MARKER]);
         $created = true;
-        if(($token['full-tokenid']??'')!==HOMEVLAD_SERVICE_USER.'!'.$tokenName || !is_string($token['value']??null) || $token['value']==='') throw new RuntimeException('Некорректный ответ при создании токена');
+        if(($token['full-tokenid']??'')!==HOMEVLAD_SERVICE_USER.'!'.$tokenName || !is_string($token['value']??null) || $token['value']==='' || empty($token['info']['privsep'])) throw new RuntimeException('Некорректный ответ при создании токена');
         $candidate = ['format'=>1,'node_id'=>(int)$node['id'],'hostname'=>$node['hostname'],'api_port'=>(int)$node['api_port'],
-            'username'=>$token['full-tokenid'],'password'=>encryptNodePassword($token['value']),'created_at'=>date(DATE_ATOM),'privsep'=>1,'state'=>'prepared'];
+            'username'=>$token['full-tokenid'],'password'=>encryptNodePassword($token['value']),'created_at'=>date(DATE_ATOM),
+            'expires_at'=>(int)($token['info']['expire']??0),'privsep'=>1,'state'=>'prepared'];
         writeHomevladTokenCandidate($path,$candidate); $saved = true;
         foreach(homevladTokenRoles()as$name=>$policy)$request('PUT','/access/acl',[
             'path'=>$policy['path'],'tokens'=>$candidate['username'],'roles'=>$name,'propagate'=>1]);

@@ -26,6 +26,16 @@ try{
  ensure((fileperms($directory.'/42.json')&0777)===0600,'Candidate permissions');
  ensure(count($tokens)===1&&count($roles)===4&&count($users)===1,'Provisioning counts');
  $again=prepareHomevladToken($request,$node,$directory);ensure($again===$candidate&&count($tokens)===1,'Recreated existing token');
+ $original=$roles[0]['privs'];$roles[0]['privs'].=',Sys.Modify';
+ deny(fn()=>prepareHomevladToken($request,$node,$directory),'Broadened role reused');$roles[0]['privs']=$original;
+ $revoked=0;
+ $invalid=function($m,$p,$a)use($request,&$revoked){
+  if($m==='POST'&&str_ends_with($p,'/homevlad-node-43-v1'))return ['full-tokenid'=>HOMEVLAD_SERVICE_USER.'!homevlad-node-43-v1','value'=>'fictional','info'=>['privsep'=>0]];
+  if($m==='DELETE'&&str_ends_with($p,'/homevlad-node-43-v1')){$revoked++;return null;}
+  return $request($m,$p,$a);
+ };
+ deny(fn()=>prepareHomevladToken($invalid,array_replace($node,['id'=>43]),$directory),'Disabled privilege separation accepted');
+ ensure($revoked===1&&!file_exists($directory.'/43.json'),'Unusable token not revoked');
  deny(fn()=>prepareHomevladToken($request,array_replace($node,['hostname'=>'other.invalid']),$directory),'Wrong host binding accepted');
  $permissions=function($method,$path,$parameters){$result=[];foreach(homevladTokenRoles()as$role)$result[$role['path']]=array_fill_keys($role['privileges'],1);return isset($parameters['path'])?[$parameters['path']=>$result[$parameters['path']]]:$result;};
  ensure(verifyHomevladTokenPermissions($permissions)['scopes']===4,'Permission verification failed');
