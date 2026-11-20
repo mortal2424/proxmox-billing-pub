@@ -27,5 +27,15 @@ if(!empty($argv[2])){
  check($api->request('GET','/version')['mode']==='password','Password cookie');
  check($api->request('POST','/nodes/fixture/qemu/100/vncproxy',['websocket'=>1])['mode']==='password','Password CSRF header');
  refuse(fn()=>$api->request('GET','/../access/users'),'Path traversal accepted');
+ require $root.'/includes/ProxmoxAuth.php';
+ $adapter=new ProxmoxAuth(null,null,$url['host'],'fixture',encryptNodePassword('fixture-password'),$url['port']);
+ check($adapter->getTicket()['csrf_token']==='fixture-csrf','Legacy ticket adapter');
+ check($adapter->getVncProxy(100,'fixture')['ticket']==='fixture-vnc-ticket','Legacy console adapter');
+ $pinFile=getenv('PROXMOX_CERT_PINS');$pins=file_get_contents($pinFile);
+ try {
+  file_put_contents($pinFile,json_encode([$url['host'].':'.$url['port']=>str_repeat('0',64)]));
+  $wrongPin=new ProxmoxApiClient($base+['username'=>'fixture@pve!billing','password'=>'fixture-token-secret']);
+  refuse(fn()=>$wrongPin->request('GET','/version'),'Accepted wrong TLS pin');
+ } finally {file_put_contents($pinFile,$pins);}
  echo "PASS pinned HTTPS, token-only GET/POST and password ticket/cookie/CSRF authentication\n";
 }
