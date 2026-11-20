@@ -55,23 +55,30 @@ final class ProxmoxApiClient
         if ($this->token) {
             $headers = ['Authorization: PVEAPIToken=' . $this->username . '=' . $this->secret];
         } else {
-            if ($this->ticket === null || time() >= $this->ticketExpires) {
-                $ticket = $this->exchange('POST', '/access/ticket',
-                    ['username' => $this->username, 'password' => $this->secret], []);
-                if (!is_array($ticket) || !is_string($ticket['ticket'] ?? null) ||
-                    !is_string($ticket['CSRFPreventionToken'] ?? null) ||
-                    preg_match('/[\r\n]/', $ticket['ticket'] . $ticket['CSRFPreventionToken'])) {
-                    throw new RuntimeException('API Proxmox вернул некорректный билет');
-                }
-                $this->ticket = $ticket;
-                $this->ticketExpires = time() + 6000;
-            }
+            $this->getPasswordTicket();
             $headers = ['Cookie: PVEAuthCookie=' . rawurlencode($this->ticket['ticket'])];
             if ($method !== 'GET') {
                 $headers[] = 'CSRFPreventionToken: ' . $this->ticket['CSRFPreventionToken'];
             }
         }
         return $this->exchange($method, $path, $parameters, $headers);
+    }
+
+    public function getPasswordTicket(): array
+    {
+        if ($this->token) throw new RuntimeException('API-токен не использует парольные билеты');
+        if ($this->ticket === null || time() >= $this->ticketExpires) {
+            $ticket = $this->exchange('POST', '/access/ticket',
+                ['username' => $this->username, 'password' => $this->secret], []);
+            if (!is_array($ticket) || !is_string($ticket['ticket'] ?? null) ||
+                !is_string($ticket['CSRFPreventionToken'] ?? null) ||
+                preg_match('/[\r\n]/', $ticket['ticket'] . $ticket['CSRFPreventionToken'])) {
+                throw new RuntimeException('API Proxmox вернул некорректный билет');
+            }
+            $this->ticket = $ticket;
+            $this->ticketExpires = time() + 6000;
+        }
+        return $this->ticket;
     }
 
     private function exchange(string $method, string $path, array $parameters, array $headers): mixed

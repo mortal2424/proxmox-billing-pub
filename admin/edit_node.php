@@ -12,6 +12,8 @@ if (!isAdmin()) {
 
 $db = new Database();
 $pdo = $db->getConnection();
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+requireNodeAdministrator($pdo);
 
 // Получаем данные ноды
 $node = null;
@@ -71,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ssh_port = intval($_POST['ssh_port'] ?? 22);
             $api_port = intval($_POST['api_port'] ?? 8006);
             $username = trim($_POST['username'] ?? '');
-            $password = trim($_POST['password'] ?? '');
+            $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
             $is_active = isset($_POST['is_active']) ? 1 : 0;
             $description = trim($_POST['description'] ?? '');
             $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
@@ -170,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Если есть пароль, добавляем его
-            if (!empty($password)) {
+            if ($password !== '') {
                 $sql_parts[] = "password = ?";
                 $params[] = encryptNodePassword($password);
             }
@@ -1191,6 +1193,7 @@ require 'admin_header.php';
                         <form method="POST" class="node-form" id="nodeForm">
                             <!-- Добавляем скрытое поле для идентификации формы -->
                             <input type="hidden" name="node_form" value="1">
+<input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
 
                             <div class="form-grid">
                                 <div class="form-group">
@@ -1417,6 +1420,7 @@ require 'admin_header.php';
 
                         <form method="POST" class="action-buttons" style="margin-top: 16px;">
                             <input type="hidden" name="check_availability" value="1">
+<input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
                             <button type="submit" class="form-btn form-btn-success">
                                 <i class="fas fa-play"></i> Проверить сейчас
                             </button>

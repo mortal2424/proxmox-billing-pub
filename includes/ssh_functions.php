@@ -1,15 +1,17 @@
 <?php
+require_once __DIR__ . '/node_credentials.php';
 if (!function_exists('ssh_connect_and_auth')) {
     function ssh_connect_and_auth($hostname, $username, $password) {
+        $password = decryptNodePassword($password);
         $connection = @ssh2_connect($hostname, 22);
         if (!$connection) {
             throw new Exception("Не удалось подключиться к {$hostname}");
         }
-        
+
         if (!@ssh2_auth_password($connection, $username, $password)) {
             throw new Exception("Ошибка аутентификации для {$username}");
         }
-        
+
         return $connection;
     }
 }
@@ -20,11 +22,11 @@ if (!function_exists('exec_ssh_command')) {
         if (!$stream) {
             throw new Exception("Не удалось выполнить удаленную команду");
         }
-        
+
         stream_set_blocking($stream, true);
         $output = stream_get_contents($stream);
         fclose($stream);
-        
+
         return trim($output);
     }
 }
@@ -33,7 +35,7 @@ if (!function_exists('getNodeStats')) {
     function getNodeStats($hostname, $username, $password) {
         try {
             $connection = ssh_connect_and_auth($hostname, $username, $password);
-            
+
             $result = [
                 'cpu_usage' => (float)exec_ssh_command($connection, "(head -n 1 /proc/stat; sleep 1; head -n 1 /proc/stat) | awk 'NR==1 {idle=\$5+\$6; for(i=2;i<=9;i++) total+=\$i; next} {idle2=\$5+\$6; for(i=2;i<=9;i++) total2+=\$i; if(total2>total) printf \"%.2f\", 100*(1-(idle2-idle)/(total2-total))}'"),
                 'ram_usage' => 0,
@@ -41,18 +43,18 @@ if (!function_exists('getNodeStats')) {
                 'network_rx_bytes' => 0,
                 'network_tx_bytes' => 0
             ];
-            
+
             // Получаем данные о памяти
             $ram = exec_ssh_command($connection, "free -m | awk '/Mem:/ {print \$2,\$3}'");
             list($result['ram_total'], $ramUsed) = explode(' ', $ram);
             $result['ram_usage'] = round(($ramUsed / $result['ram_total']) * 100, 2);
-            
+
             // Получаем сетевую статистику
             $network = exec_ssh_command($connection, "cat /sys/class/net/vmbr0/statistics/rx_bytes /sys/class/net/vmbr0/statistics/tx_bytes");
             list($result['network_rx_bytes'], $result['network_tx_bytes']) = array_pad(explode("\n", $network), 2, 0);
-            
+
             return $result;
-            
+
         } finally {
             if (isset($connection) && is_resource($connection)) {
                 @ssh2_disconnect($connection);

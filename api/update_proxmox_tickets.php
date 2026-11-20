@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/node_credentials.php';
+require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 
@@ -11,79 +11,40 @@ $nodes = $pdo->query("SELECT id, hostname, username, password, api_port FROM pro
 
 foreach ($nodes as $node) {
     try {
-        $port = isset($node['api_port']) ? $node['api_port'] : 8006;
-        $url = "https://{$node['hostname']}:{$port}/api2/json/access/ticket";
-        
-        // Формируем данные для авторизации
-        $username = $node['username'];
-        if (strpos($username, '@') === false) {
-            $username .= '@pam'; // Добавляем домен если отсутствует
-        }
-        
-        $postData = "username=" . urlencode($username) . "&password=" . urlencode(decryptNodePassword($node['password']));
-        
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded',
-                'Content-Length: ' . strlen($postData)
-            ]
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
-        if ($httpCode !== 200) {
-            error_log("Failed to get ticket for node {$node['id']}: HTTP {$httpCode}");
-            curl_close($ch);
-            continue;
-        }
-        
-        curl_close($ch);
-        
-        $data = json_decode($response, true);
-        if (!$data || !isset($data['data']['ticket'])) {
-            error_log("Invalid ticket response from node {$node['id']}");
-            continue;
-        }
-        
+        $api = new ProxmoxApiClient($node);
+        if ($api->usesToken()) continue;
+        $data = ['data' => $api->getPasswordTicket()];
+
         // Устанавливаем срок действия (2 часа от текущего момента)
         $expiresAt = new DateTime();
         $expiresAt->add(new DateInterval('PT2H')); // Добавляем 2 часа
-        
+
         // Проверяем существование записи
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_tickets WHERE node_id = ?");
         $stmt->execute([$node['id']]);
         $exists = $stmt->fetchColumn();
-        
+
         if ($exists) {
             // Обновляем существующую запись
-            $stmt = $pdo->prepare("UPDATE proxmox_tickets 
+            $stmt = $pdo->prepare("UPDATE proxmox_tickets
                                  SET ticket = ?, csrf_token = ?, expires_at = ?
                                  WHERE node_id = ?");
         } else {
             // Создаем новую запись
-            $stmt = $pdo->prepare("INSERT INTO proxmox_tickets 
-                                 (ticket, csrf_token, expires_at, node_id) 
+            $stmt = $pdo->prepare("INSERT INTO proxmox_tickets
+                                 (ticket, csrf_token, expires_at, node_id)
                                  VALUES (?, ?, ?, ?)");
         }
-        
+
         $stmt->execute([
             $data['data']['ticket'],
             $data['data']['CSRFPreventionToken'],
             $expiresAt->format('Y-m-d H:i:s'),
             $node['id']
         ]);
-        
+
         echo "Successfully " . ($exists ? "updated" : "created") . " ticket for node {$node['hostname']}\n";
-    } catch (Exception $e) {
-        error_log("Error processing node {$node['id']}: " . $e->getMessage());
+    } catch (Throwable $e) {
+        error_log("Ticket refresh failed for node " . (int)$node['id']);
     }
 }

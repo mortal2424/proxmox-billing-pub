@@ -12,6 +12,8 @@ if (!isAdmin()) {
 
 $db = new Database();
 $pdo = $db->getConnection();
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+requireNodeAdministrator($pdo);
 
 $clusters = $pdo->query("SELECT id, name FROM proxmox_clusters WHERE is_active = 1 ORDER BY name")->fetchAll();
 
@@ -23,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $api_port = intval($_POST['api_port'] ?? 8006);
         $ssh_port = intval($_POST['ssh_port'] ?? 22);
         $username = trim($_POST['username'] ?? '');
-        $password = trim($_POST['password'] ?? '');
+        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
         $is_active = isset($_POST['is_active']) ? 1 : 0;
         $description = trim($_POST['description'] ?? '');
         $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
@@ -980,6 +982,7 @@ require 'admin_header.php';
 
         <form method="POST" id="nodeForm">
             <input type="hidden" name="node_form" value="1">
+<input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
             <div class="node-form-grid">
                 <!-- Основные параметры -->
                 <div class="form-section">

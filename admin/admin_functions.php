@@ -33,6 +33,7 @@ function columnExists($pdo, $table, $column) {
 
 function getNodeSSHInfo($hostname, $username, $password) {
     try {
+        $password = decryptNodePassword($password);
         $connection = @ssh2_connect($hostname, 22);
         if (!$connection) {
             throw new Exception('Не удалось подключиться к серверу');
