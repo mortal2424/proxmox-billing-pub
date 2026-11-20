@@ -92,6 +92,7 @@ class ProxmoxAPI {
         }
     }
 
+    $createdGuest = false;
     $this->pdo->beginTransaction();
 
     try {
@@ -132,6 +133,7 @@ class ProxmoxAPI {
         );
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
+        $createdGuest = true;
 
         // 5. Настройка дисков
         $diskSize = (string)($params['disk'] ?? '10');
@@ -286,7 +288,7 @@ class ProxmoxAPI {
     } catch (Exception $e) {
         $this->pdo->rollBack();
 
-        if (isset($vmid)) {
+        if ($createdGuest && isset($vmid)) {
             try {
                 $this->execSSHCommand("qm destroy {$vmid} --purge");
             } catch (Exception $cleanupError) {
@@ -369,6 +371,7 @@ public function createLXC($params) {
         $disk === false || $disk < 1 || $disk > 1048576) {
         throw new InvalidArgumentException('Invalid LXC template, storage, network or resource parameters');
     }
+    $createdGuest = false;
     $this->pdo->beginTransaction();
 
     try {
@@ -408,6 +411,7 @@ public function createLXC($params) {
 
         error_log("[LXC Creation] Creating container {$vmid} with validated parameters");
         $this->execSSHCommand($createCmd);
+        $createdGuest = true;
 
         // Настройка сети
         $network = (string)($params['network'] ?? 'vmbr0');
@@ -490,7 +494,7 @@ public function createLXC($params) {
     } catch (Exception $e) {
         $this->pdo->rollBack();
 
-        if (isset($vmid)) {
+        if ($createdGuest && isset($vmid)) {
             try {
                 error_log("[LXC Creation] Cleanup failed container {$vmid}");
                 $this->execSSHCommand("pct destroy {$vmid}");
