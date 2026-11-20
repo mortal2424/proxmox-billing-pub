@@ -1,6 +1,6 @@
 <?php
 
-const HOMEVLAD_VERSION = '2.5.1-beta8.2';
+const HOMEVLAD_VERSION = '2.5.1-beta8.3';
 
 function homevladVersion($recordedVersion = null): string
 {

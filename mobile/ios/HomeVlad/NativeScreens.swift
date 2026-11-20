@@ -151,7 +151,7 @@ struct NativeTickets: View {
                 Text("Закрытые").tag(true)
             }.pickerStyle(.segmented)
             Section("Последние 100 обращений") {
-                ForEach(tickets.filter { ($0.status == "closed") == closed }) { ticket in
+                ForEach(tickets) { ticket in
                     NavigationLink {
                         NativeTicketDetail(session: session, id: ticket.id, admin: admin)
                     } label: {
@@ -167,14 +167,16 @@ struct NativeTickets: View {
         }
         .navigationTitle(admin ? "Все обращения" : "Поддержка")
         .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
-        .task { await load() }.refreshable { await load() }
+        .task(id: closed) { await load() }.refreshable { await load() }
         .sheet(isPresented: $creating, onDismiss: { Task { await load() } }) {
             NativeNewTicket(session: session)
         }
     }
     private func load() async {
         do {
-            let result: CloudItems<CloudTicket> = try await session.get("/api/mobile_resources.php?resource=tickets&admin=\(admin ? 1 : 0)")
+            let requestedClosed = closed
+            let result: CloudItems<CloudTicket> = try await session.get("/api/mobile_resources.php?resource=tickets&admin=\(admin ? 1 : 0)&closed=\(requestedClosed ? 1 : 0)")
+            guard requestedClosed == closed, !Task.isCancelled else { return }
             tickets = result.items
             error = nil
         } catch { self.error = error.localizedDescription }

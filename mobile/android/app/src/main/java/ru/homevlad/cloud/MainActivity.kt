@@ -1,232 +1,509 @@
 package ru.homevlad.cloud
 
-import android.annotation.SuppressLint
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.webkit.CookieManager
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.NumberFormat
 import java.util.Locale
 
 private const val origin = "https://" + BuildConfig.HOST
+private const val api = "/api/mobile_resources.php"
+private fun money(amount: Double) = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("ru-RU")).format(amount)
+private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
 
 class CloudModel : ViewModel() {
+    private val cookies = CookieManager(null, CookiePolicy.ACCEPT_ORIGINAL_SERVER)
+    private var csrf = ""
     private var generation = 0
     var snapshot by mutableStateOf<JSONObject?>(null)
+        private set
+    var challenge by mutableStateOf<JSONObject?>(null)
         private set
     var error by mutableStateOf<String?>(null)
         private set
     var loading by mutableStateOf(false)
         private set
 
+    suspend fun request(path: String, payload: JSONObject? = null): JSONObject {
+        val url = URL(origin + path)
+        require(url.protocol == "https" && url.host == BuildConfig.HOST && (url.port == -1 || url.port == 443))
+        val body = payload?.put("csrf", csrf)?.toString()
+        val (status, result) = withContext(Dispatchers.IO) {
+            val connection = url.openConnection() as HttpURLConnection
+            try {
+                connection.instanceFollowRedirects = false
+                connection.connectTimeout = 15000
+                connection.readTimeout = 20000
+                connection.setRequestProperty("Accept", "application/json")
+                synchronized(cookies) {
+                    cookies.get(url.toURI(), emptyMap()).forEach { (key, values) ->
+                        connection.setRequestProperty(key, values.joinToString("; "))
+                    }
+                }
+                if (body != null) {
+                    connection.requestMethod = "POST"
+                    connection.doOutput = true
+                    connection.setRequestProperty("Content-Type", "application/json")
+                    connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                }
+                val status = connection.responseCode
+                synchronized(cookies) {
+                    val headers = mutableMapOf<String, List<String>>()
+                    connection.headerFields.forEach { (key, values) -> if (key != null) headers[key] = values }
+                    cookies.put(url.toURI(), headers)
+                }
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (text.length > 8388608) throw IllegalStateException("Ответ сервера слишком большой")
+                val result = runCatching { JSONObject(text) }.getOrElse { JSONObject().put("error", "Сервис временно недоступен") }
+                status to result
+            } finally {
+                connection.disconnect()
+            }
+        }
+        if (result.has("csrf")) csrf = result.getString("csrf")
+        if (result.has("captcha")) challenge = result
+        if (status != 200) {
+            if (status == 401 && !path.contains("mobile_auth.php") && snapshot != null) {
+                snapshot = null
+                prepareLogin()
+            }
+            throw IllegalStateException(result.optString("error", "Не удалось выполнить запрос"))
+        }
+        return result
+    }
+
+    private suspend fun loadChallenge() {
+        challenge = request("/api/mobile_auth.php")
+        error = null
+    }
+
+    fun prepareLogin() {
+        viewModelScope.launch {
+            loading = true
+            try { loadChallenge() }
+            catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                error = exception.message
+            } finally { loading = false }
+        }
+    }
+
+    fun start() {
+        viewModelScope.launch {
+            loading = true
+            try { snapshot = request("/api/mobile_dashboard.php") }
+            catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                runCatching { loadChallenge() }.onFailure { error = "Не удалось подключиться к серверу" }
+            } finally { loading = false }
+        }
+    }
+
+    fun login(email: String, password: String, answer: String) {
+        if (loading) return
+        viewModelScope.launch {
+            loading = true
+            try {
+                request("/api/mobile_auth.php", JSONObject().put("email", email).put("password", password).put("captcha", answer))
+                snapshot = request("/api/mobile_dashboard.php")
+                challenge = null
+                error = null
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                error = exception.message
+            } finally { loading = false }
+        }
+    }
+
     fun refresh() {
         if (loading) return
         val requestGeneration = generation
-        loading = true
-        val cookies = CookieManager.getInstance().getCookie(origin).orEmpty()
         viewModelScope.launch {
+            loading = true
             try {
-                val result = withContext(Dispatchers.IO) {
-                    val connection = URL("$origin/api/mobile_dashboard.php").openConnection() as HttpURLConnection
-                    try {
-                        connection.instanceFollowRedirects = false
-                        connection.connectTimeout = 15000
-                        connection.readTimeout = 20000
-                        connection.setRequestProperty("Cookie", cookies)
-                        connection.setRequestProperty("Accept", "application/json")
-                        when (connection.responseCode) {
-                            401 -> null
-                            200 -> connection.inputStream.bufferedReader().use { JSONObject(it.readText()) }
-                            else -> throw IllegalStateException("Не удалось загрузить кабинет")
-                        }
-                    } finally {
-                        connection.disconnect()
-                    }
-                }
-                if (requestGeneration != generation) return@launch
-                snapshot = result
-                error = if (result == null) "Войдите в кабинет" else null
+                val result = request("/api/mobile_dashboard.php")
+                if (requestGeneration == generation) { snapshot = result; error = null }
             } catch (exception: Exception) {
-                if (requestGeneration != generation) return@launch
-                error = "Не удалось загрузить данные. Проверьте соединение."
-            } finally {
-                if (requestGeneration == generation) loading = false
-            }
+                if (exception is CancellationException) throw exception
+                if (requestGeneration == generation) error = exception.message
+            } finally { if (requestGeneration == generation) loading = false }
         }
     }
 
     fun logout() {
         generation++
-        loading = true
-        val cookies = CookieManager.getInstance().getCookie(origin).orEmpty()
-        viewModelScope.launch(Dispatchers.IO) {
-            val connection = URL("$origin/login/logout.php").openConnection() as HttpURLConnection
-            try {
-                connection.instanceFollowRedirects = false
-                connection.connectTimeout = 10000
-                connection.readTimeout = 10000
-                connection.setRequestProperty("Cookie", cookies)
-                connection.inputStream.close()
-            } catch (_: Exception) {
-                // Local session data is cleared even when the server is unreachable.
-            } finally {
-                connection.disconnect()
-            }
+        viewModelScope.launch {
+            loading = true
+            runCatching { request("/api/mobile_auth.php", JSONObject().put("action", "logout")) }
+            synchronized(cookies) { cookies.cookieStore.removeAll() }
+            snapshot = null
+            challenge = null
+            error = null
+            try { loadChallenge() } catch (_: Exception) { error = "Не удалось подключиться к серверу" }
+            loading = false
         }
-        CookieManager.getInstance().removeAllCookies { loading = false }
-        CookieManager.getInstance().flush()
-        snapshot = null
-        error = null
     }
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFF287963))) { Cabinet() } }
+        setContent {
+            MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFF287963))) {
+                Cabinet()
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Cabinet(model: CloudModel = viewModel()) {
-    var page by remember { mutableStateOf<String?>(null) }
-    var pageTitle by remember { mutableStateOf("Кабинет") }
-    val open: (String, String) -> Unit = { title, path -> pageTitle = title; page = path }
-    LaunchedEffect(Unit) { model.refresh() }
-    BackHandler(enabled = page != null) { page = null; model.refresh() }
+    var page by remember { mutableStateOf("overview") }
+    var selectedGuest by remember { mutableStateOf<JSONObject?>(null) }
+    var selectedTicket by remember { mutableStateOf(0) }
+    var adminContext by remember { mutableStateOf(false) }
+    var revision by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { model.start() }
+    BackHandler(enabled = page !in listOf("overview", "monitor", "tickets", "payments", "admin")) {
+        page = if (page == "ticket") { if (adminContext) "admin_tickets" else "tickets" }
+            else if (page.startsWith("admin_")) "admin" else "overview"
+    }
     Scaffold(topBar = {
-        TopAppBar(title = { Text(if (page == null) "HomeVlad" else pageTitle) }, actions = {
-            if (page != null) TextButton(onClick = { page = null; model.refresh() }) { Text("Кабинет") }
-            else TextButton(onClick = { model.refresh() }) { Text("Обновить") }
+        TopAppBar(title = { Text("HomeVlad") }, actions = {
+            if (model.snapshot != null) TextButton(onClick = { model.refresh(); revision++ }) { Text("Обновить") }
         })
+    }, bottomBar = {
+        val snapshot = model.snapshot
+        if (snapshot != null) NavigationBar {
+            val tabs = mutableListOf("overview" to "Обзор", "monitor" to "Мониторинг", "tickets" to "Поддержка", "payments" to "Финансы")
+            if (snapshot.getBoolean("isAdmin")) tabs += "admin" to "Админ"
+            tabs.forEach { (target, label) ->
+                NavigationBarItem(selected = page == target || (target == "admin" && page.startsWith("admin_")),
+                    onClick = { page = target }, label = { Text(label) },
+                    icon = { Icon(when (target) {
+                        "overview" -> Icons.Default.Home
+                        "monitor" -> Icons.Default.Info
+                        "tickets" -> Icons.Default.MailOutline
+                        "payments" -> Icons.Default.ShoppingCart
+                        else -> Icons.Default.Settings
+                    }, contentDescription = label) })
+            }
+        }
     }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (page != null) {
-                WebCabinet(page!!, model, onSignedIn = { page = null })
-            } else {
-                model.error?.let { Text(it, Modifier.padding(16.dp)) }
-                val snapshot = model.snapshot
-                if (snapshot == null) {
-                    Spacer(Modifier.height(40.dp))
-                    Text("HomeVlad Cloud", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(16.dp))
-                    Button(enabled = !model.loading, onClick = { open("Вход", "/login/login.php") }, modifier = Modifier.padding(16.dp)) { Text("Войти в кабинет") }
-                } else {
-                    val money = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("ru-RU"))
-                    val guests = snapshot.getJSONArray("guests")
-                    val nodes = snapshot.getJSONArray("nodes")
-                    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        item {
-                            Text(snapshot.getString("name"), style = MaterialTheme.typography.headlineSmall)
-                            Text("Баланс " + money.format(snapshot.getDouble("balance")))
-                            Text("Бонусы " + money.format(snapshot.getDouble("bonusBalance")))
-                        }
-                        item { Text("Машины", style = MaterialTheme.typography.titleLarge) }
-                        if (guests.length() == 0) item { Text("Серверов пока нет") }
-                        items(guests.length()) { index ->
-                            val guest = guests.getJSONObject(index)
-                            Card(Modifier.fillMaxWidth().clickable {
-                                val type = if (guest.getString("type") == "lxc") "lxc" else "qemu"
-                                open(guest.getString("name"), "/templates/my_vms.php?guest=${guest.getInt("vmId")}&type=$type")
-                            }) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text(guest.getString("name"), style = MaterialTheme.typography.titleMedium)
-                                    Text(status(guest.getString("status")))
-                                    Text("${guest.getInt("cpu")} vCPU · ${guest.getInt("ramMiB") / 1024} ГБ RAM · ${guest.getInt("diskGiB")} ГБ")
-                                }
-                            }
-                        }
-                        item { Text("Инфраструктура", style = MaterialTheme.typography.titleLarge) }
-                        if (nodes.length() == 0) item { Text("Доступных узлов пока нет") }
-                        items(nodes.length()) { index ->
-                            val node = nodes.getJSONObject(index)
-                            Card(Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text(node.getString("zone") + " / " + node.getString("name"))
-                                    Text(status(node.getString("status")))
-                                    Text(if (node.isNull("cpu") || node.isNull("memory")) "Нет свежих замеров"
-                                        else "CPU ${node.getDouble("cpu")}% · RAM ${node.getDouble("memory")}%")
-                                }
-                            }
-                        }
-                        item {
-                            listOf("Заказать сервер" to "/templates/order_vm.php", "Финансы" to "/templates/billing.php",
-                                "Поддержка" to "/templates/support.php", "Профиль" to "/templates/settings.php").forEach { (title, path) ->
-                                TextButton(onClick = { open(title, path) }) { Text(title) }
-                            }
-                        }
-                        if (snapshot.getBoolean("isAdmin")) item {
-                            Text("Администрирование", style = MaterialTheme.typography.titleLarge)
-                            listOf("Панель администратора" to "/admin/", "Платежи" to "/admin/payments.php",
-                                "Инфраструктура" to "/admin/nodes.php", "Обновления" to "/admin/update.php").forEach { (title, path) ->
-                                TextButton(onClick = { open(title, path) }) { Text(title) }
-                            }
-                        }
-                        item { TextButton(onClick = { model.logout() }) { Text("Выйти") } }
+            val snapshot = model.snapshot
+            if (snapshot == null) {
+                NativeLogin(model)
+            } else when (page) {
+                "overview" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item {
+                        Text(snapshot.getString("name"), style = MaterialTheme.typography.headlineSmall)
+                        Text("Баланс " + money(snapshot.getDouble("balance")))
+                        Text("Бонусы " + money(snapshot.getDouble("bonusBalance")))
+                        model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
+                    item { Text("Машины", style = MaterialTheme.typography.titleLarge) }
+                    items(objects(snapshot.getJSONArray("guests"))) { guest ->
+                        Card(Modifier.fillMaxWidth().clickable { selectedGuest = guest; page = "guest" }) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text(guest.getString("name"), style = MaterialTheme.typography.titleMedium)
+                                Text(status(guest.getString("status")))
+                                Text("${guest.getInt("cpu")} vCPU · ${guest.getInt("ramMiB")} МБ · ${guest.getInt("diskGiB")} ГБ")
+                            }
+                        }
+                    }
+                    item { TextButton(onClick = { model.logout(); page = "overview" }) { Text("Выйти") } }
+                }
+                "monitor" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(objects(snapshot.getJSONArray("nodes"))) { node ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(node.getString("zone") + " / " + node.getString("name"))
+                                Text(status(node.getString("status")))
+                                if (node.isNull("cpu") || node.isNull("memory")) Text("Нет свежих замеров")
+                                else {
+                                    Text("CPU ${node.getDouble("cpu")}%")
+                                    LinearProgressIndicator(progress = { (node.getDouble("cpu") / 100).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                                    Text("Память ${node.getDouble("memory")}%")
+                                    LinearProgressIndicator(progress = { (node.getDouble("memory") / 100).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
+                    }
+                }
+                "guest" -> selectedGuest?.let { NativeGuest(model, it, revision) }
+                "payments", "admin_payments" -> NativePayments(model, page.startsWith("admin"), revision)
+                "tickets", "admin_tickets" -> NativeTickets(model, page.startsWith("admin"), revision) { id, admin ->
+                    selectedTicket = id; adminContext = admin; page = "ticket"
+                }
+                "ticket" -> NativeTicket(model, selectedTicket, adminContext, revision)
+                "admin" -> if (snapshot.getBoolean("isAdmin")) Column(Modifier.padding(20.dp)) {
+                    Text("Администрирование", style = MaterialTheme.typography.headlineSmall)
+                    TextButton(onClick = { page = "admin_payments" }) { Text("Платежи пользователей") }
+                    TextButton(onClick = { page = "admin_tickets" }) { Text("Все обращения") }
                 }
             }
         }
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun WebCabinet(path: String, model: CloudModel, onSignedIn: () -> Unit) {
-    val signedIn by rememberUpdatedState(onSignedIn)
-    AndroidView(modifier = Modifier.fillMaxSize(), factory = { context ->
-        WebView(context).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
-            settings.setSupportMultipleWindows(false)
-            CookieManager.getInstance().setAcceptCookie(true)
-            CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    val url = request.url
-                    if (url.scheme == "https" && url.host == BuildConfig.HOST && (url.port == -1 || url.port == 443)) return false
-                    if (request.isForMainFrame && request.hasGesture() && url.scheme in listOf("https", "mailto", "tg")) {
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url)) }
-                    }
-                    return true
-                }
-                override fun onPageFinished(view: WebView, url: String) {
-                    if (path == "/login/login.php" && Uri.parse(url).path.orEmpty().startsWith("/templates/")) {
-                        model.refresh()
-                        signedIn()
+private fun NativeLogin(model: CloudModel) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var answer by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Image(painterResource(R.drawable.app_icon), "HomeVlad", Modifier.size(80.dp))
+        Text("Вход", style = MaterialTheme.typography.headlineLarge)
+        OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(password, { password = it }, label = { Text("Пароль") }, singleLine = true,
+            visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        model.challenge?.let {
+            OutlinedTextField(answer, { answer = it }, label = { Text("CAPTCHA · ${it.getString("captcha")} = ?") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+        }
+        TextButton(onClick = { answer = ""; model.prepareLogin() }, enabled = !model.loading) { Text("Обновить CAPTCHA") }
+        Button(onClick = { model.login(email, password, answer); password = ""; answer = "" },
+            enabled = !model.loading && model.challenge != null && email.isNotBlank() && password.isNotEmpty() && answer.isNotEmpty()) {
+            Text("Войти")
+        }
+        model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    }
+}
+
+@Composable
+private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int) {
+    val scope = rememberCoroutineScope()
+    var live by remember { mutableStateOf<JSONObject?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var command by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    LaunchedEffect(guest.getInt("id"), revision) {
+        try { live = model.request("$api?resource=guest&id=${guest.getInt("id")}") }
+        catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+    }
+    Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(guest.getString("name"), style = MaterialTheme.typography.headlineSmall)
+        Text("№${guest.getInt("vmId")} · ${guest.getString("type").uppercase()}")
+        Text(status(live?.optString("status") ?: guest.getString("status")))
+        Text("${guest.getInt("cpu")} vCPU · ${guest.getInt("ramMiB")} МБ RAM · ${guest.getInt("diskGiB")} ГБ")
+        live?.let {
+            if (!it.isNull("cpu")) Text("CPU ${it.getDouble("cpu")}%")
+            if (!it.isNull("memory")) Text("Память ${it.getDouble("memory")}%")
+        }
+        listOf("start" to "Запустить", "shutdown" to "Выключить ОС", "reboot" to "Перезагрузить", "stop" to "Остановить принудительно")
+            .forEach { (action, label) -> Button(enabled = !busy, onClick = { command = action }) { Text(label) } }
+        error?.let { Text(it) }
+    }
+    if (command != null) AlertDialog(onDismissRequest = { command = null }, title = { Text("Управление машиной") },
+        text = { Text(if (command == "stop") "Принудительная остановка может привести к потере несохранённых данных." else "Выполнить выбранную команду?") },
+        confirmButton = { TextButton(onClick = {
+            val selected = command ?: return@TextButton
+            command = null
+            scope.launch {
+                busy = true
+                try {
+                    model.request(api, JSONObject().put("action", "guest_power").put("id", guest.getInt("id")).put("command", selected))
+                    error = "Команда принята. Обновите состояние через несколько секунд."
+                    model.refresh()
+                } catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+                finally { busy = false }
+            }
+        }) { Text("Выполнить") } },
+        dismissButton = { TextButton(onClick = { command = null }) { Text("Отмена") } })
+}
+
+@Composable
+private fun NativePayments(model: CloudModel, admin: Boolean, revision: Int) {
+    val scope = rememberCoroutineScope()
+    var payments by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var pending by remember { mutableStateOf<JSONObject?>(null) }
+    var approve by remember { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var updated by remember { mutableIntStateOf(0) }
+    LaunchedEffect(admin, revision, updated) {
+        try { payments = objects(model.request("$api?resource=payments&admin=${if (admin) 1 else 0}").getJSONArray("items")); error = null }
+        catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+    }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Text("Последние 100 платежей", style = MaterialTheme.typography.titleLarge) }
+        items(payments) { payment ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(money(payment.getDouble("amount")), style = MaterialTheme.typography.titleLarge)
+                    Text("#${payment.getInt("id")} · ${status(payment.getString("status"))}")
+                    Text(payment.getString("createdAt"))
+                    if (admin) Text(payment.getString("userName"))
+                    if (admin && payment.getString("status") == "pending") Row {
+                        TextButton(enabled = !busy, onClick = { approve = true; pending = payment }) { Text("Подтвердить") }
+                        TextButton(enabled = !busy, onClick = { approve = false; pending = payment }) { Text("Отклонить") }
                     }
                 }
             }
-            loadUrl(origin + path)
         }
-    }, onRelease = { it.stopLoading(); it.destroy() })
+        error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+    }
+    if (pending != null) AlertDialog(onDismissRequest = { pending = null }, title = { Text(if (approve) "Подтвердить платёж?" else "Отклонить платёж?") },
+        text = { Text("#${pending!!.getInt("id")} · ${pending!!.getString("userName")} · ${money(pending!!.getDouble("amount"))}") },
+        confirmButton = { TextButton(onClick = {
+            val id = pending!!.getInt("id")
+            val action = if (approve) "payment_approve" else "payment_reject"
+            pending = null
+            scope.launch {
+                busy = true
+                try { model.request(api, JSONObject().put("action", action).put("id", id)); updated++; model.refresh() }
+                catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+                finally { busy = false }
+            }
+        }) { Text("Подтвердить действие") } }, dismissButton = { TextButton(onClick = { pending = null }) { Text("Отмена") } })
+}
+
+@Composable
+private fun NativeTickets(model: CloudModel, admin: Boolean, revision: Int, open: (Int, Boolean) -> Unit) {
+    var tickets by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var closed by remember { mutableStateOf(false) }
+    var creating by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var updated by remember { mutableIntStateOf(0) }
+    LaunchedEffect(admin, revision, updated, closed) {
+        try { tickets = objects(model.request("$api?resource=tickets&admin=${if (admin) 1 else 0}&closed=${if (closed) 1 else 0}").getJSONArray("items")); error = null }
+        catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+    }
+    Column {
+        Row(Modifier.padding(horizontal = 16.dp)) {
+            FilterChip(selected = !closed, onClick = { closed = false }, label = { Text("Активные") })
+            Spacer(Modifier.width(8.dp))
+            FilterChip(selected = closed, onClick = { closed = true }, label = { Text("Закрытые") })
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { creating = true }) { Text("Создать") }
+        }
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item { Text("Последние 100 обращений") }
+            items(tickets) { ticket ->
+                Card(Modifier.fillMaxWidth().clickable { open(ticket.getInt("id"), admin) }) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(ticket.getString("subject"), style = MaterialTheme.typography.titleMedium)
+                        Text("#${ticket.getInt("id")} · ${status(ticket.getString("status"))}")
+                        if (admin) Text(ticket.getString("userName"))
+                    }
+                }
+            }
+            error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+        }
+    }
+    if (creating) NativeNewTicket(model, close = { creating = false; updated++ })
+}
+
+@Composable
+private fun NativeNewTicket(model: CloudModel, close: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var subject by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(onDismissRequest = { if (!busy) close() }, title = { Text("Новое обращение") },
+        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(subject, { subject = it }, label = { Text("Тема · 5–200 символов") })
+            OutlinedTextField(message, { message = it }, label = { Text("Сообщение · 20–5000 символов") }, minLines = 5)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        } },
+        confirmButton = { TextButton(enabled = !busy && subject.length in 5..200 && message.length in 20..5000, onClick = {
+            scope.launch {
+                busy = true
+                try { model.request(api, JSONObject().put("action", "ticket_create").put("subject", subject).put("message", message).put("department", "general")); close() }
+                catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+                finally { busy = false }
+            }
+        }) { Text("Отправить") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = close) { Text("Отмена") } })
+}
+
+@Composable
+private fun NativeTicket(model: CloudModel, id: Int, admin: Boolean, revision: Int) {
+    val scope = rememberCoroutineScope()
+    var thread by remember(id) { mutableStateOf<JSONObject?>(null) }
+    var reply by remember(id) { mutableStateOf("") }
+    var error by remember(id) { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var updated by remember { mutableIntStateOf(0) }
+    LaunchedEffect(id, admin, revision, updated) {
+        try { thread = model.request("$api?resource=ticket&id=$id&admin=${if (admin) 1 else 0}"); error = null }
+        catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+    }
+    val act: (String) -> Unit = { action ->
+        scope.launch {
+            busy = true
+            try { model.request(api, JSONObject().put("action", action).put("id", id).put("message", reply)); reply = ""; updated++ }
+            catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
+            finally { busy = false }
+        }
+    }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val content = thread
+        if (content != null) {
+            val ticket = content.getJSONObject("ticket")
+            item {
+                Text(ticket.getString("subject"), style = MaterialTheme.typography.headlineSmall)
+                Text(status(ticket.getString("status")))
+                Text(ticket.getString("message"))
+                Text("Последние 200 ответов", style = MaterialTheme.typography.titleMedium)
+            }
+            items(objects(content.getJSONArray("replies"))) { message ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text((if (message.getBoolean("isAdmin")) "Поддержка · " else "") + message.getString("userName"))
+                        Text(message.getString("message"))
+                        Text(message.getString("createdAt"), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            if (ticket.getString("status") != "closed") item {
+                OutlinedTextField(reply, { reply = it }, label = { Text("Ответ · 10–2000 символов") }, minLines = 3)
+                Button(enabled = !busy && reply.length in 10..2000, onClick = { act("ticket_reply") }) { Text("Отправить") }
+                TextButton(enabled = !busy, onClick = { act("ticket_close") }) { Text("Закрыть обращение") }
+            } else if (admin) item {
+                TextButton(enabled = !busy, onClick = { act("ticket_reopen") }) { Text("Открыть обращение") }
+            }
+        }
+        error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+    }
 }
 
 private fun status(value: String): String = when (value) {
@@ -235,5 +512,11 @@ private fun status(value: String): String = when (value) {
     "stopped" -> "Остановлен"
     "suspended" -> "Приостановлен"
     "creating" -> "Создаётся"
+    "pending" -> "Ожидает"
+    "completed" -> "Подтверждён"
+    "failed" -> "Отклонён"
+    "open" -> "Открыто"
+    "answered" -> "Есть ответ"
+    "closed" -> "Закрыто"
     else -> "Неизвестно"
 }

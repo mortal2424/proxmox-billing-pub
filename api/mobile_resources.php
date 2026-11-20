@@ -148,6 +148,9 @@ try {
         $id = (int) ($_GET['id'] ?? 0);
         $conditions = $adminScope ? '1=1' : 't.user_id=?';
         $params = $adminScope ? [] : [$userId];
+        if ($resource === 'tickets' && isset($_GET['closed'])) {
+            $conditions .= $_GET['closed'] === '1' ? " AND t.status='closed'" : " AND t.status<>'closed'";
+        }
         if ($resource === 'ticket') {
             $conditions .= ' AND t.id=?';
             $params[] = $id;
