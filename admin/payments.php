@@ -3,6 +3,7 @@ session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once 'admin_functions.php';
+require_once '../includes/payment_actions.php';
 
 if (!isAdmin()) {
     header('Location: /login/login.php');
@@ -12,57 +13,23 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
+$_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
+
 // Обработка подтверждения платежа
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_id']) && isset($_POST['action'])) {
     $payment_id = (int)$_POST['payment_id'];
     $action = $_POST['action'];
 
     try {
-        // Получаем данные платежа
-        $stmt = $pdo->prepare("SELECT * FROM payments WHERE id = ?");
-        $stmt->execute([$payment_id]);
-        $payment = $stmt->fetch();
-
-        if (!$payment) {
-            throw new Exception('Платеж не найден');
+        if (!is_string($_POST['csrf_token'] ?? null) ||
+            !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+            throw new RuntimeException('Неверный CSRF-токен');
         }
-
-        if ($action === 'approve') {
-            // Подтверждаем платеж и пополняем баланс
-            $pdo->beginTransaction();
-
-            // Обновляем статус платежа
-            $stmt = $pdo->prepare("UPDATE payments SET status = 'completed', updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$payment_id]);
-
-            // Пополняем баланс пользователя
-            $stmt = $pdo->prepare("UPDATE users SET balance = balance + ? WHERE id = ?");
-            $stmt->execute([$payment['amount'], $payment['user_id']]);
-
-            // Добавляем запись в историю баланса
-            if (safeQuery($pdo, "SHOW TABLES LIKE 'balance_history'")->rowCount() > 0) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO balance_history (user_id, amount, type, description, created_at)
-                    VALUES (?, ?, 'deposit', ?, NOW())
-                ");
-                $stmt->execute([
-                    $payment['user_id'],
-                    $payment['amount'],
-                    "Пополнение через платеж #{$payment['id']}"
-                ]);
-            }
-
-            $pdo->commit();
-
-            $_SESSION['admin_message'] = ['type' => 'success', 'text' => 'Платеж успешно подтвержден и баланс пополнен'];
-
-        } elseif ($action === 'reject') {
-            // Отклоняем платеж
-            $stmt = $pdo->prepare("UPDATE payments SET status = 'failed', updated_at = NOW() WHERE id = ?");
-            $stmt->execute([$payment_id]);
-
-            $_SESSION['admin_message'] = ['type' => 'success', 'text' => 'Платеж отклонен'];
-        }
+        processPendingPayment($pdo, $payment_id, $action);
+        $_SESSION['admin_message'] = [
+            'type' => 'success',
+            'text' => $action === 'approve' ? 'Платёж подтверждён и баланс пополнен' : 'Платёж отклонён',
+        ];
 
         header("Location: payments.php");
         exit;
@@ -443,6 +410,10 @@ require 'admin_header.php';
 
 .filter-group input,
 .filter-group select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 44px;
+    min-width: 0;
     padding: 10px 12px;
     border-radius: 8px;
     border: 1px solid var(--db-border);
@@ -1095,6 +1066,7 @@ require 'admin_header.php';
                                         <?php if ($payment['status'] === 'pending'): ?>
                                             <form method="POST" class="payment-action-form" 
                                                   onsubmit="return confirmApprovePayment(<?= $payment['id'] ?>, <?= $payment['amount'] ?>, '<?= htmlspecialchars(addslashes($payment['email'])) ?>')">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                                 <input type="hidden" name="payment_id" value="<?= $payment['id'] ?>">
                                                 <input type="hidden" name="action" value="approve">
                                                 <button type="submit" class="payment-action-btn payment-action-approve" 
@@ -1104,6 +1076,7 @@ require 'admin_header.php';
                                             </form>
                                             <form method="POST" class="payment-action-form" 
                                                   onsubmit="return confirmRejectPayment(<?= $payment['id'] ?>, '<?= htmlspecialchars(addslashes($payment['email'])) ?>')">
+                                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                                 <input type="hidden" name="payment_id" value="<?= $payment['id'] ?>">
                                                 <input type="hidden" name="action" value="reject">
                                                 <button type="submit" class="payment-action-btn payment-action-reject" 

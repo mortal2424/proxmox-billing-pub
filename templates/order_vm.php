@@ -86,7 +86,7 @@ $vncUrl = '';
 $creationTime = 0;
 
 // Проверяем, является ли запрос переключением типа VM
-$is_switching_vm_type = isset($_GET['vm_type']) || (isset($_POST['vm_type']) && empty($_POST['node_id']));
+$is_switching_vm_type = $_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['vm_type']);
 
 // ВАЖНО: Убрал проверку !$quota_exceeded из условия, чтобы форма обрабатывалась всегда
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
