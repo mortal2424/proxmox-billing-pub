@@ -56,7 +56,15 @@ try {
     }
     $api = new ProxmoxAPI($node['hostname'], $node['username'], $node['password'],
         $node['ssh_port'] ?? 22, $node['node_name'], $node['id'], $pdo);
-    $api->controlGuest((int) $context['vm_id'], $type, $action);
+    if ($action === 'start') {
+        $method = $type === 'lxc' ? 'startContainer' : 'startVM';
+        $result = $api->$method((int) $context['vm_id']);
+        if (is_array($result) && ($result['success'] ?? true) === false) {
+            throw new RuntimeException('Не удалось запустить машину');
+        }
+    } else {
+        $api->controlGuest((int) $context['vm_id'], $type, $action);
+    }
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     if (http_response_code() < 400) {
