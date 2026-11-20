@@ -3,8 +3,10 @@ require_once __DIR__ . '/node_credentials.php';
 require_once __DIR__ . '/ProxmoxCommandApi.php';
 require_once __DIR__ . '/node_api_credentials.php';
 require_once __DIR__ . '/ProxmoxAuth.php';
+require_once __DIR__ . '/guest_mutations.php';
 
 class ProxmoxAPI {
+    use ProxmoxGuestMutations;
     private $host;
     private $username;
     private $password;
@@ -40,6 +42,7 @@ class ProxmoxAPI {
         $query->execute([(int)$nodeId]);
         $node = $query->fetch(PDO::FETCH_ASSOC);
         if (!$node || $node['hostname'] !== $host) throw new RuntimeException('Подключение к узлу недоступно');
+        $this->nodeId = (int)$node['id'];
         $this->nodeName = $node['node_name'];
         $this->apiPort = (int)($node['api_port'] ?: 8006);
         $node = panelNodeApiCredentials($node);
@@ -108,7 +111,7 @@ class ProxmoxAPI {
         error_log("[VM Creation] Starting creation of VM ID: {$vmid}");
 
         // 2. Проверка существования VM
-        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE vm_id = ?");
+        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE node_id = {$this->nodeId} AND vm_id = ?");
         $checkStmt->execute([$vmid]);
         if ($checkStmt->fetchColumn() > 0) {
             throw new Exception("VM with ID {$vmid} already exists in database");
@@ -389,7 +392,7 @@ public function createLXC($params) {
         error_log("[LXC Creation] Starting creation of container ID: {$vmid}");
 
         // Проверка существования контейнера
-        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE vm_id = ?");
+        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE node_id = {$this->nodeId} AND vm_id = ?");
         $checkStmt->execute([$vmid]);
         if ($checkStmt->fetchColumn() > 0) {
             throw new Exception("Container with ID {$vmid} already exists in database");
@@ -527,10 +530,10 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     try {
         // 1. Проверяем, является ли пользователь администратором
         $userStmt = $this->pdo->prepare("
-            SELECT u.is_admin
+            SELECT u.is_admin, v.vm_type
             FROM vms v
             JOIN users u ON u.id = v.user_id
-            WHERE v.vm_id = ?
+            WHERE v.node_id = {$this->nodeId} AND v.vm_id = ?
         ");
         $userStmt->execute([$vmid]);
         $user = $userStmt->fetch(PDO::FETCH_ASSOC);
@@ -542,7 +545,8 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
         }
 
         // 2. Останавливаем виртуальную машину
-        $this->stopVM($vmid, true); // force stop
+        if (!$user) throw new RuntimeException('Гость не найден на выбранной ноде');
+        if ($user['vm_type'] === 'lxc') $this->stopContainer($vmid,true); else $this->stopVM($vmid,true);
 
         // 3. Обновляем статус в базе данных
         $stmt = $this->pdo->prepare("
@@ -550,13 +554,13 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             SET status = 'suspended',
                 suspended_at = NOW(),
                 suspend_reason = ?
-            WHERE vm_id = ?
+            WHERE node_id = {$this->nodeId} AND vm_id = ?
         ");
         $stmt->execute([$reason, $vmid]);
 
         // 4. Создаем уведомление для пользователя
         $userStmt = $this->pdo->prepare("
-            SELECT user_id FROM vms WHERE vm_id = ?
+            SELECT user_id FROM vms WHERE node_id = {$this->nodeId} AND vm_id = ?
         ");
         $userStmt->execute([$vmid]);
         $userId = $userStmt->fetchColumn();
@@ -594,7 +598,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 FROM vms v
                 JOIN users u ON u.id = v.user_id
                 LEFT JOIN tariffs t ON t.id = v.tariff_id
-                WHERE v.vm_id = ?
+                WHERE v.node_id = {$this->nodeId} AND v.vm_id = ?
             ");
             $vmStmt->execute([$vmid]);
             $vm = $vmStmt->fetch(PDO::FETCH_ASSOC);
@@ -629,7 +633,8 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             }
 
             // 2. Запускаем виртуальную машину
-            $this->startVM($vmid);
+            $started = $vm['vm_type']==='lxc' ? $this->startContainer($vmid) : $this->startVM($vmid);
+            if (empty($started['success'])) throw new RuntimeException('Не удалось возобновить гостя');
 
             // 3. Обновляем статус в базе данных
             $stmt = $this->pdo->prepare("
@@ -637,7 +642,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 SET status = 'running',
                     suspended_at = NULL,
                     suspend_reason = NULL
-                WHERE vm_id = ?
+                WHERE node_id = {$this->nodeId} AND vm_id = ?
             ");
             $stmt->execute([$vmid]);
 
@@ -674,7 +679,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 FROM vms v
                 JOIN users u ON u.id = v.user_id
                 LEFT JOIN tariffs t ON t.id = v.tariff_id
-                WHERE v.vm_id = ?
+                WHERE v.node_id = {$this->nodeId} AND v.vm_id = ?
             ");
             $vmStmt->execute([$vmid]);
             $vm = $vmStmt->fetch(PDO::FETCH_ASSOC);
@@ -870,7 +875,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
         $userStmt = $this->pdo->prepare("
             SELECT u.is_admin FROM vms v
             JOIN users u ON u.id = v.user_id
-            WHERE v.vm_id = ?
+            WHERE v.node_id = {$this->nodeId} AND v.vm_id = ?
         ");
         $userStmt->execute([$vmid]);
         $user = $userStmt->fetch(PDO::FETCH_ASSOC);
@@ -887,7 +892,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
 
         // Обновляем статус в базе данных
         $stmt = $this->pdo->prepare("
-            UPDATE vms SET status = 'running' WHERE vm_id = ?
+            UPDATE vms SET status = 'running' WHERE node_id = {$this->nodeId} AND vm_id = ?
         ");
         $stmt->execute([$vmid]);
 
@@ -907,7 +912,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             // Обновляем статус в базе данных
             $status = $force ? 'suspended' : 'stopped';
             $stmt = $this->pdo->prepare("
-                UPDATE vms SET status = ? WHERE vm_id = ?
+                UPDATE vms SET status = ? WHERE node_id = {$this->nodeId} AND vm_id = ?
             ");
             $stmt->execute([$status, $vmid]);
 
@@ -1385,7 +1390,7 @@ public function startContainer($vmid) {
         $userStmt = $this->pdo->prepare("
             SELECT u.is_admin FROM vms v
             JOIN users u ON u.id = v.user_id
-            WHERE v.vm_id = ? AND v.vm_type = 'lxc'
+            WHERE v.node_id = {$this->nodeId} AND v.vm_id = ? AND v.vm_type = 'lxc'
         ");
         $userStmt->execute([$vmid]);
         $user = $userStmt->fetch(PDO::FETCH_ASSOC);
@@ -1402,7 +1407,7 @@ public function startContainer($vmid) {
 
         // Обновляем статус в базе данных
         $stmt = $this->pdo->prepare("
-            UPDATE vms SET status = 'running' WHERE vm_id = ? AND vm_type = 'lxc'
+            UPDATE vms SET status = 'running' WHERE node_id = {$this->nodeId} AND vm_id = ? AND vm_type = 'lxc'
         ");
         $stmt->execute([$vmid]);
 
@@ -1422,7 +1427,7 @@ public function stopContainer($vmid, $force = false) {
         // Обновляем статус в базе данных
         $status = $force ? 'suspended' : 'stopped';
         $stmt = $this->pdo->prepare("
-            UPDATE vms SET status = ? WHERE vm_id = ? AND vm_type = 'lxc'
+            UPDATE vms SET status = ? WHERE node_id = {$this->nodeId} AND vm_id = ? AND vm_type = 'lxc'
         ");
         $stmt->execute([$status, $vmid]);
 
@@ -1441,7 +1446,7 @@ public function rebootContainer($vmid, $force = false) {
 
         // После успешной перезагрузки статус остается running
         $stmt = $this->pdo->prepare("
-            UPDATE vms SET status = 'running' WHERE vm_id = ? AND vm_type = 'lxc'
+            UPDATE vms SET status = 'running' WHERE node_id = {$this->nodeId} AND vm_id = ? AND vm_type = 'lxc'
         ");
         $stmt->execute([$vmid]);
 
@@ -1474,305 +1479,29 @@ public function getContainerStatus($vmid) {
 }
 
 
-public function changeVmResources($vmid, $type, $plan_id, $custom_cpu = null, $custom_ram = null, $custom_disk = null) {
-    try {
-        // Получаем текущий статус
-        $status = $this->getVMStatus($vmid);
-        $was_running = ($status['status'] === 'running');
-
-        // Если VM запущена - останавливаем
-        if ($was_running) {
-            $this->stopVM($vmid);
-
-            // Ждем остановки
-            $wait = 0;
-            while ($status['status'] !== 'stopped' && $wait < 30) {
-                sleep(1);
-                $wait++;
-                $status = $this->getVMStatus($vmid);
-            }
-
-            if ($status['status'] !== 'stopped') {
-                throw new Exception("Не удалось остановить VM для изменения конфигурации");
-            }
-        }
-
-        // Если выбран тариф - берем параметры из тарифа
-        if ($plan_id > 0) {
-            $stmt = $this->pdo->prepare("SELECT cpu_cores, ram_mb, disk_gb FROM tariffs WHERE id = ?");
-            $stmt->execute([$plan_id]);
-            $plan = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$plan) {
-                throw new Exception("Тариф не найден");
-            }
-
-            $cpu = $plan['cpu_cores'];
-            $ram = $plan['ram_mb'];
-            $disk = $plan['disk_gb'];
-        } else {
-            // Иначе используем кастомные параметры
-            if (!$custom_cpu || !$custom_ram || ($type === 'qemu' && !$custom_disk)) {
-                throw new Exception("Не указаны все необходимые параметры");
-            }
-
-            $cpu = $custom_cpu;
-            $ram = $custom_ram;
-            $disk = $custom_disk;
-        }
-
-        // Обновляем конфигурацию
-        $params = [
-            'cores' => $cpu,
-            'memory' => $ram
-        ];
-
-        // Для KVM можно изменить диск, для LXC - нет
-        if ($type === 'qemu') {
-            $params['scsi0'] = "{$disk}G";
-        }
-
-        $result = $this->post("/nodes/{$this->nodeName}/{$type}/{$vmid}/config", $params);
-
-        if (isset($result['errors'])) {
-            throw new Exception($result['errors']);
-        }
-
-        // Обновляем данные в базе
-        $stmt = $this->pdo->prepare("
-            UPDATE vms SET
-                tariff_id = ?,
-                cpu_cores = ?,
-                ram_mb = ?,
-                disk_gb = ?,
-                is_custom = ?
-            WHERE vm_id = ? AND vm_type = ?
-        ");
-        $stmt->execute([
-            $plan_id > 0 ? $plan_id : null,
-            $cpu,
-            $ram,
-            $disk,
-            $plan_id > 0 ? 0 : 1,
-            $vmid,
-            $type
-        ]);
-
-        // Запускаем VM обратно, если она была запущена
-        if ($was_running) {
-            $this->startVM($vmid);
-        }
-
-        return ['status' => 'success', 'message' => 'Ресурсы успешно изменены'];
-
-    } catch (Exception $e) {
-        error_log("Error changing VM resources: " . $e->getMessage());
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
-}
-
-/**
- * Изменяет диск VM
- */
-public function changeVmDisk($vmid, $type, $disk_id, $new_size, $new_storage) {
-    try {
-        if ($type !== 'qemu') {
-            throw new Exception("Изменение диска доступно только для виртуальных машин");
-        }
-
-        // Получаем текущую конфигурацию
-        $config = $this->getVMConfig($vmid);
-        $disk_key = "scsi{$disk_id}";
-
-        if (!isset($config[$disk_key])) {
-            throw new Exception("Диск не найден");
-        }
-
-        // Формируем новый параметр диска
-        $new_disk = "{$new_storage}:{$new_size}G";
-
-        // Обновляем конфигурацию
-        $params = [
-            $disk_key => $new_disk
-        ];
-
-        $result = $this->post("/nodes/{$this->nodeName}/{$type}/{$vmid}/config", $params);
-
-        if (isset($result['errors'])) {
-            throw new Exception($result['errors']);
-        }
-
-        return ['status' => 'success', 'message' => 'Диск успешно изменен'];
-
-    } catch (Exception $e) {
-        error_log("Error changing VM disk: " . $e->getMessage());
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
-}
-
-/**
- * Добавляет сетевой интерфейс
- */
-public function addVmNetwork($vmid, $type, $network_id, $bridge) {
-    try {
-        $params = [
-            "net{$network_id}" => "bridge={$bridge}"
-        ];
-
-        $result = $this->post("/nodes/{$this->nodeName}/{$type}/{$vmid}/config", $params);
-
-        if (isset($result['errors'])) {
-            throw new Exception($result['errors']);
-        }
-
-        return ['status' => 'success', 'message' => 'Сетевой интерфейс успешно добавлен'];
-
-    } catch (Exception $e) {
-        error_log("Error adding VM network: " . $e->getMessage());
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
-}
-
-/**
- * Удаляет VM/контейнер
- */
-public function deleteVm($vmid, $type) {
-    try {
-        // Проверяем статус
-        $status = $this->getVMStatus($vmid);
-
-        // Если VM запущена - останавливаем
-        if ($status['status'] === 'running') {
-            $this->stopVM($vmid, true);
-
-            // Ждем остановки
-            $wait = 0;
-            while ($status['status'] !== 'stopped' && $wait < 30) {
-                sleep(1);
-                $wait++;
-                $status = $this->getVMStatus($vmid);
-            }
-
-            if ($status['status'] !== 'stopped') {
-                throw new Exception("Не удалось остановить VM перед удалением");
-            }
-        }
-
-        // Удаляем VM
-        $command = ($type === 'qemu') ? "qm destroy {$vmid}" : "pct destroy {$vmid}";
-        $this->execSSHCommand($command);
-
-        // Удаляем из базы данных
-        $stmt = $this->pdo->prepare("DELETE FROM vms WHERE vm_id = ? AND vm_type = ?");
-        $stmt->execute([$vmid, $type]);
-
-        return ['status' => 'success', 'message' => 'VM успешно удалена'];
-
-    } catch (Exception $e) {
-        error_log("Error deleting VM: " . $e->getMessage());
-        return ['status' => 'error', 'message' => $e->getMessage()];
-    }
-}
-
-/**
- * Выполняет POST запрос к API Proxmox
- */
-private function post($path, $params) {
-    $command = "pvesh create {$path}";
-    foreach ($params as $key => $value) {
-        $command .= " --{$key} " . escapeshellarg($value);
-    }
-    $command .= " --output-format json";
-
-    $response = $this->execSSHCommand($command);
-    return json_decode($response, true);
-}
-
 public function getVmDetailedInfo($vmid, $type = 'qemu') {
-    try {
-        $config = $this->getVMConfig($vmid);
-        $status = $this->getVMStatus($vmid);
-
-        // Парсим диски и сети
-        $disks = [];
-        $networks = [];
-
-        foreach ($config as $key => $value) {
-            // Диски (для KVM и LXC разные префиксы)
-            if (($type === 'qemu' && (strpos($key, 'virtio') === 0 || strpos($key, 'scsi') === 0 || strpos($key, 'sata') === 0)) ||
-                ($type === 'lxc' && strpos($key, 'mp') === 0)) {
-
-                $disk_id = preg_replace('/[^0-9]/', '', $key);
-                $size = 0;
-                $storage = '';
-
-                if ($type === 'qemu') {
-                    // Формат для KVM: storage:size,format=...
-                    if (preg_match('/([^:]+):(\d+)/', $value, $matches)) {
-                        $storage = $matches[1];
-                        $size = $matches[2];
-                    }
-                } else {
-                    // Формат для LXC: volume=...,size=...
-                    if (preg_match('/volume=([^,]+)/', $value, $vol_matches) &&
-                        preg_match('/size=(\d+)/', $value, $size_matches)) {
-                        $storage = explode(':', $vol_matches[1])[0];
-                        $size = $size_matches[1];
-                    }
-                }
-
-                if ($storage && $size) {
-                    $disks[] = [
-                        'id' => $disk_id,
-                        'size' => $size,
-                        'storage' => $storage
-                    ];
-                }
-            }
-
-            // Сети
-            if (strpos($key, 'net') === 0) {
-                $net_id = preg_replace('/[^0-9]/', '', $key);
-                $mac = '';
-                $bridge = '';
-
-                $parts = explode(',', $value);
-                foreach ($parts as $part) {
-                    if (strpos($part, '=') !== false) {
-                        list($k, $v) = explode('=', $part);
-                        if ($k == 'macaddr') $mac = $v;
-                        if ($k == 'bridge' || $k == 'name') $bridge = $v;
-                    } else if (strpos($part, 'vmbr') !== false) {
-                        $bridge = $part;
-                    }
-                }
-
-                $networks[] = [
-                    'id' => $net_id,
-                    'mac' => $mac,
-                    'bridge' => $bridge
-                ];
-            }
+    $api=$this->guestApi();$base=$api->base($vmid,$type);
+    $config=$this->apiClient->request('GET',$base.'/config');
+    $status=$this->apiClient->request('GET',$base.'/status/current');
+    $disks=[];$networks=[];
+    foreach($config as$key=>$value){
+        if(preg_match($type==='lxc'?'/^rootfs$/D':'/^(?:scsi|virtio|sata|ide)[0-9]+$/D',(string)$key)){
+            if(!is_string($value)||str_contains($value,'media=cdrom')||$value==='none')continue;
+            $disk=ProxmoxGuestApi::disk($config,$key);
+            $disks[]=['id'=>$key,'size'=>$disk['bytes']/1073741824,'storage'=>$disk['storage']];
         }
-
-        return [
-            'config' => [
-                'disks' => $disks,
-                'networks' => $networks
-            ],
-            'status' => $status
-        ];
-
-    } catch (Exception $e) {
-        error_log("Error getting VM info: " . $e->getMessage());
-        return [
-            'config' => [
-                'disks' => [],
-                'networks' => []
-            ],
-            'status' => ['status' => 'unknown']
-        ];
+        if(preg_match('/^net([0-9]+)$/D',(string)$key,$match)){
+            $network=['id'=>$match[1],'mac'=>'','bridge'=>''];
+            foreach(explode(',',(string)$value)as$part){
+                $pair=explode('=',$part,2);if(count($pair)!==2)continue;
+                if($pair[0]==='bridge')$network['bridge']=$pair[1];
+                if($pair[0]==='name')$network['name']=$pair[1];
+                if(in_array($pair[0],['hwaddr','macaddr','virtio','e1000','rtl8139'],true))$network['mac']=$pair[1];
+            }
+            $networks[]=$network;
+        }
     }
+    return ['config'=>['disks'=>$disks,'networks'=>$networks],'status'=>$status];
 }
 
 public function getLxcConfig($vmid) {

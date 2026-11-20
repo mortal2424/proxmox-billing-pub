@@ -13,6 +13,9 @@ $user_id = $_SESSION['user']['id'];
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
+if (!$user || !$user['is_active']) { http_response_code(403); exit('Доступ запрещён'); }
+$_SESSION['guest_settings_csrf'] ??= bin2hex(random_bytes(32));
+header('Cache-Control: no-store');
 
 // Получаем ID VM из параметров
 $vm_db_id = isset($_GET['id']) ? intval($_GET['id']) : null;
@@ -26,7 +29,7 @@ if (!$vm_db_id) {
 $stmt = $pdo->prepare("
     SELECT
         v.*,
-        n.hostname,
+        n.hostname AS node_hostname,
         n.username,
         n.password,
         n.node_name,
@@ -37,7 +40,7 @@ $stmt = $pdo->prepare("
     FROM vms v
     JOIN proxmox_nodes n ON v.node_id = n.id
     LEFT JOIN tariffs t ON v.tariff_id = t.id
-    WHERE v.id = ? AND v.user_id = ?
+    WHERE v.id = ? AND v.user_id = ? AND v.status<>'deleted' AND n.is_active=1
 ");
 $stmt->execute([$vm_db_id, $user_id]);
 $vm = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -51,9 +54,9 @@ if (!$vm) {
 $plans = $pdo->prepare("
     SELECT id, name, cpu, ram, disk
     FROM tariffs
-    WHERE is_active = 1 AND vm_type = ?
+    WHERE is_active = 1 AND is_custom=0 AND vm_type = ? AND os_type=? AND disk=?
 ");
-$plans->execute([$vm['vm_type']]);
+$plans->execute([$vm['vm_type'],$vm['os_type'],$vm['disk']]);
 $plans = $plans->fetchAll(PDO::FETCH_ASSOC);
 
 $success_message = '';
@@ -62,9 +65,14 @@ $error_message = '';
 // Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        if (!is_string($_POST['guest_settings_csrf'] ?? null) || !hash_equals($_SESSION['guest_settings_csrf'],$_POST['guest_settings_csrf'])) {
+            http_response_code(403); throw new RuntimeException('Сессия формы истекла. Обновите страницу');
+        }
+        $actions = array_filter(['change_resources','change_disk','add_network','delete_vm'],fn($action)=>isset($_POST[$action]));
+        if(count($actions)!==1)throw new RuntimeException('Выберите одну операцию');
         // Инициализация Proxmox API для POST-запросов
         $proxmox = new ProxmoxAPI(
-            $vm['hostname'],
+            $vm['node_hostname'],
             $vm['username'],
             $vm['password'],
             $vm['ssh_port'] ?? 22,
@@ -106,25 +114,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $new_size = $_POST['disk_size'];
             $new_storage = $_POST['disk_storage'];
 
-            if ($vm['vm_type'] === 'qemu') {
-                $result = $proxmox->changeVmDisk(
-                    $vm['vm_id'],
-                    $vm['vm_type'],
-                    $disk_id,
-                    $new_size,
-                    $new_storage
-                );
-            } else {
-                // Для LXC меняем только размер rootfs
-                $result = $proxmox->changeVmResources(
-                    $vm['vm_id'],
-                    $vm['vm_type'],
-                    null,
-                    null,
-                    null,
-                    $new_size
-                );
-            }
+            $result = $proxmox->changeVmDisk(
+                $vm['vm_id'], $vm['vm_type'], $disk_id, $new_size,
+                $vm['vm_type']==='lxc' ? '' : $new_storage
+            );
 
             if ($result['status'] === 'success') {
                 $success_message = $result['message'];
@@ -766,7 +759,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="card-body">
                         <form method="POST">
+                            <input type="hidden" name="guest_settings_csrf" value="<?= htmlspecialchars($_SESSION['guest_settings_csrf'],ENT_QUOTES) ?>">
                             <div class="form-group">
+                                <p>CPU и RAM меняются у остановленного гостя. Увеличение диска выполняется отдельно на индивидуальном тарифе. Здесь доступны тарифы с текущим объёмом дисков.</p>
                                 <label>Текущий тариф</label>
                                 <select class="tariff-select" name="plan_id" id="planSelect">
                                     <option value="0" <?= empty($vm['tariff_id']) ? 'selected' : '' ?>>Кастомный</option>
@@ -785,17 +780,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="form-group">
                                         <label>CPU (ядра)</label>
                                         <input type="number" class="form-control" name="custom_cpu"
-                                               value="<?= $vm['cpu_cores'] ?? 1 ?>" min="1" max="<?= $vm['vm_type'] === 'qemu' ? '32' : '16' ?>">
+                                               value="<?= $vm['cpu'] ?? 1 ?>" min="1" max="<?= $vm['vm_type'] === 'qemu' ? '32' : '16' ?>">
                                     </div>
                                     <div class="form-group">
                                         <label>RAM (MB)</label>
                                         <input type="number" class="form-control" name="custom_ram"
-                                               value="<?= $vm['ram_mb'] ?? 1024 ?>" min="128" max="<?= $vm['vm_type'] === 'qemu' ? '131072' : '65536' ?>">
+                                               value="<?= $vm['ram'] ?? 1024 ?>" min="128" max="<?= $vm['vm_type'] === 'qemu' ? '131072' : '65536' ?>">
                                     </div>
                                     <div class="form-group">
-                                        <label>Диск (GB)</label>
-                                        <input type="number" class="form-control" name="custom_disk"
-                                               value="<?= $vm['disk_gb'] ?? 10 ?>" min="1" max="2048" <?= $vm['vm_type'] === 'lxc' ? 'required' : '' ?>>
+                                        <label>Текущий объём дисков (GB)</label>
+                                        <input type="number" class="form-control" name="custom_disk" readonly
+                                               value="<?= $vm['disk'] ?? 10 ?>" min="1" max="2048" <?= $vm['vm_type'] === 'lxc' ? 'required' : '' ?>>
                                     </div>
                                 </div>
                             </div>
@@ -841,6 +836,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <p><i class="fas fa-exclamation-triangle"></i> <strong>Внимание!</strong> Это действие невозможно отменить. <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнер' ?> будет полностью удален с гипервизора вместе со всеми данными.</p>
                         </div>
                         <form method="POST" id="deleteForm">
+                            <input type="hidden" name="guest_settings_csrf" value="<?= htmlspecialchars($_SESSION['guest_settings_csrf'],ENT_QUOTES) ?>">
+                            <p>Для удаления сначала остановите гостя. Защита от удаления и блокировки Proxmox сохраняются.</p>
                             <button type="button" onclick="confirmDelete()" class="btn btn-danger">
                                 <i class="fas fa-trash-alt"></i> Удалить <?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'Контейнер' ?>
                             </button>
@@ -920,7 +917,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Подтверждение удаления
     function confirmDelete() {
         const vmType = '<?= $vm['vm_type'] === 'qemu' ? 'ВМ' : 'контейнер' ?>';
-        const vmName = '<?= htmlspecialchars($vm['name'] ?? '') ?>';
+        const vmName = <?= json_encode($vm['hostname'] ?? '',JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?>;
 
         if (confirm(`Вы уверены что хотите удалить ${vmType} "${vmName}"? Это действие нельзя отменить!`)) {
             const form = document.getElementById('deleteForm');
@@ -957,7 +954,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     // Для LXC отображаем только rootfs
-                    const currentSize = data.disk_size || <?= $vm['disk_gb'] ?? 10 ?>;
+                    const currentSize = data.disk_size || <?= $vm['disk'] ?? 10 ?>;
                     const diskForm = createLxcDiskForm(currentSize);
                     disksSection.querySelector('.card-body').appendChild(diskForm);
                 }
@@ -986,7 +983,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Добавляем форму для добавления новой сети
                 const addNetworkForm = createAddNetworkForm(data.availableNetworks || [],
-                    data.networks ? data.networks.length : 0, vmType);
+                    Array.from({length:10},(_,i)=>i).find(i=>!(data.networks||[]).some(net=>parseInt(net.id,10)===i)) ?? 10, vmType);
                 networksSection.querySelector('.card-body').appendChild(addNetworkForm);
             })
             .catch(error => {
@@ -996,6 +993,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
     }
 
+    function guestHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+    }
+
     // Создание формы для диска KVM
     function createDiskForm(disk) {
         const form = document.createElement('form');
@@ -1003,15 +1004,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         form.className = 'disk-form';
 
         form.innerHTML = `
-            <input type="hidden" name="disk_id" value="${disk.id}">
+            <input type="hidden" name="disk_id" value="${guestHtml(disk.id)}">
             <div class="disk-info">
                 <div class="disk-info-item">
-                    <strong>Диск ${disk.id}</strong>
-                    <div>${disk.size} GB</div>
+                    <strong>Диск ${guestHtml(disk.id)}</strong>
+                    <div>${guestHtml(disk.size)} GB</div>
                 </div>
                 <div class="disk-info-item">
                     <strong>Хранилище</strong>
-                    <div>${disk.storage}</div>
+                    <div>${guestHtml(disk.storage)}</div>
                 </div>
             </div>
             <div class="form-row">
@@ -1025,8 +1026,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label>Хранилище</label>
                     <select class="form-control" name="disk_storage" required>
                         ${disk.storages.map(storage => `
-                            <option value="${storage.name}" ${storage.selected ? 'selected' : ''}>
-                                ${storage.name} (${storage.available}GB свободно)
+                            <option value="${guestHtml(storage.name)}" ${storage.selected ? 'selected' : ''}>
+                                ${guestHtml(storage.name)} (${guestHtml(storage.available)}GB свободно)
                             </option>
                         `).join('')}
                     </select>
@@ -1037,6 +1038,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </button>
         `;
 
+        const csrf=document.createElement('input');csrf.type='hidden';csrf.name='guest_settings_csrf';csrf.value=<?= json_encode($_SESSION['guest_settings_csrf']) ?>;form.appendChild(csrf);
         return form;
     }
 
@@ -1065,12 +1067,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             <input type="hidden" name="disk_id" value="0">
-            <input type="hidden" name="disk_storage" value="local">
+            <input type="hidden" name="disk_storage" value="">
             <button type="submit" name="change_disk" class="btn btn-primary">
                 <i class="fas fa-hdd"></i> Изменить размер
             </button>
         `;
 
+        const csrf=document.createElement('input');csrf.type='hidden';csrf.name='guest_settings_csrf';csrf.value=<?= json_encode($_SESSION['guest_settings_csrf']) ?>;form.appendChild(csrf);
         return form;
     }
 
@@ -1081,16 +1084,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         let networkContent = `
             <h6 style="margin-bottom: 12px; color: #172438; font-size: 14px; font-weight: 600;">
-                <i class="fas fa-ethernet"></i> Интерфейс ${net.id}
+                <i class="fas fa-ethernet"></i> Интерфейс ${guestHtml(net.id)}
             </h6>
             <div class="network-info">
                 <div class="network-info-item">
                     <strong>${vmType === 'qemu' ? 'MAC' : 'Имя'}</strong>
-                    <div>${net.mac || net.name || 'N/A'}</div>
+                    <div>${guestHtml(net.mac || net.name || 'N/A')}</div>
                 </div>
                 <div class="network-info-item">
                     <strong>Bridge</strong>
-                    <div>${net.bridge}</div>
+                    <div>${guestHtml(net.bridge)}</div>
                 </div>
         `;
 
@@ -1098,7 +1101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             networkContent += `
                 <div class="network-info-item">
                     <strong>Описание</strong>
-                    <div>${net.alias}</div>
+                    <div>${guestHtml(net.alias)}</div>
                 </div>
             `;
         }
@@ -1106,7 +1109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         networkContent += `</div>`;
 
         if (net.alias) {
-            networkContent += `<div class="sdn-alias">${net.alias}</div>`;
+            networkContent += `<div class="sdn-alias">${guestHtml(net.alias)}</div>`;
         }
 
         div.innerHTML = networkContent;
@@ -1144,8 +1147,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (typeof net === 'object') {
                     // SDN сеть с alias
                     networkOptions += `
-                        <option value="${net.name}">
-                            ${net.name}${net.alias ? ' (' + net.alias + ')' : ''}
+                        <option value="${guestHtml(net.name)}">
+                            ${guestHtml(net.name)}${net.alias ? ' (' + guestHtml(net.alias) + ')' : ''}
                         </option>
                     `;
                 } else {
@@ -1175,6 +1178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </button>
         `;
 
+        const csrf=document.createElement('input');csrf.type='hidden';csrf.name='guest_settings_csrf';csrf.value=<?= json_encode($_SESSION['guest_settings_csrf']) ?>;form.appendChild(csrf);
         return form;
     }
     </script>

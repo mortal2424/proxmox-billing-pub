@@ -60,6 +60,7 @@ services:
       PROXMOX_CERT_PINS: ${PROXMOX_CERT_PINS:-}
       PROXMOX_NODE_KEY: ${PROXMOX_NODE_KEY:-}
       PROXMOX_TOKEN_CANDIDATE_DIR: /var/www/html/backups/token-candidates
+      PROXMOX_GUEST_LOCK_DIR: /var/www/html/backups/guest-locks
       DB_HOST: db
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}

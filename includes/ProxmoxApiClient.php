@@ -11,6 +11,7 @@ final class ProxmoxApiClient
     private array $tls;
     private ?array $ticket = null;
     private int $ticketExpires = 0;
+    private array $taskWarnings = [];
 
     public function __construct(array $node)
     {
@@ -118,7 +119,8 @@ final class ProxmoxApiClient
             $state = $this->request('GET', '/nodes/' . $match[1] . '/tasks/' . rawurlencode($upid) . '/status');
             if (!is_array($state) || !isset($state['status'])) throw new RuntimeException('Некорректный статус задачи Proxmox');
             if ($state['status'] === 'stopped') {
-                if (($state['exitstatus'] ?? '') !== 'OK') throw new RuntimeException('Операция Proxmox завершилась с ошибкой');
+                $warningCount=self::taskWarningCount((string)($state['exitstatus']??''));
+                if($warningCount>0){$this->taskWarnings[]=$warningCount;$this->taskWarnings=array_slice($this->taskWarnings,-20);}
                 return $state;
             }
             if ($state['status'] !== 'running') throw new RuntimeException('Неизвестный статус задачи Proxmox');
@@ -126,6 +128,18 @@ final class ProxmoxApiClient
             usleep(250000);
         } while (microtime(true) < $deadline);
         throw new RuntimeException('Задача Proxmox ещё выполняется. Не повторяйте операцию до проверки её статуса');
+    }
+
+    public static function taskWarningCount(string $exitStatus): int
+    {
+        if($exitStatus==='OK')return 0;
+        if(preg_match('/^WARNINGS: ([1-9][0-9]{0,5})$/D',$exitStatus,$match))return (int)$match[1];
+        throw new RuntimeException('Операция Proxmox завершилась с ошибкой');
+    }
+
+    public function taskWarnings(): array
+    {
+        return $this->taskWarnings;
     }
 
     private function exchange(string $method, string $path, array $parameters, array $headers): mixed
