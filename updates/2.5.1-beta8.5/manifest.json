@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.5",
+  "from": "2.5.1-beta8.4",
+  "source_commit": "a2891ebd12994790701cb9d3d07abf3d9c387ae8",
+  "changelog": "HomeVlad Cloud 2.5.1-beta8.5\n\nПодготовлена совместимость всех проверенных путей узлов с зашифрованными паролями: SSH-статистика, информация о ноде, API-аутентификация и консольный адаптер.\nФормы добавления и изменения нод сохраняют зашифрованный пароль, проверяют актуальные права и активность администратора, защищены CSRF. Пробелы в пароле больше не обрезаются.\nОбновление статистики нод разрешено только через CLI. Legacy-обновлятор API-билетов использует общий HTTPS-клиент с проверкой CA/отпечатка, без вывода паролей и билетов в ошибки.\nДобавлена проверка состояния шифрования без изменения БД: php cronjobs/encrypt_node_passwords.php --check. Миграция выполняется транзакционно, проверяет существующий шифротекст и использует общую блокировку с обновлением/резервированием.\nПроверены AES-GCM, отказ при подмене шифротекста и ключа, CSRF и отзыв роли, HTTPS-аутентификация паролем и токеном, консольный адаптер и отказ при чужом TLS-отпечатке.\nЭто подготовительный этап задачи перехода на ограниченные API-токены. Существующие операции SSH пока сохраняются; менять их логин на API-токен ещё нельзя.\nПеред миграцией нужен постоянный ключ PROXMOX_NODE_KEY или .proxmox-node-key вне веб-корня и резервная копия БД. Ключ не входит в пакет обновления.\nУстранено найденное падение PHP SSH2 при повторном чтении информации о нодах: потоки закрываются до соединения, статистика использует уже открытое соединение. Повторные чтения обоих реальных узлов с зашифрованными реквизитами прошли без падений.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "409ca84745243dc5500ce5beefd7415f6da56227666fdb6b25c45818ff36eae0",
+      "sha256": "36bd69defe845963eae24b1946f812e4b7c8adc759e2a600a2ac73f84b8cfc38"
+    },
+    "admin/admin_functions.php": {
+      "before": "d51e518c89ec03288a8e95eba453439f81a763741456928b56b68c27b2f4279a",
+      "sha256": "2af154f4ec301c70aec251aeb23dd6303f824bf6256057aa0a40902e9afe096b"
+    },
+    "admin/edit_node.php": {
+      "before": "f9d1c748a250c69f6ff30988394946c00aa836a5960333cca1eb742d886c05a1",
+      "sha256": "231f255f62ec2e4aeb3011b5cab67929e04227830b44aad2de236a765f6e063f"
+    },
+    "admin/update_node_stats.php": {
+      "before": "10747eba909fc9199b0679cb7d48f4c1174864116bda331c53317fea945ef96a",
+      "sha256": "54d6c1a6910933c34e8bad7092689396be60b2c5a0a01d26ddb9f9012a853120"
+    },
+    "api/update_proxmox_tickets.php": {
+      "before": "78645e6392bdd6ccb9b13368476951b27eb35daa0d8e867f8f9de78891a756af",
+      "sha256": "7967b90c8ef72c9b7681496ef175ee093670ebf44eeb16dd5dbf39b62ada31d2"
+    },
+    "cronjobs/encrypt_node_passwords.php": {
+      "before": "48383543397c7f05d552bda886030f4c524f9c0cb2976a677e925073625ed9b5",
+      "sha256": "83e63effa6751b1d22030bf78a2d5e2e7235550a48737c0fb8ac648f65612150"
+    },
+    "includes/ProxmoxApiClient.php": {
+      "before": "ad9b6f9ebb49f8d31097df662fe3a0f5fd4d47f792438cec9a6010d7fd7206b1",
+      "sha256": "fd35dcd8eaef0021d2da81fa6d965874429de21f90f987dcc379db4f91e36223"
+    },
+    "includes/ProxmoxAuth.php": {
+      "before": "74f5f7d836376f97d5a5e417fccb3345b3c1e9b3ca21d82840a484551ac05c3c",
+      "sha256": "5e039e76d4424c7d475190a0059228bf5f65d8998f95d28703b6e8d7f52790ca"
+    },
+    "includes/node_admin_guard.php": {
+      "before": null,
+      "sha256": "b6bd29c7927d52fc18181ace840af0e61b217a156aa8b89f4b0cd4085a0ebfb0"
+    },
+    "includes/ssh_functions.php": {
+      "before": "5c75b6034f859d74d3a5a3e190ce9c814ff4fd2f61b4fee12aedd1216c34144d",
+      "sha256": "b00ee1c2ed3f5b467628c269ad6d2ee55e409cba5f050eb6ef23900213ef47c2"
+    },
+    "includes/version.php": {
+      "before": "a6366ef0e85be207ffe5602f1ed72c71f5c9187b43b8fb1c618297d87344a32d",
+      "sha256": "5c4c116c0c43cba2eea91b8ca39f8d15429dcc0670d0094a6ddb8ec81a16eb72"
+    }
+  }
+}
