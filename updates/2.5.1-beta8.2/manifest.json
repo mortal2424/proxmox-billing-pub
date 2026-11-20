@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.2",
+  "from": "2.5.1-beta8.1",
+  "source_commit": "43e0c74782ae81756a311dca4505189415e1a167",
+  "changelog": "HomeVlad Cloud 2.5.1-beta8.2\n\nПроверка доступности узлов поддерживает настроенные частные CA и точные SHA-256-отпечатки сертификатов.\nНастройки TLS доступны через PROXMOX_CA_FILE / PROXMOX_CERT_PINS или файлы на уровень выше веб-корня.\nПри отсутствии ответа проверяется сетевая доступность, а ошибка доверия к сертификату отмечается неизвестным состоянием.\nГлобальная проверка сертификатов остаётся включённой. Исключение применяется только к точной паре адреса и порта с проверенным отпечатком.\n",
+  "files": {
+    "cronjobs/check_node_health.php": {
+      "before": "bd87f951acbffbe8a4a64097cf29d6fbbde902b5b53783e7355b3d0a47dcef4d",
+      "sha256": "8f9f16969441fcdb6f62f99fbef57eb12f940db7a6afdb9d594a6cff80e64d78"
+    },
+    "includes/proxmox_tls.php": {
+      "before": null,
+      "sha256": "09d31bd51009a5cef498bae1b29947a82d5ca2e25a0b75026d9c0321c770291b"
+    },
+    "includes/version.php": {
+      "before": "85fe5fcb7228d097762a14f680f67b5fe8d87288f0fba8e30cf9f1ed79e277e6",
+      "sha256": "58f40e71879ba02528e51b821774f3a46004b02e8e4b621a7db01f84e00587d0"
+    }
+  }
+}
