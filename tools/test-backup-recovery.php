@@ -73,6 +73,9 @@ rejected(fn()=>performBackupRestore($root,$collision,'full',hash_file('sha256',$
 verify(file_get_contents($root.'/index.php')==='before','Partial file replacement rolled back');
 verify($p->query('SELECT message FROM fixture')->fetchColumn()==='before-restore','DB rolled back after file failure');
 echo "PASS automatic rollback after partial file replacement\n";
+$invalidPhp=archiveFixture($root.'/invalid-php.zip',['index.php'=>'<?php this is invalid syntax;']);
+rejected(fn()=>performBackupRestore($root,$invalidPhp,'files',hash_file('sha256',$invalidPhp)),'invalid PHP before replacement');
+verify(file_get_contents($root.'/index.php')==='before','Invalid PHP changed live files');
 $traversal=archiveFixture($root.'/traversal.zip',['../escape.php'=>'bad']);
 rejected(fn()=>inspectBackupArchive($traversal),'ZIP traversal');
 $executable=archiveFixture($root.'/executable.zip',['uploads/shell.php'=>'bad']);

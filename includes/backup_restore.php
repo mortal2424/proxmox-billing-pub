@@ -107,6 +107,7 @@ function rollbackBackupRestore(string $root, array $journal): void
 function performBackupRestore(string $root, string $archive, string $mode, string $expectedHash): array
 {
     if (!in_array($mode, ['db', 'files', 'full'], true)) throw new RuntimeException('Неизвестный режим восстановления');
+    ignore_user_abort(true); set_time_limit(0);
     $storage = $root . '/backups/restore'; $updates = $root . '/backups/updates';
     foreach ([$root . '/backups', $storage, $updates] as $dir) {
         if (is_link($dir) || (!is_dir($dir) && !mkdir($dir, 0700, true))) throw new RuntimeException('Недоступно закрытое хранилище восстановления');
@@ -128,6 +129,11 @@ function performBackupRestore(string $root, string $archive, string $mode, strin
         chmod($work . '/source.zip', 0600);
         $zip = new ZipArchive();
         if ($zip->open($work . '/source.zip', ZipArchive::CHECKCONS) !== true) throw new RuntimeException('Архив недоступен');
+        $phpCli = null;
+        foreach ([PHP_SAPI === 'cli' ? PHP_BINARY : '', '/usr/bin/php' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION,
+            PHP_BINDIR . '/php', '/usr/local/bin/php', '/usr/bin/php'] as $candidate) {
+            if ($candidate && is_executable($candidate)) { $phpCli = $candidate; break; }
+        }
         $journal = ['work' => $work, 'archive_sha256' => $expectedHash, 'database' => $db, 'files' => [], 'created_at' => date(DATE_ATOM)];
         try {
             foreach (array_merge($files, $db ? ['database/database_dump.sql'] : []) as $path) {
@@ -141,6 +147,12 @@ function performBackupRestore(string $root, string $archive, string $mode, strin
                 if ($copied !== $stat['size'] || strtolower(hash_file('crc32b', $stage)) !== sprintf('%08x', $stat['crc'])) throw new RuntimeException('Нарушена целостность файла в архиве');
                 chmod($stage, 0600);
                 if ($path === 'database/database_dump.sql') continue;
+                if (preg_match('/\.(?:php\d*|phtml)$/i', $path)) {
+                    if (!$phpCli) throw new RuntimeException('Для проверки PHP-файлов нужен PHP CLI');
+                    $process = proc_open([$phpCli, '-n', '-l', $stage], [0 => ['file', '/dev/null', 'r'],
+                        1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+                    if (!is_resource($process) || proc_close($process) !== 0) throw new RuntimeException('PHP-файл архива не совместим с установленной версией PHP: ' . $path);
+                }
                 $target = restoreSafeTarget($root, $path); $existed = is_file($target);
                 $journal['files'][$path] = ['existed' => $existed, 'mode' => $existed ? fileperms($target) & 0777 : 0644];
                 if ($existed) {
@@ -154,7 +166,6 @@ function performBackupRestore(string $root, string $archive, string $mode, strin
         if ($db) backupDatabaseCommand('export', $work . '/database-before.sql');
         restoreWriteJson($work . '/plan.json', $journal);
         restoreWriteJson($journalPath, $journal); $started = true;
-        ignore_user_abort(true); set_time_limit(0);
         if ($db) backupDatabaseCommand('import', $work . '/stage/database/database_dump.sql');
         foreach ($journal['files'] as $path => $info) restoreAtomicCopy($work . '/stage/' . $path, restoreSafeTarget($root, $path), $info['mode']);
         restoreWriteJson($work . '/result.json', ['success' => true, 'finished_at' => date(DATE_ATOM)]);
