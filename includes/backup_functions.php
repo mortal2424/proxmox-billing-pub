@@ -4,6 +4,8 @@
  */
 //session_start();
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/backup_database.php';
+require_once __DIR__ . '/version.php';
 //require_once __DIR__ . '/auth.php';
 //require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/../admin/admin_functions.php';
@@ -44,7 +46,9 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
     $filename = $backup_name . '_' . bin2hex(random_bytes(4)) . '.zip';
     $filepath = $backup_dir . $filename;
 
+    $databaseTemporary = null; $operationLock = null;
     try {
+        $operationLock = backupOperationLock($project_root);
         // Создаем ZIP архив
         $zip = new ZipArchive();
         if ($zip->open($filepath . '.part', ZipArchive::CREATE | ZipArchive::EXCL) !== TRUE) {
@@ -58,7 +62,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
 
         // Добавляем дамп базы данных (если нужно)
         if ($type === 'full' || $type === 'db') {
-            addDatabaseToArchive($zip, $pdo);
+            $databaseTemporary = addDatabaseToArchive($zip, $pdo);
         }
 
         // Добавляем мета-информацию
@@ -69,6 +73,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
             'is_auto' => $is_auto,
             'schedule_id' => $scheduleId,
             'version' => '1.0',
+            'system_version' => HOMEVLAD_VERSION,
             'project_root' => $project_root,
             'files' => ($type === 'full' || $type === 'files') ? 'yes' : 'no',
             'database' => ($type === 'full' || $type === 'db') ? 'yes' : 'no'
@@ -83,6 +88,8 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
         if (!rename($filepath . '.part', $filepath)) {
             throw new RuntimeException('Не удалось завершить создание архива');
         }
+        chmod($filepath, 0600);
+        $pdo = (new Database())->getConnection();
         // A schedule only prunes its own completed archives.
         try {
             cleanupOldBackups($backup_dir, (int) $keepCount, $scheduleId);
@@ -101,7 +108,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
             'size' => filesize($filepath)
         ];
 
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         // Удаляем частично созданный файл
         if (isset($filepath) && file_exists($filepath)) {
             @unlink($filepath);
@@ -114,6 +121,9 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
             'success' => false,
             'error' => $e->getMessage()
         ];
+    } finally {
+        if ($databaseTemporary && is_file($databaseTemporary)) unlink($databaseTemporary);
+        if ($operationLock) { flock($operationLock, LOCK_UN); fclose($operationLock); }
     }
 }
 
@@ -152,7 +162,8 @@ function addFilesToArchive($zip, $project_root) {
         'css',
         'js',
         'img',
-        'uploads'
+        'uploads',
+        'console'
     ];
 
     foreach ($folders_to_backup as $folder) {
@@ -231,69 +242,18 @@ function addRootFilesToZip($zip, $project_root, $exclude_patterns) {
  * Добавление базы данных в архив
  */
 function addDatabaseToArchive($zip, $pdo) {
-    $config = require __DIR__ . '/config.php';
-    $db_name = $config['dbname'];
-
+    $temporary = tempnam(BACKUP_DIR, '.database-');
+    if ($temporary === false) throw new RuntimeException('Не удалось подготовить дамп БД');
+    chmod($temporary, 0600);
     try {
-        $tables_result = safeQuery($pdo, "SHOW TABLES");
-        $tables = $tables_result->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Exception $e) {
-        throw new Exception("Ошибка при получении списка таблиц: " . $e->getMessage());
+        backupDatabaseCommand('export', $temporary);
+        if (!$zip->addFile($temporary, 'database/database_dump.sql')) throw new RuntimeException('Не удалось добавить дамп в архив');
+        // ZipArchive reads addFile sources when close() is called.
+        return $temporary;
+    } catch (Throwable $error) {
+        unlink($temporary);
+        throw $error;
     }
-
-    $sql_dump = "-- HomeVlad Cloud Database Dump\n";
-    $sql_dump .= "-- Generated: " . date('Y-m-d H:i:s') . "\n";
-    $sql_dump .= "-- Database: {$db_name}\n\n";
-    $sql_dump .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
-
-    foreach ($tables as $table) {
-        // Структура таблицы
-        $sql_dump .= "--\n-- Table structure for table `{$table}`\n--\n";
-        $sql_dump .= "DROP TABLE IF EXISTS `{$table}`;\n";
-
-        try {
-            $create_table_result = safeQuery($pdo, "SHOW CREATE TABLE `{$table}`", [], $table);
-            $create_table = $create_table_result->fetch(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {
-            throw new Exception("Ошибка при получении структуры таблицы {$table}: " . $e->getMessage());
-        }
-
-        $sql_dump .= $create_table['Create Table'] . ";\n\n";
-
-        // Данные таблицы
-        $sql_dump .= "--\n-- Dumping data for table `{$table}`\n--\n";
-
-        try {
-            $rows_result = safeQuery($pdo, "SELECT * FROM `{$table}`", [], $table);
-            $rows = $rows_result->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {
-            throw new Exception("Ошибка при получении данных таблицы {$table}: " . $e->getMessage());
-        }
-
-        if (count($rows) > 0) {
-            $columns = array_keys($rows[0]);
-            $column_list = '`' . implode('`, `', $columns) . '`';
-
-            $sql_dump .= "INSERT INTO `{$table}` ({$column_list}) VALUES\n";
-
-            $values = [];
-            foreach ($rows as $row) {
-                $escaped_values = array_map(function($value) use ($pdo) {
-                    if (is_null($value)) {
-                        return 'NULL';
-                    }
-                    return $pdo->quote($value);
-                }, $row);
-                $values[] = "(" . implode(', ', $escaped_values) . ")";
-            }
-
-            $sql_dump .= implode(",\n", $values) . ";\n\n";
-        }
-    }
-
-    $sql_dump .= "SET FOREIGN_KEY_CHECKS=1;\n";
-
-    $zip->addFromString('database/database_dump.sql', $sql_dump);
 }
 
 /**

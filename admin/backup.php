@@ -14,14 +14,14 @@ $user_id = $_SESSION['user']['id'];
 
 // Проверяем, является ли пользователь администратором
 try {
-    $stmt = $pdo->prepare("SELECT is_admin FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT is_admin,is_active FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
 } catch (Exception $e) {
     die("Ошибка базы данных: " . $e->getMessage());
 }
 
-if (!$user || !$user['is_admin']) {
+if (!$user || !$user['is_admin'] || !$user['is_active']) {
     header('Location: /templates/access_denied.php');
     exit;
 }
@@ -92,6 +92,11 @@ function formatBytesss($bytes) {
 $action = $_GET['action'] ?? '';
 $message = '';
 $message_type = '';
+$mutations = ['create', 'delete', 'sync_ftp', 'save_auto_backup', 'delete_schedule', 'toggle_schedule', 'run_now', 'save_schedule'];
+if (in_array($action, $mutations, true) && ($_SERVER['REQUEST_METHOD'] !== 'POST' ||
+    !is_string($_POST['backup_csrf'] ?? null) || !hash_equals($_SESSION['backup_csrf'], $_POST['backup_csrf']))) {
+    http_response_code(403); exit('Неверный метод или CSRF-токен');
+}
 
 switch ($action) {
     case 'create':
@@ -107,10 +112,8 @@ switch ($action) {
         syncWithFTP();
         break;
     case 'restore':
-        // Показываем модальное окно восстановления
-        $message = 'Функция восстановления в разработке';
-        $message_type = 'info';
-        break;
+        header('Location: /admin/backup_restore.php?file=' . rawurlencode((string)($_GET['file'] ?? '')));
+        exit;
     case 'save_auto_backup':
         saveAutoBackupSettings();
         break;
@@ -126,6 +129,13 @@ switch ($action) {
     case 'save_schedule':
         saveSchedule();
         break;
+}
+
+if (($_SERVER['HTTP_X_BACKUP_ACTION'] ?? '') === '1') {
+    header('Content-Type: application/json; charset=utf-8');
+    if ($message_type === 'error') http_response_code(400);
+    echo json_encode(['success' => $message_type === 'success', 'message' => $message], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 /**
@@ -1757,6 +1767,7 @@ require 'admin_header.php';
             </h3>
 
             <form method="POST" action="?action=create" onsubmit="return handleCreateBackupWithProgress()">
+<input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
                 <div class="form-group">
                     <label class="form-label">Тип бэкапа</label>
                     <select name="backup_type" class="form-select" required>
@@ -1800,6 +1811,7 @@ require 'admin_header.php';
             </h3>
 
             <form method="POST" action="?action=sync_ftp">
+<input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
                 <div class="form-group">
                     <label class="form-label">Выберите бэкап</label>
                     <select name="backup_file" class="form-select" required>
@@ -1919,17 +1931,15 @@ require 'admin_header.php';
                                        title="Скачать">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                    <a href="?action=restore&file=<?= urlencode($backup['filename']) ?>"
+                                    <a href="/admin/backup_restore.php?file=<?= urlencode($backup['filename']) ?>"
                                        class="backup-action-btn backup-action-btn-warning"
                                        title="Восстановить">
                                         <i class="fas fa-undo"></i>
                                     </a>
-                                    <a href="?action=delete&file=<?= urlencode($backup['filename']) ?>"
-                                       class="backup-action-btn backup-action-btn-danger"
-                                       title="Удалить"
-                                       onclick="return confirm('Вы уверены, что хотите удалить этот бэкап?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form method="POST" action="?action=delete&amp;file=<?= urlencode($backup['filename']) ?>" onsubmit="return confirm('Удалить эту резервную копию?')" style="margin:0">
+                                        <input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
+                                        <button class="backup-action-btn backup-action-btn-danger" title="Удалить"><i class="fas fa-trash"></i></button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
@@ -1966,6 +1976,7 @@ require 'admin_header.php';
 
             <div class="modal-body" style="max-height: calc(85vh - 140px); overflow-y: auto;">
                 <form method="POST" action="?action=save_schedule" id="scheduleForm" onsubmit="return validateScheduleForm()">
+<input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
                     <input type="hidden" name="id" id="scheduleId" value="0">
 
                     <div class="row" style="margin-bottom: 20px;">
@@ -2342,10 +2353,16 @@ function updateScheduleFields() {
     }
 }
 
+function backupPostOptions() {
+    return {method: 'POST', credentials: 'same-origin', headers: {'X-Backup-Action': '1'},
+        body: new URLSearchParams({backup_csrf: <?= json_encode($_SESSION['backup_csrf']) ?>})};
+}
+
 function deleteSchedule(id) {
     if (confirm('Вы уверены, что хотите удалить это расписание?')) {
-        fetch(`?action=delete_schedule&id=${id}`)
-            .then(() => {
+        fetch(`?action=delete_schedule&id=${id}`, backupPostOptions())
+            .then(response => {
+                if (!response.ok) throw new Error('Request failed');
                 document.getElementById(`schedule-${id}`).remove();
                 showNotification('Расписание удалено', 'success');
             })
@@ -2356,8 +2373,9 @@ function deleteSchedule(id) {
 }
 
 function toggleSchedule(id, action) {
-    fetch(`?action=toggle_schedule&id=${id}&toggle=${action}`)
-        .then(() => {
+    fetch(`?action=toggle_schedule&id=${id}&toggle=${action}`, backupPostOptions())
+        .then(response => {
+            if (!response.ok) throw new Error('Request failed');
             location.reload();
         })
         .catch(error => {
@@ -2379,10 +2397,7 @@ function runScheduleNow(id) {
         });
 
         // Отправляем запрос через AJAX
-        fetch(`?action=run_now&id=${id}`, {
-            method: 'GET',
-            credentials: 'same-origin'
-        })
+        fetch(`?action=run_now&id=${id}`, backupPostOptions())
         .then(response => {
             if (response.ok) {
                 completeOperation(operationId, true, 'Расписание успешно запущено');
@@ -2569,6 +2584,7 @@ function uploadBackup(file) {
 
     const formData = new FormData();
     formData.append('backup_file', file);
+    formData.append('backup_csrf', <?= json_encode($_SESSION['backup_csrf']) ?>);
 
     fetch('/admin/ajax/upload_backup.php', {
         method: 'POST',

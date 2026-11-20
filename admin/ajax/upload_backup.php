@@ -19,10 +19,16 @@ session_start();
 $db = new Database();
 $pdo = $db->getConnection();
 $user_id = $_SESSION['user']['id'] ?? 0;
+header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !is_string($_POST['backup_csrf'] ?? null) ||
+    !isset($_SESSION['backup_csrf']) || !hash_equals($_SESSION['backup_csrf'], $_POST['backup_csrf'])) {
+    http_response_code(403); echo json_encode(['success' => false, 'error' => 'Неверный метод или CSRF-токен']); exit;
+}
+
 
 // Проверяем, является ли пользователь администратором
 try {
-    $stmt = safeQuery($pdo, "SELECT is_admin FROM users WHERE id = ?", [$user_id], 'users');
+    $stmt = safeQuery($pdo, "SELECT is_admin,is_active FROM users WHERE id = ?", [$user_id], 'users');
     $user = $stmt->fetch();
 } catch (Exception $e) {
     header('HTTP/1.1 500 Internal Server Error');
@@ -30,7 +36,7 @@ try {
     exit;
 }
 
-if (!$user || !$user['is_admin']) {
+if (!$user || !$user['is_admin'] || !$user['is_active']) {
     header('HTTP/1.1 403 Forbidden');
     echo json_encode(['success' => false, 'error' => 'Доступ запрещен. Требуются права администратора']);
     exit;
@@ -105,8 +111,8 @@ if ($zip->open($uploaded_file['tmp_name']) !== TRUE) {
 }
 
 // Проверяем наличие метаданных бэкапа
-$meta_json = $zip->getFromName('backup_meta.json');
-if (!$meta_json) {
+$meta_json = $zip->getFromName('backup_meta.json', 65537);
+if (!$meta_json || strlen($meta_json) > 65536) {
     $zip->close();
     header('HTTP/1.1 400 Bad Request');
     echo json_encode([
@@ -116,8 +122,8 @@ if (!$meta_json) {
     exit;
 }
 
-/*$meta = json_decode($meta_json, true);
-if (!$meta || !isset($meta['backup_system']) || $meta['backup_system'] !== 'HomeVlad Cloud Panel') {
+$meta = json_decode($meta_json, true);
+if (!is_array($meta) || !in_array($meta['type'] ?? '', ['files', 'db', 'full'], true)) {
     $zip->close();
     header('HTTP/1.1 400 Bad Request');
     echo json_encode([
@@ -125,7 +131,7 @@ if (!$meta || !isset($meta['backup_system']) || $meta['backup_system'] !== 'Home
         'error' => 'Архив не является бэкапом этой системы или повреждены метаданные'
     ]);
     exit;
-}*/
+}
 
 // Проверяем версию системы для совместимости
 if (isset($meta['system_version'])) {
@@ -208,7 +214,7 @@ if (!move_uploaded_file($uploaded_file['tmp_name'], $target_path)) {
 }
 
 // Устанавливаем корректные права на файл
-chmod($target_path, 0644);
+chmod($target_path, 0600);
 
 // Получаем информацию о загруженном файле для ответа
 $file_size = filesize($target_path);

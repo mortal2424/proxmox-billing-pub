@@ -64,7 +64,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
     $applied = [];
     $committing = false;
     try {
-        if (is_file($storage . '/recovery.json')) {
+        if (is_file($storage . '/recovery.json') || is_file($root . '/backups/restore/recovery.json')) {
             throw new RuntimeException('Предыдущее обновление прервано. Требуется восстановление по журналу');
         }
         $current = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());

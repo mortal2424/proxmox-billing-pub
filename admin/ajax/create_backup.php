@@ -21,10 +21,16 @@ session_start();
 $db = new Database();
 $pdo = $db->getConnection();
 $user_id = $_SESSION['user']['id'] ?? 0;
+header('Content-Type: application/json; charset=utf-8');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !is_string($_POST['backup_csrf'] ?? null) ||
+    !isset($_SESSION['backup_csrf']) || !hash_equals($_SESSION['backup_csrf'], $_POST['backup_csrf'])) {
+    http_response_code(403); echo json_encode(['success' => false, 'error' => 'Неверный метод или CSRF-токен']); exit;
+}
+
 
 // Проверяем, является ли пользователь администратором
 try {
-    $stmt = $pdo->prepare("SELECT is_admin FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT is_admin,is_active FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
 } catch (Exception $e) {
@@ -34,7 +40,7 @@ try {
     exit;
 }
 
-if (!$user || !$user['is_admin']) {
+if (!$user || !$user['is_admin'] || !$user['is_active']) {
     header('Content-Type: application/json');
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Доступ запрещен. Требуются права администратора']);
