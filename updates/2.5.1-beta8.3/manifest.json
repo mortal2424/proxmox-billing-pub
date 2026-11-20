@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.3",
+  "from": "2.5.1-beta8.2",
+  "source_commit": "edbde2ccbd246b9a1a93b97dca43f656c8afdcd7",
+  "changelog": "HomeVlad Cloud 2.5.1-beta8.3\n\nДобавлен API для нативных приложений iOS и Android: вход по email, паролю и CAPTCHA, выход и CSRF-защита.\nДобавлены списки платежей, обращения и ответы, управление питанием машин с проверкой владельца и административные операции над ожидающими платежами.\nРоль и активность пользователя проверяются по базе данных при каждом запросе. Пароль и код подтверждения исключены из сессии после входа.\nАктивные и закрытые обращения выбираются сервером отдельно, поэтому закрытые обращения не вытесняют активные из лимита списка.\nДобавлен HTTPS-клиент Proxmox с проверкой сертификатов и поддержкой API-токенов. Перевод существующих узлов на ограниченные токены остаётся отдельной задачей.\nНативные приложения используют SwiftUI и Kotlin Compose без встроенных страниц сайта. Название iOS — HomeVlad, обновлена иконка. Release подключается к homevlad.ru.\nВ мобильных клиентах пока отсутствуют создание машин, VNC, пополнение баланса и Telegram-вход; для них используется сайт отдельно.\n",
+  "files": {
+    "api/mobile_auth.php": {
+      "before": null,
+      "sha256": "26c797ac6ec39e3473655fd7431cdfdd2dd9cbc3011cde70e7358102ccde218c"
+    },
+    "api/mobile_dashboard.php": {
+      "before": "bf8decde2579b3fc545b59b0ef08c250c3aa43d73862f97483ad163cdf22161b",
+      "sha256": "5a17af47553c0b37fd8829afbdb87bcb44a734a41b45dbb9e72c1055dc8776db"
+    },
+    "api/mobile_resources.php": {
+      "before": null,
+      "sha256": "ff31a65024081a5b3de8bb674e40e01b2492dab5e691c584804b3d77c01efd74"
+    },
+    "includes/ProxmoxApiClient.php": {
+      "before": null,
+      "sha256": "ad9b6f9ebb49f8d31097df662fe3a0f5fd4d47f792438cec9a6010d7fd7206b1"
+    },
+    "includes/mobile_api.php": {
+      "before": null,
+      "sha256": "3bd978cbf9226443b335dab7d2bbf86d8765b3bb305170e7ea32839b4732ef2e"
+    },
+    "includes/password_login.php": {
+      "before": null,
+      "sha256": "9a5a09dfc31767579d9b5373bf3a3b8affcf9a60ad16ac7b133833025c5ddfa7"
+    },
+    "includes/version.php": {
+      "before": "58f40e71879ba02528e51b821774f3a46004b02e8e4b621a7db01f84e00587d0",
+      "sha256": "f5803b57e014d9bc762341942769e14b696c00ccc722b82d3cdc9353e1df9002"
+    },
+    "login/login.php": {
+      "before": "f1da627d7f03d0adb4e3a711944a7b9ea1662866afa6d350ec7b43d9853a158a",
+      "sha256": "7a52b73f957f9a752779e2e9c55b6d639dbe2cd7099af5545e3dc4080b8d2a29"
+    }
+  }
+}
