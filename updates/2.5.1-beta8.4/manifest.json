@@ -1,0 +1,85 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.4",
+  "from": "2.5.1-beta8.3",
+  "source_commit": "0b7704fb7305aac998220e1dbf51c522ccd27456",
+  "changelog": "HomeVlad Cloud 2.5.1-beta8.4\n\nЗавершена функция восстановления резервных копий: предпросмотр архива, выбор файлов/БД/полной копии, проверка актуальных прав администратора, его пароля и CSRF-токена.\nПеред заменой создаётся страховочная копия. Добавлены автоматический откат при ошибке и аварийное восстановление через CLI после прерывания процесса. На время замены панель закрывает новые запросы.\nПроверяются пути и целостность ZIP, запрещены обход каталогов, ссылки, зашифрованные архивы и исполняемые файлы в uploads. Конфигурация и ключи сохраняются.\nИсправлено создание дампа БД: используется штатный клиент MariaDB/MySQL с временной закрытой конфигурацией, поддержкой Unicode и двоичных данных.\nОперации изменения резервных копий переведены на POST с CSRF. Усилена проверка роли и активности на связанных AJAX-маршрутах. Исправлено чтение метаданных загруженных архивов.\nПри изменении количества хранимых копий форма показывает, сколько старых архивов можно удалить; удаление требует отдельной отметки и касается выбранного расписания.\nИсправлены недельные и месячные расписания: выбранный день недели больше не перезаписывается скрытым полем; учитывается время сегодняшнего запуска и последний день короткого месяца.\nСоздание копии, обновление и восстановление используют общую блокировку. Обновлена инструкция восстановления, включая Docker и аварийный откат.\nВосстановление проверено на отдельной временной базе. Боевые данные при проверке восстановления не заменялись.\nВ Docker добавлен постоянный том для архивов admin/backups. Перед первым пересозданием старого контейнера архивы нужно скопировать по инструкции README.\n",
+  "files": {
+    "admin/ajax/cleanup_backups.php": {
+      "before": "079d8bb37369bd45149fc87456b918039fcabf0eb481092d7d69104bb6d8122f",
+      "sha256": "e48f0372212ffeae8d8113e8943642e01618e6bbd70bc78b0ffcad01eff3345d"
+    },
+    "admin/ajax/create_backup.php": {
+      "before": "8d7170c08c7d98898fb0c17b3c9a6f12c4a50306f26b4c21130997bac534d84f",
+      "sha256": "a39d55555c9445786bee03e7fb177f3e5cb879bb8eaa28d4e73e6d129b33c235"
+    },
+    "admin/ajax/get_backup_stats.php": {
+      "before": "78353a9cb9814e69d47d4576299837be826b9883e601cee06addd3edecf34e20",
+      "sha256": "5719cc845334debec730f992019091a14f1640b095ce25854175e8051c4a846b"
+    },
+    "admin/ajax/get_schedule.php": {
+      "before": "cc0da1f9acaa1975847c90023c5a1abefef7ae6885ab9867e67ab31749aea85d",
+      "sha256": "09e0457dcfa224f853d35be476d43e055f9d2f3785498a8841dbe3618cc1584a"
+    },
+    "admin/ajax/test_ftp.php": {
+      "before": "83eb81900a12571b17e335165c3bd747a927c905f22cdfdc134a648eb63beab9",
+      "sha256": "8fba8b5d7bc4a146d38a8eaf53c2edb9a10ab63d82b3dba4225f0073ce09d761"
+    },
+    "admin/ajax/upload_backup.php": {
+      "before": "e4a3d8853e8a815a168c6ba35c9f3500d413c30e803fc4939fb228f829735ec4",
+      "sha256": "bf7114e2f1ba64079b8aa0fa4f6c18aadaf124d3e2f9c3d869ffe2801cbf3212"
+    },
+    "admin/backup.php": {
+      "before": "25d1ea546f079940cae10d82b1cc6e6d1d6af43d1a7fa04bfd61fa805e19c2bd",
+      "sha256": "478af8b69950521f86fb372125b6badcde2a970bbf22d454a29e74231ab3adcc"
+    },
+    "admin/backup_restore.php": {
+      "before": "8036b3d1d549ca3fc02808c0778329d81485b0751d4049d813b808ce295b50b7",
+      "sha256": "e5e8476d089220258896580e14d9ced3aa79252f6ebf148f328d1c64c80be61b"
+    },
+    "cronjobs/backup_cron.php": {
+      "before": "32fa03a94ba58c7c11b6a833214cfb9aa706b443c80bd7c47546b20a8e02b737",
+      "sha256": "fcf9d63ed54648fe4d127767739bb341a813829dc493d7338a9c77944e473a0b"
+    },
+    "cronjobs/restore_recovery.php": {
+      "before": null,
+      "sha256": "5ecf4039cb3ca32076a9ed043283d17c0f4674bb114372dff5ba655606b2e9fe"
+    },
+    "docker-compose.yml": {
+      "before": "f1cab374dca9f73b7352f21bdf654a1191623571d83a79f4747a4826ace99ba6",
+      "sha256": "5954bd97dcd145ac646a2d4e4106f8328dea6e555533a085c610c2a0c8898675"
+    },
+    "docker/init.sh": {
+      "before": "f7b95bdc2dac6658700ec87532a9c06f614d5772f0f7fb35e4b02127b25ba20a",
+      "sha256": "b2f2fe42844cb065241b22ed72ac2669615e759a82b4994a88f24722f3ab9b0f"
+    },
+    "includes/backup_database.php": {
+      "before": null,
+      "sha256": "4caf93a15db344adb4c45d14c3d5dee454f2bd928bb034aa6194747988f76cbc"
+    },
+    "includes/backup_functions.php": {
+      "before": "2dff3f8badb4a9ba0b14191a607c1bad6713bd9c68333cd4b3ef914a717cc3f9",
+      "sha256": "70832be12033ebc4b6108ef61cbde13999c3de71cf803c8c06b767de533f9ce4"
+    },
+    "includes/backup_restore.php": {
+      "before": null,
+      "sha256": "59b90826e1f84de44ff6e6f301412becafca77b8786e73790c0b1400f20a0ba5"
+    },
+    "includes/backup_schedule.php": {
+      "before": null,
+      "sha256": "2d5fa3a5bd5de4360a81d4eb1671fbd655bb47a10f4aaad30b1f674358388ebc"
+    },
+    "includes/maintenance.php": {
+      "before": "41ef3756a1e9f8c7fa4853f9be959a1c898f84f4d0cf57e0169edb06d052f935",
+      "sha256": "db8aeb946f07484b8ec5ce2d4f510c43527a20257ee7713d861547729b0cbb73"
+    },
+    "includes/update_installer.php": {
+      "before": "5d2f5ed73214876b21ce6057f94d1b7b3a929687fa78044d16e6ff6c65e76f13",
+      "sha256": "f8029a0e5df24ef79645c092914ce79293cff7cc5fa283749cca5a97f92c9a8f"
+    },
+    "includes/version.php": {
+      "before": "f5803b57e014d9bc762341942769e14b696c00ccc722b82d3cdc9353e1df9002",
+      "sha256": "a6366ef0e85be207ffe5602f1ed72c71f5c9187b43b8fb1c618297d87344a32d"
+    }
+  }
+}
