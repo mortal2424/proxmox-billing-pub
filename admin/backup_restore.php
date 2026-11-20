@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/backup_restore.php';
+require_once __DIR__ . '/admin_functions.php';
 ensureSessionStarted();
 checkAuth();
 $pdo = (new Database())->getConnection();
@@ -36,6 +37,12 @@ try {
 } catch (Throwable $exception) {
     $error = $exception instanceof RuntimeException ? $exception->getMessage() : 'Не удалось проверить архив';
     error_log('Backup restore: ' . get_class($exception));
+    if (is_file(dirname(__DIR__) . '/backups/restore/recovery.json')) {
+        http_response_code(503);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<h1>Требуется аварийный откат</h1><p>' . htmlspecialchars($error) . '</p><p>Через SSH из корня сайта: <code>php cronjobs/restore_recovery.php rollback</code></p>';
+        exit;
+    }
     if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 }
 if ($plan) {

@@ -5,6 +5,14 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/backup_functions.php';
 
 checkAuth();
+$pdo = (new Database())->getConnection();
+$guardQuery = $pdo->prepare('SELECT is_admin,is_active FROM users WHERE id=?');
+$guardQuery->execute([(int)($_SESSION['user']['id'] ?? 0)]);
+$guardUser = $guardQuery->fetch(PDO::FETCH_ASSOC);
+if (!$guardUser || !$guardUser['is_admin'] || !$guardUser['is_active']) {
+    http_response_code(403); header('Content-Type: application/json'); echo json_encode(['success'=>false,'error'=>'Доступ запрещён']); exit;
+}
+
 
 $db = new Database();
 $pdo = $db->getConnection();

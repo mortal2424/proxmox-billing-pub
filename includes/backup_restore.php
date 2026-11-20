@@ -32,6 +32,9 @@ function inspectBackupArchive(string $filename): array
         if ($metaIndex === false || $zip->statIndex($metaIndex)['size'] > 65536) throw new RuntimeException('Нет корректных метаданных архива');
         $meta = json_decode($zip->getFromIndex($metaIndex), true, 16, JSON_THROW_ON_ERROR);
         if (!is_array($meta) || !in_array($meta['type'] ?? '', ['db', 'files', 'full'], true)) throw new RuntimeException('Неизвестный тип резервной копии');
+        foreach (['comment', 'created_at', 'system_version'] as $field) {
+            if (isset($meta[$field]) && !is_string($meta[$field])) throw new RuntimeException('Некорректные метаданные архива');
+        }
         $files = []; $seen = []; $total = 0; $skipped = 0; $database = false;
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $stat = $zip->statIndex($i); $name = $stat['name'];
@@ -81,7 +84,7 @@ function restoreSafeTarget(string $root, string $path): string
 
 function restoreAtomicCopy(string $source, string $target, int $mode = 0644): void
 {
-    if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0755, true)) throw new RuntimeException('Не удалось создать целевой каталог');
+    if (!is_dir(dirname($target)) && !@mkdir(dirname($target), 0755, true)) throw new RuntimeException('Не удалось создать целевой каталог');
     $temporary = $target . '.restore-' . bin2hex(random_bytes(8));
     try {
         if (!copy($source, $temporary) || !chmod($temporary, $mode) || !rename($temporary, $target)) throw new RuntimeException('Не удалось заменить файл');

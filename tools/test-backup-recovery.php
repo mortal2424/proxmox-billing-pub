@@ -19,7 +19,22 @@ function archiveFixture(string $file, array $files, ?string $sql = null): string
     if ($sql !== null) $zip->addFromString('database/database_dump.sql',$sql);
     verify($zip->close(),'ZIP close'); return $file;
 }
+require $root.'/includes/backup_schedule.php';
+foreach ([
+    ['weekly','03:00',1,'2026-11-16 02:00:00','2026-11-16 03:00:00'],
+    ['weekly','03:00',1,'2026-11-16 04:00:00','2026-11-23 03:00:00'],
+    ['monthly','03:00',20,'2026-11-20 02:00:00','2026-11-20 03:00:00'],
+    ['monthly','03:00',31,'2026-01-31 05:00:00','2026-02-28 03:00:00'],
+    ['monthly','03:00',31,'2028-02-27 05:00:00','2028-02-29 03:00:00'],
+    ['daily','03:00',null,'2026-11-20 03:00:00','2026-11-21 03:00:00']
+] as [$type,$time,$day,$now,$expectedRun]) verify(calculateNextRun($type,$time,$day,new DateTimeImmutable($now))===$expectedRun,'Schedule boundary');
+rejected(fn()=>calculateNextRun('weekly','03:00',8),'invalid weekly day');
+rejected(fn()=>calculateNextRun('daily','24:00'),'invalid schedule time');
+echo "PASS daily, weekly, monthly and leap-year scheduling boundaries\n";
 $p=database();
+$p->exec('SET FOREIGN_KEY_CHECKS=0');
+foreach($p->query('SHOW FULL TABLES')->fetchAll(PDO::FETCH_NUM)as[$name,$type])$p->exec(($type==='VIEW'?'DROP VIEW ':'DROP TABLE ').'`'.str_replace('`','``',$name).'`');
+$p->exec('SET FOREIGN_KEY_CHECKS=1');
 $p->exec('CREATE TABLE users(id INT PRIMARY KEY) ENGINE=InnoDB');$p->exec('INSERT INTO users VALUES(1)');
 $p->exec('CREATE TABLE fixture(id INT PRIMARY KEY,message TEXT,payload BLOB) ENGINE=InnoDB');
 $q=$p->prepare('INSERT INTO fixture VALUES(1,?,?)');$q->execute(["Мятное облако 🌤️ \" ' \\ \n", "\0\xff\x01"]);

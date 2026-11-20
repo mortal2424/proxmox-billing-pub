@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/backup_functions.php';
+require_once __DIR__ . '/../includes/backup_schedule.php';
 
 $backupLock = fopen(sys_get_temp_dir() . '/homevlad-backup-scheduler.lock', 'c');
 if (!$backupLock || !flock($backupLock, LOCK_EX | LOCK_NB)) {
@@ -100,49 +101,6 @@ try {
 } catch (Exception $e) {
     log_message("КРИТИЧЕСКАЯ ОШИБКА: " . $e->getMessage());
     exit(1);
-}
-
-/**
- * Расчет следующего запуска (дублируется из backup.php)
- */
-function calculateNextRun($schedule_type, $schedule_time, $schedule_day = null) {
-    $now = time();
-
-    switch ($schedule_type) {
-        case 'hourly':
-            return date('Y-m-d H:i:00', strtotime('+1 hour', $now));
-
-        case 'daily':
-            $time = strtotime($schedule_time);
-            $next = strtotime(date('Y-m-d') . ' ' . date('H:i', $time));
-            if ($next <= $now) {
-                $next = strtotime('+1 day', $next);
-            }
-            return date('Y-m-d H:i:s', $next);
-
-        case 'weekly':
-            $day = $schedule_day ?? 1;
-            $time = strtotime($schedule_time);
-            $next = strtotime('next Monday +' . ($day - 1) . ' days', $now);
-            $next = strtotime(date('Y-m-d', $next) . ' ' . date('H:i', $time));
-            if ($next <= $now) {
-                $next = strtotime('+1 week', $next);
-            }
-            return date('Y-m-d H:i:s', $next);
-
-        case 'monthly':
-            $day = $schedule_day ?? 1;
-            $time = strtotime($schedule_time);
-            $next = strtotime(date('Y-m-' . str_pad($day, 2, '0', STR_PAD_LEFT)), $now);
-            if ($next <= $now) {
-                $next = strtotime('+1 month', $next);
-            }
-            $next = strtotime(date('Y-m-d', $next) . ' ' . date('H:i', $time));
-            return date('Y-m-d H:i:s', $next);
-
-        default:
-            return date('Y-m-d H:i:s', strtotime('+1 day', $now));
-    }
 }
 
 /**

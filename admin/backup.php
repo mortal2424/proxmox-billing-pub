@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/backup_functions.php';
+require_once __DIR__ . '/../includes/backup_schedule.php';
 
 
 checkAuth();
@@ -223,7 +224,7 @@ function saveSchedule() {
     $name = trim($_POST['name'] ?? '');
     $schedule_type = $_POST['schedule_type'] ?? 'daily';
     $schedule_time = $_POST['schedule_time'] ?? '03:00';
-    $schedule_day = $_POST['schedule_day'] ?? null;
+    $schedule_day = $schedule_type === 'monthly' ? ($_POST['schedule_month_day'] ?? null) : ($_POST['schedule_day'] ?? null);
     $backup_type = $_POST['backup_type'] ?? 'full';
     $keep_count = (int)($_POST['keep_count'] ?? 10);
     if ($keep_count < 1 || $keep_count > 1000) {
@@ -247,6 +248,8 @@ function saveSchedule() {
     }
 
     try {
+        if (!in_array($backup_type, ['full', 'files', 'db'], true) || mb_strlen($name) > 100) throw new RuntimeException('Неверный тип копии или слишком длинное название');
+        $nextRun = calculateNextRun($schedule_type, $schedule_time, $schedule_day);
         if ($id > 0) {
             // Обновление существующего
             $stmt = $pdo->prepare("
@@ -269,7 +272,7 @@ function saveSchedule() {
                 $backup_type,
                 $keep_count,
                 $comment,
-                calculateNextRun($schedule_type, $schedule_time, $schedule_day),
+                $nextRun,
                 $id
             ]);
 
@@ -293,7 +296,7 @@ function saveSchedule() {
                 $backup_type,
                 $keep_count,
                 $comment,
-                calculateNextRun($schedule_type, $schedule_time, $schedule_day)
+                $nextRun
             ]);
 
             $message = 'Расписание создано';
@@ -400,49 +403,6 @@ function runScheduleNow() {
 }
 
 /**
- * Расчет следующего запуска
- */
-function calculateNextRun($schedule_type, $schedule_time, $schedule_day = null) {
-    $now = time();
-
-    switch ($schedule_type) {
-        case 'hourly':
-            return date('Y-m-d H:i:00', strtotime('+1 hour', $now));
-
-        case 'daily':
-            $time = strtotime($schedule_time);
-            $next = strtotime(date('Y-m-d') . ' ' . date('H:i', $time));
-            if ($next <= $now) {
-                $next = strtotime('+1 day', $next);
-            }
-            return date('Y-m-d H:i:s', $next);
-
-        case 'weekly':
-            $day = $schedule_day ?? 1; // 1 = понедельник
-            $time = strtotime($schedule_time);
-            $next = strtotime('next Monday +' . ($day - 1) . ' days', $now);
-            $next = strtotime(date('Y-m-d', $next) . ' ' . date('H:i', $time));
-            if ($next <= $now) {
-                $next = strtotime('+1 week', $next);
-            }
-            return date('Y-m-d H:i:s', $next);
-
-        case 'monthly':
-            $day = $schedule_day ?? 1;
-            $time = strtotime($schedule_time);
-            $next = strtotime(date('Y-m-' . str_pad($day, 2, '0', STR_PAD_LEFT)), $now);
-            if ($next <= $now) {
-                $next = strtotime('+1 month', $next);
-            }
-            $next = strtotime(date('Y-m-d', $next) . ' ' . date('H:i', $time));
-            return date('Y-m-d H:i:s', $next);
-
-        default:
-            return date('Y-m-d H:i:s', strtotime('+1 day', $now));
-    }
-}
-
-/**
  * Получение списка бэкапов
  */
 function getBackupList() {
@@ -461,8 +421,8 @@ function getBackupList() {
         if (class_exists('ZipArchive')) {
             $zip = new ZipArchive();
             if ($zip->open($file) === TRUE) {
-                $meta_json = $zip->getFromName('backup_meta.json');
-                if ($meta_json) {
+                $meta_json = $zip->getFromName('backup_meta.json', 65537);
+                if ($meta_json && strlen($meta_json) <= 65536) {
                     $meta = json_decode($meta_json, true);
                 }
                 $zip->close();
@@ -475,8 +435,8 @@ function getBackupList() {
             'modified' => $modified,
             'date' => date('d.m.Y H:i:s', $modified),
             'size_formatted' => formatBytesss($size),
-            'type' => $meta['type'] ?? 'unknown',
-            'comment' => $meta['comment'] ?? '',
+            'type' => in_array($meta['type'] ?? '', ['full', 'db', 'files'], true) ? $meta['type'] : 'unknown',
+            'comment' => is_string($meta['comment'] ?? null) ? $meta['comment'] : '',
             'is_auto' => $meta['is_auto'] ?? false,
             'files' => $meta['files'] ?? 'no',
             'database' => $meta['database'] ?? 'no'
@@ -1871,7 +1831,7 @@ require 'admin_header.php';
                 <i class="fas fa-list"></i> Список резервных копий
             </h3>
             <p style="color: var(--db-text-secondary); font-size: 14px; margin-top: 8px;">
-                Показано <?= count($backups) ?> из <?= $max_backups ?> возможных бэкапов
+                Доступно архивов: <?= count($backups) ?>. Лимиты расписаний применяются отдельно
             </p>
         </div>
 
@@ -2045,7 +2005,7 @@ require 'admin_header.php';
 
                             <div class="form-group" id="monthDayField" style="display: none;">
                                 <label class="form-label">День месяца *</label>
-                                <select name="schedule_day" class="form-select" style="width: 87%;">
+                                <select name="schedule_month_day" class="form-select" style="width: 87%;">
                                     <?php for ($i = 1; $i <= 31; $i++): ?>
                                         <option value="<?= $i ?>" <?= $i == 1 ? 'selected' : '' ?>>
                                             <?= $i ?>
@@ -2063,7 +2023,7 @@ require 'admin_header.php';
                                 <input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
                                 <label><input type="checkbox" name="prune_existing" value="1"> <span id="retentionOffer">Удалить старые копии этого расписания сверх нового лимита</span></label>
                                 <input type="number" name="keep_count" class="form-input" oninput="updateRetentionOffer()"
-                                       value="10" min="1" max="50" style="width: 87%;">
+                                       value="10" min="1" max="1000" style="width: 87%;">
                                 <small class="text-muted" style="font-size: 12px;">Старые бэкапы будут удаляться автоматически</small>
                             </div>
                         </div>
@@ -2328,7 +2288,7 @@ function editSchedule(id) {
             // Устанавливаем день для ежемесячного расписания
             if (schedule.schedule_type === 'monthly') {
                 setTimeout(() => {
-                    const monthDaySelect = form.querySelector('#monthDayField select[name="schedule_day"]');
+                    const monthDaySelect = form.querySelector('#monthDayField select[name="schedule_month_day"]');
                     if (monthDaySelect) {
                         monthDaySelect.value = schedule.schedule_day;
                     }
@@ -2494,8 +2454,11 @@ function showLogs() {
 }
 
 function createEmergencyBackup() {
-    if (confirm('Создать экстренный бэкап без сжатия (быстрее, но больше места)?')) {
-        window.location.href = '?action=create&type=full&emergency=1';
+    if (confirm('Создать полную резервную копию сейчас?')) {
+        const form = document.querySelector('form[action*="create"]');
+        form.querySelector('[name="backup_type"]').value = 'full';
+        form.querySelector('[name="comment"]').value = 'Emergency';
+        form.requestSubmit();
     }
 }
 

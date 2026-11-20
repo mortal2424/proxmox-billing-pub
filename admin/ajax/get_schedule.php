@@ -23,7 +23,7 @@ $user_id = $_SESSION['user']['id'] ?? 0;
 
 // Проверяем, является ли пользователь администратором
 try {
-    $stmt = $pdo->prepare("SELECT is_admin FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT is_admin,is_active FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
 } catch (Exception $e) {
@@ -32,7 +32,7 @@ try {
     exit;
 }
 
-if (!$user || !$user['is_admin']) {
+if (!$user || !$user['is_admin'] || !$user['is_active']) {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'error' => 'Доступ запрещен. Требуются права администратора']);
     exit;
