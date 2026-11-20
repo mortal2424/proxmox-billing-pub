@@ -1,0 +1,63 @@
+body {
+    --db-bg: #f3f8f5;
+    --db-card-bg: #ffffff;
+    --db-border: #d5e5de;
+    --db-text: #193c32;
+    --db-text-secondary: #536d63;
+    --db-text-muted: #70857b;
+    --db-accent: #287963;
+    --db-accent-hover: #206550;
+    --db-accent-light: #e1f2e9;
+    --db-success: #25815b;
+    --db-danger: #be394a;
+    --db-warning: #ab7119;
+    --db-info: #387d99;
+    --db-shadow: 0 4px 20px #1e594b0a;
+    --admin-accent: #287963;
+    --admin-accent-hover: #206550;
+    --admin-accent-light: #e1f2e9;
+    --admin-card-bg: #ffffff;
+    --admin-hover-bg: #eaf4ef;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+[data-theme="dark"] body, body.dark-theme {
+    --db-bg: #14221e;
+    --db-card-bg: #20302a;
+    --db-border: #3a5147;
+    --db-text: #e6f3eb;
+    --db-text-secondary: #b2c8bd;
+    --db-text-muted: #94afa1;
+    --db-accent: #91d3b3;
+    --db-accent-hover: #b1e2c9;
+    --db-accent-light: #294c3b;
+    --admin-accent: #91d3b3;
+    --admin-accent-hover: #b1e2c9;
+    --admin-accent-light: #294c3b;
+    --admin-card-bg: #20302a;
+    --admin-hover-bg: #294137;
+}
+.categories-wrapper *, .ticket-filter-form *, .ticket-form-group * { box-sizing: border-box; }
+.categories-wrapper { color: var(--db-text); font-family: Inter, system-ui, sans-serif; }
+.categories-wrapper input:not([type="checkbox"]):not([type="color"]),
+.categories-wrapper select, .categories-wrapper textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--db-border);
+    border-radius: 8px;
+    color: var(--db-text);
+    background: var(--db-card-bg);
+    font: inherit;
+}
+.categories-wrapper input:not([type="checkbox"]):not([type="color"]),
+.categories-wrapper select { min-height: 44px; }
+.ticket-filter-group { min-width: 0; }
+.ticket-filter-select { box-sizing: border-box; width: 100%; height: 44px; }
+.ticket-filter-form { align-items: end; }
+.ticket-filter-actions { flex-wrap: wrap; }
+.ticket-form-group input:not([type="checkbox"]), .ticket-form-group select,
+.ticket-form-group textarea { box-sizing: border-box; width: 100%; min-width: 0; }
+@media (max-width: 768px) {
+    .ticket-filter-form { display: grid; grid-template-columns: minmax(0, 1fr); }
+    .categories-wrapper { margin-left: 0; padding: 14px; }
+}

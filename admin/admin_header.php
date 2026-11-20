@@ -1215,3 +1215,5 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
     </script>
 </body>
 </html>
+
+<link rel="stylesheet" href="/admin/css/customer-palette.css?v=1">
