@@ -26,7 +26,7 @@ target = git("rev-parse", "--verify", args.target + "^{commit}").decode().strip(
 files = {}
 for row in git("diff", "--name-status", "--no-renames", base, target).decode().splitlines():
     status, path = row.split("\t", 1)
-    if path.startswith(("updates/", "tools/", ".github/")) or path in ("README.md", ".DS_Store"):
+    if path.startswith(("updates/", "tools/", ".github/", "mobile/")) or path in ("README.md", ".DS_Store"):
         continue
     if status == "D":
         parser.error("Deletion needs a separately reviewed migration: " + path)
