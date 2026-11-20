@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/backup_functions.php';
 
 
 checkAuth();
+$_SESSION['backup_csrf'] ??= bin2hex(random_bytes(32));
 
 $db = new Database();
 $pdo = $db->getConnection();
@@ -201,6 +202,13 @@ function getScheduledBackups() {
 function saveSchedule() {
     global $pdo, $message, $message_type;
 
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !is_string($_POST['backup_csrf'] ?? null) ||
+        !hash_equals($_SESSION['backup_csrf'], $_POST['backup_csrf'])) {
+        $message = 'Неверный CSRF-токен';
+        $message_type = 'error';
+        return;
+    }
+
     $id = $_POST['id'] ?? 0;
     $name = trim($_POST['name'] ?? '');
     $schedule_type = $_POST['schedule_type'] ?? 'daily';
@@ -208,6 +216,11 @@ function saveSchedule() {
     $schedule_day = $_POST['schedule_day'] ?? null;
     $backup_type = $_POST['backup_type'] ?? 'full';
     $keep_count = (int)($_POST['keep_count'] ?? 10);
+    if ($keep_count < 1 || $keep_count > 1000) {
+        $message = 'Количество копий должно быть от 1 до 1000';
+        $message_type = 'error';
+        return;
+    }
     $comment = trim($_POST['comment'] ?? '');
 
     // Валидация
@@ -251,6 +264,10 @@ function saveSchedule() {
             ]);
 
             $message = 'Расписание обновлено';
+            if (isset($_POST['prune_existing'])) {
+                $deleted = cleanupOldBackups(BACKUP_DIR, $keep_count, (int) $id);
+                $message .= '. Старых копий удалено: ' . $deleted;
+            }
         } else {
             // Создание нового
             $stmt = $pdo->prepare("
@@ -342,7 +359,7 @@ function runScheduleNow() {
             $schedule = $stmt->fetch();
 
             if ($schedule) {
-                $result = createBackup($schedule['backup_type'], $schedule['comment'] . ' [По расписанию: ' . $schedule['name'] . ']', true);
+                $result = createBackup($schedule['backup_type'], $schedule['comment'] . ' [По расписанию: ' . $schedule['name'] . ']', true, (int) $schedule['id'], (int) $schedule['keep_count']);
 
                 if ($result['success']) {
                     // Обновляем время последнего запуска
@@ -2028,6 +2045,8 @@ require 'admin_header.php';
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Хранить бэкапов</label>
+                                <input type="hidden" name="backup_csrf" value="<?= htmlspecialchars($_SESSION['backup_csrf']) ?>">
+                                <label><input type="checkbox" name="prune_existing" value="1"> После сохранения удалить старые копии этого расписания сверх нового лимита</label>
                                 <input type="number" name="keep_count" class="form-input"
                                        value="10" min="1" max="50" style="width: 87%;">
                                 <small class="text-muted" style="font-size: 12px;">Старые бэкапы будут удаляться автоматически</small>
@@ -2260,6 +2279,7 @@ function editSchedule(id) {
             }
 
             form.querySelector('[name="keep_count"]').value = schedule.keep_count || 10;
+            form.querySelector('[name="prune_existing"]').checked = false;
             form.querySelector('[name="comment"]').value = schedule.comment || '';
 
             updateScheduleFields();

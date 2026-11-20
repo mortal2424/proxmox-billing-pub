@@ -52,7 +52,9 @@ try {
         $result = createBackup(
             $schedule['backup_type'],
             $schedule['comment'] . ' [Авто по расписанию: ' . $schedule['name'] . ']',
-            true
+            true,
+            (int) $schedule['id'],
+            (int) $schedule['keep_count']
         );
 
         if ($result['success']) {

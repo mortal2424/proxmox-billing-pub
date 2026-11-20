@@ -61,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $clusterId = $pdo->lastInsertId();
 
             // Логирование успешного создания
-            error_log("Зона доступности создан: ID = $clusterId, Name = $name");
+            error_log("Зона доступности создана: ID = $clusterId, Name = $name");
 
-            $_SESSION['success'] = "Зона доступности '{$name}' успешно создан";
+            $_SESSION['success'] = "Зона доступности '{$name}' успешно создана";
             header("Location: nodes.php");
             exit;
         } catch (Exception $e) {
@@ -650,8 +650,8 @@ require 'admin_header.php';
         <!-- Шапка страницы -->
         <div class="form-header">
             <div class="form-header-left">
-                <h1><i class="fas fa-network-wired"></i> Добавление нового зоны доступности</h1>
-                <p>Создайте новый зона доступности для организации Proxmox серверов</p>
+                <h1><i class="fas fa-network-wired"></i> Добавление новой зоны доступности</h1>
+                <p>Создайте новую зону доступности для организации Proxmox серверов</p>
             </div>
             <div class="form-header-right">
                 <a href="nodes.php" class="form-btn-icon form-btn-back" title="Вернуться к списку">
@@ -737,7 +737,7 @@ require 'admin_header.php';
                             <input type="checkbox" name="is_active" checked id="isActive">
                             <span class="checkmark"></span>
                             <span>
-                                <i class="fas fa-power-off"></i> Активный зона доступности
+                                <i class="fas fa-power-off"></i> Активная зона доступности
                                 <small style="display: block; color: var(--form-text-muted); font-weight: normal; margin-top: 4px;">
                                     Неактивные зоны доступности не будут использоваться для создания новых ВМ
                                 </small>
@@ -750,7 +750,7 @@ require 'admin_header.php';
                                 name="add_cluster"
                                 class="form-btn form-btn-primary"
                                 id="submitBtn">
-                            <i class="fas fa-save"></i> Создать зона доступности
+                            <i class="fas fa-save"></i> Создать зону доступности
                         </button>
                         <a href="nodes.php" class="form-btn form-btn-secondary">
                             <i class="fas fa-times"></i> Отмена

@@ -11,14 +11,14 @@ require_once __DIR__ . '/../admin/admin_functions.php';
 //checkAuth();
 
 // Глобальные константы для бэкапа
-define('BACKUP_DIR', realpath(__DIR__ . '/../admin/backups/') . '/');
+define('BACKUP_DIR', dirname(__DIR__) . '/admin/backups/');
 define('PROJECT_ROOT', realpath(__DIR__ . '/../'));
 define('MAX_BACKUPS', 10);
 
 /**
  * Создание бэкапа
  */
-function createBackup($type = 'full', $comment = '', $is_auto = false) {
+function createBackup($type = 'full', $comment = '', $is_auto = false, $scheduleId = null, $keepCount = MAX_BACKUPS) {
     global $pdo;
 
     $backup_dir = BACKUP_DIR;
@@ -35,13 +35,19 @@ function createBackup($type = 'full', $comment = '', $is_auto = false) {
         $backup_name .= "_" . preg_replace('/[^a-zA-Z0-9_-]/', '_', substr($comment, 0, 20));
     }
 
-    $filename = $backup_name . '.zip';
+    if ($scheduleId !== null) {
+        if ((int) $scheduleId < 1 || $keepCount < 1 || $keepCount > 1000) {
+            return ['success' => false, 'error' => 'Некорректные параметры хранения'];
+        }
+        $backup_name = 'schedule_' . (int) $scheduleId . '_' . $backup_name;
+    }
+    $filename = $backup_name . '_' . bin2hex(random_bytes(4)) . '.zip';
     $filepath = $backup_dir . $filename;
 
     try {
         // Создаем ZIP архив
         $zip = new ZipArchive();
-        if ($zip->open($filepath, ZipArchive::CREATE) !== TRUE) {
+        if ($zip->open($filepath . '.part', ZipArchive::CREATE | ZipArchive::EXCL) !== TRUE) {
             throw new Exception("Не удалось создать архив");
         }
 
@@ -61,6 +67,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false) {
             'comment' => $comment,
             'created_at' => date('Y-m-d H:i:s'),
             'is_auto' => $is_auto,
+            'schedule_id' => $scheduleId,
             'version' => '1.0',
             'project_root' => $project_root,
             'files' => ($type === 'full' || $type === 'files') ? 'yes' : 'no',
@@ -73,8 +80,15 @@ function createBackup($type = 'full', $comment = '', $is_auto = false) {
             throw new Exception("Ошибка при сохранении архива");
         }
 
-        // Очищаем старые бэкапы
-        cleanupOldBackups($backup_dir);
+        if (!rename($filepath . '.part', $filepath)) {
+            throw new RuntimeException('Не удалось завершить создание архива');
+        }
+        // A schedule only prunes its own completed archives.
+        try {
+            cleanupOldBackups($backup_dir, (int) $keepCount, $scheduleId);
+        } catch (Throwable $cleanupError) {
+            error_log('Backup created but retention cleanup failed: ' . $cleanupError->getMessage());
+        }
 
         // Записываем в лог
         $user_id = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 0;
@@ -93,6 +107,9 @@ function createBackup($type = 'full', $comment = '', $is_auto = false) {
             @unlink($filepath);
         }
 
+        if (isset($filepath) && is_file($filepath . '.part')) {
+            unlink($filepath . '.part');
+        }
         return [
             'success' => false,
             'error' => $e->getMessage()
@@ -282,18 +299,35 @@ function addDatabaseToArchive($zip, $pdo) {
 /**
  * Очистка старых бэкапов
  */
-function cleanupOldBackups($backup_dir) {
-    $files = glob($backup_dir . '*.zip');
-    if (count($files) > MAX_BACKUPS) {
-        usort($files, function($a, $b) {
-            return filemtime($a) - filemtime($b);
-        });
-
-        $files_to_delete = count($files) - MAX_BACKUPS;
-        for ($i = 0; $i < $files_to_delete; $i++) {
-            @unlink($files[$i]);
-        }
+function backupRetentionCandidates(string $backupDir, int $keep, ?int $scheduleId = null): array {
+    if ($keep < 1 || $keep > 1000 || ($scheduleId !== null && $scheduleId < 1)) {
+        throw new InvalidArgumentException('Количество копий должно быть от 1 до 1000');
     }
+    $pattern = $scheduleId === null ? 'backup_*.zip' : 'schedule_' . $scheduleId . '_*.zip';
+    $files = array_filter(glob(rtrim($backupDir, '/') . '/' . $pattern) ?: [],
+        static fn ($file) => is_file($file) && !is_link($file));
+    usort($files, static fn ($a, $b) => (filemtime($b) <=> filemtime($a)) ?: strcmp($b, $a));
+    return array_slice($files, $keep);
+}
+
+function cleanupOldBackups($backup_dir, int $keep = MAX_BACKUPS, ?int $scheduleId = null): int {
+    $lock = fopen(rtrim($backup_dir, '/') . '/.retention.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX)) {
+        throw new RuntimeException('Не удалось заблокировать очистку архивов');
+    }
+    $deleted = 0;
+    try {
+        foreach (backupRetentionCandidates($backup_dir, $keep, $scheduleId) as $file) {
+            if (is_file($file) && !unlink($file)) {
+                throw new RuntimeException('Не удалось удалить старую копию');
+            }
+            $deleted++;
+        }
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+    return $deleted;
 }
 
 /**

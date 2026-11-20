@@ -21,7 +21,7 @@ if (isset($_GET['id'])) {
 }
 
 if (!$cluster) {
-    $_SESSION['error'] = "Зона доступности не найден";
+    $_SESSION['error'] = "Зона доступности не найдена";
     header("Location: nodes.php");
     exit;
 }
@@ -59,7 +59,7 @@ $cluster_history = $pdo->prepare("
     SELECT
         'created' as type,
         created_at as date,
-        CONCAT('Зона доступности создан') as description
+        CONCAT('Зона доступности создана') as description
     FROM proxmox_clusters
     WHERE id = ?
 
@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $_SESSION['success'] = "Зона доступности '{$name}' успешно обновлен";
+            $_SESSION['success'] = "Зона доступности '{$name}' успешно обновлена";
             header("Location: nodes.php");
             exit;
 
@@ -1282,7 +1282,7 @@ require 'admin_header.php';
                                            id="isActive">
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
-                                        <i class="fas fa-power-off"></i> Активный зона доступности
+                                        <i class="fas fa-power-off"></i> Активная зона доступности
                                         <span class="checkbox-hint">Зона доступности доступен для создания новых ВМ</span>
                                     </span>
                                 </label>

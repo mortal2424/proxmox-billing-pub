@@ -937,7 +937,7 @@ require 'admin_header.php';
                         <h3>Нет созданных зон доступности</h3>
                         <p>Создайте первый зона доступности для управления нодами</p>
                         <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary" style="margin-top: 15px;">
-                            <i class="fas fa-plus-circle"></i> Создать зона доступности
+                            <i class="fas fa-plus-circle"></i> Создать зону доступности
                         </a>
                     </div>
                 <?php endif; ?>
