@@ -1,6 +1,7 @@
 <?php
 $workspaceLinks = [
     'dashboard.php' => ['/templates/dashboard.php', 'Обзор', 'fa-chart-line'],
+    'monitoring.php' => ['/templates/monitoring.php', 'Мониторинг', 'fa-chart-area'],
     'my_vms.php' => ['/templates/my_vms.php', 'Серверы', 'fa-server'],
     'order_vm.php' => ['/templates/order_vm.php', 'Заказ', 'fa-plus'],
     'billing.php' => ['/templates/billing.php', 'Финансы', 'fa-wallet'],

@@ -35,7 +35,7 @@ if (!function_exists('getNodeStats')) {
             $connection = ssh_connect_and_auth($hostname, $username, $password);
             
             $result = [
-                'cpu_usage' => (float)exec_ssh_command($connection, "awk '{print \$1}' /proc/loadavg"),
+                'cpu_usage' => (float)exec_ssh_command($connection, "(head -n 1 /proc/stat; sleep 1; head -n 1 /proc/stat) | awk 'NR==1 {idle=\$5+\$6; for(i=2;i<=9;i++) total+=\$i; next} {idle2=\$5+\$6; for(i=2;i<=9;i++) total2+=\$i; if(total2>total) printf \"%.2f\", 100*(1-(idle2-idle)/(total2-total))}'"),
                 'ram_usage' => 0,
                 'ram_total' => 0,
                 'network_rx_bytes' => 0,

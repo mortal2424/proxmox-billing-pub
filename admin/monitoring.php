@@ -1487,6 +1487,7 @@ require 'admin_header.php';
 
 <!-- Мониторинг -->
 <div class="monitoring-wrapper">
+    <?php $infrastructureAdmin = true; require __DIR__ . '/../includes/infrastructure_status.php'; ?>
     <!-- Шапка мониторинга -->
     <div class="monitoring-header">
         <div class="header-left">
