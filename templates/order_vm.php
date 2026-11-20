@@ -1,6 +1,6 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -11,7 +11,8 @@ checkAuth();
 
 $db = new Database();
 $pdo = $db->getConnection();
-$user_id = $_SESSION['user']['id'];
+$user_id = (int) $_SESSION['user']['id'];
+$_SESSION['order_csrf'] ??= bin2hex(random_bytes(32));
 $user = $pdo->query("SELECT * FROM users WHERE id = $user_id")->fetch();
 
 // Получаем текущие цены на ресурсы
@@ -74,7 +75,8 @@ $nodes = $pdo->query("
     ORDER BY c.name, n.node_name
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-$vmType = $_GET['vm_type'] ?? $_POST['vm_type'] ?? 'qemu'; // 'qemu' или 'lxc'
+$requestedVmType = $_POST['vm_type'] ?? $_GET['vm_type'] ?? 'qemu';
+$vmType = in_array($requestedVmType, ['qemu', 'lxc'], true) ? $requestedVmType : 'qemu';
 
 // Получаем только тарифы для выбранного типа VM
 $regular_tariffs = $pdo->query("SELECT * FROM tariffs WHERE is_active = 1 AND is_custom = 0 AND vm_type = '$vmType' ORDER BY price")->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -93,7 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
     $creationStart = time();
 
     try {
-        $vmType = $_POST['vm_type'] ?? 'qemu';
+        if (!is_string($_POST['order_csrf'] ?? null) ||
+            !hash_equals($_SESSION['order_csrf'], $_POST['order_csrf'])) {
+            throw new RuntimeException('Сессия формы истекла. Обновите страницу и повторите отправку');
+        }
+        if (!in_array($requestedVmType, ['qemu', 'lxc'], true)) {
+            throw new InvalidArgumentException('Неизвестный тип машины');
+        }
         $nodeId = (int)($_POST['node_id'] ?? 0);
         $hostname = trim($_POST['hostname'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -121,12 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             throw new Exception('Имя хоста может содержать только латинские буквы (a-z), цифры (0-9) и дефисы');
         }
 
-        $stmt = $pdo->prepare("SELECT * FROM proxmox_nodes WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT n.* FROM proxmox_nodes n JOIN proxmox_clusters c ON c.id = n.cluster_id WHERE n.id = ? AND n.is_active = 1 AND n.available_for_users = 1 AND c.is_active = 1");
         $stmt->execute([$nodeId]);
         $node = $stmt->fetch();
         if (!$node) throw new Exception('Выбранная нода не найдена');
 
-        $user = $pdo->query("SELECT balance, bonus_balance FROM users WHERE id = $user_id")->fetch();
+        $user = $pdo->query("SELECT * FROM users WHERE id = $user_id")->fetch();
         if (!$user) throw new Exception('Ошибка получения данных пользователя');
 
         $tariff = null;
@@ -136,8 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             $tariffId = (int)($_POST['tariff_id'] ?? 0);
             if (!$tariffId) throw new Exception('Не выбран тарифный план');
 
-            $stmt = $pdo->prepare("SELECT * FROM tariffs WHERE id = ?");
-            $stmt->execute([$tariffId]);
+            $stmt = $pdo->prepare("SELECT * FROM tariffs WHERE id = ? AND is_active = 1 AND is_custom = 0 AND vm_type = ?");
+            $stmt->execute([$tariffId, $vmType]);
             $tariff = $stmt->fetch();
             if (!$tariff) throw new Exception('Выбранный тарифный план не найден');
 
@@ -275,7 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             : "LXC контейнер #{$vmId} успешно создан на ноде {$node['node_name']}!";
         $creationTime = time() - $creationStart;
 
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         if (isset($tariffId) && $is_custom) {
             $pdo->exec("DELETE FROM tariffs WHERE id = $tariffId");
         }
@@ -1469,6 +1477,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
             <!-- Основная форма -->
             <form method="POST" class="order-form" id="vm-order-form">
+                <input type="hidden" name="order_csrf" value="<?= htmlspecialchars($_SESSION['order_csrf']) ?>">
                 <input type="hidden" name="vm_type" id="vm-type" value="<?= $vmType ?>">
 
                 <!-- 0. Выбор типа виртуальной машины -->
