@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/node_credentials.php';
+require_once __DIR__ . '/node_api_credentials.php';
 
 header('Cache-Control: no-store');
 header('Content-Type: application/json; charset=utf-8');
@@ -30,6 +30,12 @@ if (!$nodeId || !$vmId) {
 
 try {
     $pdo = (new Database())->getConnection();
+    $account = $pdo->prepare('SELECT is_active,is_admin FROM users WHERE id=?');
+    $account->execute([$userId]);
+    $currentUser = $account->fetch();
+    if (!$currentUser || !$currentUser['is_active'] || ($consoleScope !== 'customer' && !$currentUser['is_admin'])) {
+        consoleError(403, 'Доступ запрещён');
+    }
     if ($consoleScope === 'customer') {
         $guest = $pdo->prepare('SELECT vm_type FROM vms WHERE node_id = ? AND vm_id = ? AND user_id = ?');
         $guest->execute([$nodeId, $vmId, $userId]);
@@ -45,13 +51,14 @@ try {
         consoleError(404, 'ВМ или контейнер не найдены');
     }
 
-    $node = $pdo->prepare('SELECT hostname, api_port, node_name, username, password
+    $node = $pdo->prepare('SELECT id, hostname, api_port, node_name, username, password
         FROM proxmox_nodes WHERE id = ? AND is_active = 1');
     $node->execute([$nodeId]);
     $target = $node->fetch();
     if (!$target) {
         consoleError(404, 'Узел Proxmox недоступен');
     }
+    $target = panelNodeApiCredentials($target);
     $target['password'] = decryptNodePassword($target['password']);
 
     $socketPath = '/run/homevlad-console/issuer.sock';

@@ -82,11 +82,20 @@ async def connect_guest(app, browser, target):
     username = target["username"]
     if "@" not in username:
         username += "@pam"
-    async with client.post(api / "access" / "ticket", ssl=tls, allow_redirects=False,
-                           data={"username": username, "password": target.pop("password")}) as response:
-        response.raise_for_status()
-        auth = (await response.json())["data"]
-    headers = {"Cookie": "PVEAuthCookie=" + auth["ticket"]}
+    secret = target.pop("password")
+    token_auth = "!" in username
+    if token_auth:
+        if any(c in username + secret for c in "\r\n"):
+            raise ValueError("Invalid API credentials")
+        headers = {"Authorization": "PVEAPIToken=" + username + "=" + secret}
+        mutation_headers = headers
+    else:
+        async with client.post(api / "access" / "ticket", ssl=tls, allow_redirects=False,
+                               data={"username": username, "password": secret}) as response:
+            response.raise_for_status()
+            auth = (await response.json())["data"]
+        headers = {"Cookie": "PVEAuthCookie=" + auth["ticket"]}
+        mutation_headers = headers | {"CSRFPreventionToken": auth["CSRFPreventionToken"]}
     node = quote(target["node_name"], safe="")
     guest_id = int(target["vmid"])
     guest_type = target["type"]
@@ -102,9 +111,11 @@ async def connect_guest(app, browser, target):
         raise ValueError("Unsupported guest type")
 
     guest = api / "nodes" / node / guest_type / str(guest_id)
-    terminal = guest_type == "lxc"
+    # PVE 9.1 termproxy authentication requires a password ticket. API tokens
+    # use vncterm via the VNC endpoint instead, with the same VM.Console grant.
+    terminal = guest_type == "lxc" and not token_auth
     async with client.post(guest / ("termproxy" if terminal else "vncproxy"),
-                           headers=headers | {"CSRFPreventionToken": auth["CSRFPreventionToken"]},
+                           headers=mutation_headers,
                            data={} if terminal else {"websocket": "1"},
                            ssl=tls, allow_redirects=False) as response:
         response.raise_for_status()
@@ -122,7 +133,7 @@ async def connect_guest(app, browser, target):
             if answer[2:]:
                 await browser.send_bytes(answer[2:])
         else:
-            await browser.send_json({"type": "qemu", "password": ticket["ticket"]})
+            await browser.send_json({"type": "qemu", "password": ticket.get("password", ticket["ticket"])})
         pumps = [asyncio.create_task(relay(browser, upstream)),
                  asyncio.create_task(relay(upstream, browser))]
         try:

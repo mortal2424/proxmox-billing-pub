@@ -31,134 +31,22 @@ function columnExists($pdo, $table, $column) {
     }
 }
 
-function getNodeSSHInfo($hostname, $username, $password) {
+// Legacy name retained for callers; collection uses HTTPS API exclusively.
+function getNodeSSHInfo($hostname, $username, $password, ?array $node = null) {
+    require_once __DIR__.'/../includes/node_api_info.php';
     try {
-        $password = decryptNodePassword($password);
-        $connection = @ssh2_connect($hostname, 22);
-        if (!$connection) {
-            throw new Exception('Не удалось подключиться к серверу');
+        if ($node === null) {
+            $pdo = (new Database())->getConnection();
+            $query = $pdo->prepare('SELECT * FROM proxmox_nodes WHERE hostname=? AND is_active=1');
+            $query->execute([$hostname]);
+            $matches = $query->fetchAll(PDO::FETCH_ASSOC);
+            if (count($matches) !== 1) throw new RuntimeException('Укажите подключение к узлу');
+            $node = $matches[0];
         }
-
-        if (!@ssh2_auth_password($connection, $username, $password)) {
-            throw new Exception('Ошибка аутентификации');
-        }
-
-        $result = [];
-
-        // 1. Получаем информацию о CPU
-        $stream = ssh2_exec($connection, 'lscpu');
-        stream_set_blocking($stream, true);
-        $lscpu = stream_get_contents($stream);
-
-        // Парсим данные CPU
-        preg_match('/CPU\(s\):\s+(\d+)/', $lscpu, $matches);
-        $logicalCpus = $matches[1] ?? 1;
-
-        preg_match('/Thread\(s\) per core:\s+(\d+)/', $lscpu, $matches);
-        $threadsPerCore = $matches[1] ?? 1;
-
-        preg_match('/Core\(s\) per socket:\s+(\d+)/', $lscpu, $matches);
-        $coresPerSocket = $matches[1] ?? 1;
-
-        preg_match('/Socket\(s\):\s+(\d+)/', $lscpu, $matches);
-        $sockets = $matches[1] ?? 1;
-
-        // Рассчитываем физические ядра и потоки
-        $physicalCores = $sockets * $coresPerSocket;
-        $totalThreads = $physicalCores * $threadsPerCore;
-
-        $result['cpu_physical'] = $physicalCores;
-        $result['cpu_threads'] = $totalThreads;
-        $result['cpu_sockets'] = $sockets;
-
-        // Модель процессора
-        $stream = ssh2_exec($connection, 'cat /proc/cpuinfo | grep "model name" | head -1 | cut -d":" -f2');
-        stream_set_blocking($stream, true);
-        $result['cpu_model'] = trim(stream_get_contents($stream)) ?: 'N/A';
-
-        // 2. Получаем информацию о RAM
-        $stream = ssh2_exec($connection, 'free -m | grep Mem');
-        stream_set_blocking($stream, true);
-        $ram = preg_split('/\s+/', trim(stream_get_contents($stream)));
-        $result['ram_total'] = isset($ram[1]) ? round($ram[1] / 1024, 2) . ' GB' : 'N/A';
-        $result['ram_used'] = isset($ram[2]) ? round($ram[2] / 1024, 2) . ' GB' : 'N/A';
-        $result['ram_percent'] = (isset($ram[1]) && isset($ram[2]) && $ram[1] > 0)
-            ? round(($ram[2] / $ram[1]) * 100, 1) . '%'
-            : 'N/A';
-
-        // 3. Получаем информацию о дисках (только физические)
-        $stream = ssh2_exec($connection, 'df -h --output=source,size,used,pcent,target | grep -E "/dev/(sd|nvme|vd)" | grep -v "loop"');
-        stream_set_blocking($stream, true);
-        $disks = explode("\n", trim(stream_get_contents($stream)));
-        $result['disks'] = [];
-
-        foreach ($disks as $diskLine) {
-            if (!empty($diskLine)) {
-                $diskInfo = preg_split('/\s+/', trim($diskLine));
-                if (count($diskInfo) >= 5) {
-                    $result['disks'][] = [
-                        'name' => $diskInfo[0],
-                        'size' => $diskInfo[1],
-                        'used' => $diskInfo[2],
-                        'percent' => $diskInfo[3],
-                        'mount' => $diskInfo[4]
-                    ];
-                }
-            }
-        }
-
-        // Proxmox storage inventory includes LVM, ZFS and shared backends omitted by df.
-        $stream = ssh2_exec($connection, 'pvesh get "/nodes/$(hostname -s)/storage" --output-format json');
-        if ($stream) {
-            stream_set_blocking($stream, true);
-            $inventory = json_decode(stream_get_contents($stream), true);
-            fclose($stream);
-            if (is_array($inventory)) {
-                $result['storages'] = [];
-                $result['storage_groups'] = [];
-                foreach ($inventory as $storage) {
-                    $type = (string) ($storage['type'] ?? 'unknown');
-                    // Proxmox API reports storage capacities in bytes.
-                    $entry = [
-                        'name' => (string) ($storage['storage'] ?? ''),
-                        'type' => $type,
-                        'active' => !empty($storage['active']),
-                        'total' => (int) ($storage['total'] ?? 0),
-                        'used' => (int) ($storage['used'] ?? 0),
-                        'available' => (int) ($storage['avail'] ?? 0),
-                    ];
-                    $result['storages'][] = $entry;
-                    $result['storage_groups'][$type] ??= ['total' => 0, 'used' => 0, 'available' => 0];
-                    if ($entry['active']) {
-                        $result['storage_groups'][$type] ??= ['total' => 0, 'used' => 0, 'available' => 0];
-                        foreach (['total', 'used', 'available'] as $capacity) {
-                            $result['storage_groups'][$type][$capacity] += $entry[$capacity];
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. Получаем сетевую информацию
-        $stream = ssh2_exec($connection, 'ip -o -4 addr show vmbr0 | awk \'{print $4}\' | cut -d/ -f1');
-        stream_set_blocking($stream, true);
-        $result['ip'] = trim(stream_get_contents($stream)) ?: 'N/A';
-
-        $stream = ssh2_exec($connection, 'ip link show vmbr0 | grep "link/ether" | awk \'{print $2}\'');
-        stream_set_blocking($stream, true);
-        $result['mac'] = trim(stream_get_contents($stream)) ?: 'N/A';
-
-        // 5. Получаем данные для графиков
-        if (isset($stream) && is_resource($stream)) fclose($stream);
-        $result['stats'] = getNodeStats($hostname, $username, $password, $connection);
-
-        return $result;
-
-    } catch (Throwable $e) {
-        return ['error' => $e->getMessage()];
-    } finally {
-        if (isset($stream) && is_resource($stream)) fclose($stream);
-        if (isset($connection) && is_resource($connection)) @ssh2_disconnect($connection);
+        return panelNodeApiInfo($node);
+    } catch (Throwable $error) {
+        error_log('Node API info failed: '.get_class($error));
+        return ['error'=>'Не удалось получить информацию через API Proxmox'];
     }
 }
 

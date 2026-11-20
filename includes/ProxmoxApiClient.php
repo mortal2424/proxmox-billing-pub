@@ -81,6 +81,35 @@ final class ProxmoxApiClient
         return $this->ticket;
     }
 
+    public function requestAndWait(string $method, string $path, array $parameters = [], int $timeout = 180): mixed
+    {
+        $result = $this->request($method, $path, $parameters);
+        if ($method !== 'GET' && is_string($result) && str_starts_with($result, 'UPID:')) {
+            $this->waitForTask($result, $timeout);
+        }
+        return $result;
+    }
+
+    public function waitForTask(string $upid, int $timeout = 180): array
+    {
+        if (!preg_match('/^UPID:([A-Za-z0-9_.-]+):[^\r\n]{1,1000}$/D', $upid, $match) || $timeout < 1 || $timeout > 3600) {
+            throw new InvalidArgumentException('Некорректная задача Proxmox');
+        }
+        $deadline = microtime(true) + $timeout;
+        do {
+            $state = $this->request('GET', '/nodes/' . $match[1] . '/tasks/' . rawurlencode($upid) . '/status');
+            if (!is_array($state) || !isset($state['status'])) throw new RuntimeException('Некорректный статус задачи Proxmox');
+            if ($state['status'] === 'stopped') {
+                if (($state['exitstatus'] ?? '') !== 'OK') throw new RuntimeException('Операция Proxmox завершилась с ошибкой');
+                return $state;
+            }
+            if ($state['status'] !== 'running') throw new RuntimeException('Неизвестный статус задачи Proxmox');
+            if (microtime(true) >= $deadline) break;
+            usleep(250000);
+        } while (microtime(true) < $deadline);
+        throw new RuntimeException('Задача Proxmox ещё выполняется. Не повторяйте операцию до проверки её статуса');
+    }
+
     private function exchange(string $method, string $path, array $parameters, array $headers): mixed
     {
         $encoded = http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);

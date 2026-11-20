@@ -3,7 +3,7 @@ require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/node_credentials.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/ssh_functions.php';
+require_once __DIR__ . '/../includes/node_api_info.php';
 
 // Настройка логирования
 ini_set('display_errors', 0);
@@ -36,7 +36,7 @@ try {
 // 2. Получаем все активные ноды с информацией о кластере
 try {
     $nodes = $pdo->query("
-        SELECT n.id, n.hostname, n.username, n.password, n.node_name, c.name as cluster_name
+        SELECT n.*, c.name as cluster_name
         FROM proxmox_nodes n
         JOIN proxmox_clusters c ON c.id = n.cluster_id
         WHERE n.is_active = 1
@@ -53,27 +53,6 @@ try {
     exit(1);
 }
 
-// 3. Получаем предыдущие значения для расчета скорости
-$prevStats = [];
-try {
-    $prevStmt = $pdo->query("
-        SELECT node_id, network_rx_bytes, network_tx_bytes, created_at
-        FROM node_stats
-        WHERE node_id IN (".implode(',', array_column($nodes, 'id')).")
-        ORDER BY created_at DESC
-        LIMIT ".count($nodes)
-    );
-    $prevStats = $prevStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $log('Ошибка получения предыдущей статистики: '.$e->getMessage());
-}
-
-// Преобразуем в удобный формат [node_id => last_stats]
-$prevStats = array_reduce($prevStats, function($acc, $item) {
-    $acc[$item['node_id']] = $item;
-    return $acc;
-}, []);
-
 // 4. Обрабатываем каждую ноду
 foreach ($nodes as $node) {
     $nodeId = $node['id'];
@@ -81,11 +60,7 @@ foreach ($nodes as $node) {
 
     try {
         // Получаем текущую статистику с ноды
-        $stats = getNodeStats(
-            $node['hostname'],
-            $node['username'],
-            decryptNodePassword($node['password'])
-        );
+        $stats = panelNodeApiInfo($node)['stats'];
 
         if (isset($stats['error'])) {
             $log("Ошибка получения статистики: ".$stats['error']);
@@ -101,29 +76,8 @@ foreach ($nodes as $node) {
             }
         }
 
-        // Рассчитываем скорость в Мбит/с
-        $rx_mbits = 0;
-        $tx_mbits = 0;
-        $time_diff = 300; // 5 минут по умолчанию
-
-        if (isset($prevStats[$nodeId])) {
-            $time_diff = max(1, time() - strtotime($prevStats[$nodeId]['created_at']));
-
-            // Рассчитываем скорость (байты → биты → мегабиты → скорость в секунду)
-            $rx_diff = $stats['network_rx_bytes'] - $prevStats[$nodeId]['network_rx_bytes'];
-            $tx_diff = $stats['network_tx_bytes'] - $prevStats[$nodeId]['network_tx_bytes'];
-
-            $rx_mbits = ($rx_diff * 8 / (1024 * 1024)) / $time_diff;
-            $tx_mbits = ($tx_diff * 8 / (1024 * 1024)) / $time_diff;
-
-            // Ограничиваем разумными значениями
-            $rx_mbits = max(0, min($rx_mbits, 100000)); // 100 Гбит/с
-            $tx_mbits = max(0, min($tx_mbits, 100000));
-
-            $log("Расчет скорости: RX=".round($rx_mbits, 2)." Мбит/с, TX=".round($tx_mbits, 2)." Мбит/с");
-        } else {
-            $log("Нет предыдущих данных для расчета скорости");
-        }
+        $rx_mbits = $stats['network_rx_mbits'];
+        $tx_mbits = $stats['network_tx_mbits'];
 
         // Сохраняем в базу
         $stmt = $pdo->prepare("

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/node_credentials.php';
-require_once __DIR__ . '/ssh_functions.php';
+require_once __DIR__ . '/ProxmoxCommandApi.php';
+require_once __DIR__ . '/node_api_credentials.php';
 require_once __DIR__ . '/ProxmoxAuth.php';
 
 class ProxmoxAPI {
@@ -9,7 +10,8 @@ class ProxmoxAPI {
     private $password;
     private $port;
     private $nodeName;
-    private $ssh;
+    private $apiClient;
+    private $commandApi;
     private $db;
     private $nodeId;
     private $apiPort;
@@ -24,7 +26,7 @@ class ProxmoxAPI {
         $this->nodeId = $nodeId;
         $this->db = $db;
         $this->apiPort = 8006;
-        $this->connect();
+
 
         // Инициализация PDO
         if ($db instanceof PDO) {
@@ -34,21 +36,17 @@ class ProxmoxAPI {
         } else {
             throw new Exception("Database connection not provided");
         }
-    }
-
-    private function connect() {
-        if (!function_exists('ssh2_connect')) {
-            throw new Exception("SSH2 расширение не установлено в PHP");
-        }
-
-        $this->ssh = @ssh2_connect($this->host, $this->port);
-        if (!$this->ssh) {
-            throw new Exception("Не удалось подключиться к {$this->host}:{$this->port}");
-        }
-
-        if (!@ssh2_auth_password($this->ssh, $this->username, $this->password)) {
-            throw new Exception("Ошибка аутентификации для пользователя {$this->username}");
-        }
+        $query = $this->pdo->prepare('SELECT * FROM proxmox_nodes WHERE id=? AND is_active=1');
+        $query->execute([(int)$nodeId]);
+        $node = $query->fetch(PDO::FETCH_ASSOC);
+        if (!$node || $node['hostname'] !== $host) throw new RuntimeException('Подключение к узлу недоступно');
+        $this->nodeName = $node['node_name'];
+        $this->apiPort = (int)($node['api_port'] ?: 8006);
+        $node = panelNodeApiCredentials($node);
+        $this->username = $node['username'];
+        $this->password = decryptNodePassword($node['password']);
+        $this->apiClient = new ProxmoxApiClient($node);
+        $this->commandApi = new ProxmoxCommandApi(fn($method,$path,$parameters) => $this->apiClient->requestAndWait($method,$path,$parameters), $this->nodeName);
     }
 
     public function controlGuest(int $vmid, string $type, string $action): string {
@@ -60,6 +58,15 @@ class ProxmoxAPI {
         return $this->execSSHCommand(
             "pvesh create /nodes/{$this->nodeName}/{$type}/{$vmid}/status/{$action}"
         );
+    }
+
+    private function requireIsoVolume(string $volume): void {
+        if (!preg_match('#^([A-Za-z0-9_.-]+):iso/[A-Za-z0-9_.+-]+$#D', $volume, $match)) {
+            throw new InvalidArgumentException('Некорректный ISO-образ');
+        }
+        $contents = $this->apiClient->request('GET', '/nodes/'.$this->nodeName.'/storage/'.$match[1].'/content', ['content'=>'iso']);
+        foreach ($contents as $file) if (($file['volid'] ?? '') === $volume) return;
+        throw new RuntimeException('ISO-образ отсутствует в выбранном хранилище');
     }
 
     public function createVM($params) {
@@ -110,7 +117,7 @@ class ProxmoxAPI {
         // 3. Подготовка параметров
         $nodeId = $this->nodeId;
         $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
-        $hasIso = !empty($params['iso']);
+        $hasIso = !empty($params['iso']) || !empty($params['cdroms']);
         $storage = (string)($params['storage'] ?? 'local');
         $network = (string)($params['network'] ?? 'vmbr0');
         $sdn = $params['sdn'] ?? null;
@@ -142,7 +149,7 @@ class ProxmoxAPI {
         $this->execSSHCommand($diskCmd);
 
         // EFI диск
-        $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:1,format=raw,pre-enrolled-keys=0");
+        $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:0,efitype=4m,pre-enrolled-keys=0");
         error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
         $this->execSSHCommand($efiCmd);
 
@@ -157,16 +164,17 @@ class ProxmoxAPI {
             }
 
             // Проверяем существование virtio-win.iso
-            $checkCmd = "test -f /var/lib/vz/template/iso/virtio-win.iso";
+            $checkVolume = $virtioIso;
             try {
-                $this->execSSHCommand($checkCmd);
+                $this->requireIsoVolume($checkVolume);
             } catch (Exception $e) {
                 throw new Exception("Обязательный файл virtio-win.iso не найден в /var/lib/vz/template/iso/");
             }
         }
 
         // Монтируем все CD-ROM из списка
-        $cdromIndex = 2; // Начинаем с ide2
+        $cdromIndex = 0;
+        $cdromDevices = ['ide2','ide3','sata0','sata1'];
         $mountedCdroms = [];
         foreach ($cdroms as $cdrom) {
             // Форматируем путь к ISO правильно
@@ -179,9 +187,9 @@ class ProxmoxAPI {
             $isoFile = preg_replace('/^[^:]+:iso\//', '', $cdrom);
 
             // Проверяем существование ISO
-            $checkCmd = "test -f /var/lib/vz/template/iso/{$isoFile}";
+            $checkVolume = $cdrom;
             try {
-                $this->execSSHCommand($checkCmd);
+                $this->requireIsoVolume($checkVolume);
             } catch (Exception $e) {
                 if (strpos($cdrom, 'virtio-win.iso') !== false) {
                     throw new Exception("Файл ISO не найден: {$isoFile}");
@@ -191,15 +199,16 @@ class ProxmoxAPI {
             }
 
             // Монтируем ISO
-            $isoCmd = "qm set {$vmid} --ide{$cdromIndex} " . escapeshellarg($cdrom . ",media=cdrom");
+            $device = $cdromDevices[$cdromIndex];
+            $isoCmd = "qm set {$vmid} --{$device} " . escapeshellarg($cdrom . ",media=cdrom");
             error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
 
             try {
                 $this->execSSHCommand($isoCmd);
-                $mountedCdroms[] = $cdromIndex;
+                $mountedCdroms[] = $device;
                 $cdromIndex++;
 
-                if ($cdromIndex > 5) { // Максимум 4 CD-ROM (ide2-ide5)
+                if ($cdromIndex >= count($cdromDevices)) { // Максимум 4 CD-ROM (ide2-ide5)
                     error_log("[VM Creation] Warning: Maximum CD-ROM devices reached");
                     break;
                 }
@@ -405,7 +414,7 @@ public function createLXC($params) {
                     "--memory {$ram} " .
                     "--rootfs {$disk} " .
                     "--password " . escapeshellarg($password) . " " .
-                    "--unprivileged 0 " .
+                    "--unprivileged 1 " .
                     "--onboot 1 " .
                     "--features nesting=1";
 
@@ -773,118 +782,14 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     }
 
     public function getVirtualMachines() {
-        try {
-            $command = "pvesh get /nodes/{$this->nodeName}/qemu --output-format json";
-            $response = $this->execSSHCommand($command);
-
-            if (empty($response)) {
-                throw new Exception("Пустой ответ от сервера через SSH");
-            }
-
-            if (strpos($response, '<!DOCTYPE html>') !== false) {
-                throw new Exception("Получен HTML-ответ вместо JSON");
-            }
-
-            return $this->parseVMResponse($response);
-        } catch (Exception $e) {
-            error_log("SSH method failed: " . $e->getMessage());
-            return $this->getVirtualMachinesAPI();
-        }
-    }
-
-    private function getVirtualMachinesAPI() {
-        if (!$this->db || !$this->nodeId) {
-            throw new Exception("Для API метода требуется подключение к БД и ID ноды");
-        }
-
-        $auth = new ProxmoxAuth($this->db, $this->nodeId, $this->host, $this->username, $this->password);
-        $ticket = $auth->getTicket();
-
-        $url = "https://{$this->host}:{$this->apiPort}/api2/json/nodes/{$this->nodeName}/qemu";
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                "Cookie: PVEAuthCookie=" . urlencode($ticket['ticket']),
-                "CSRFPreventionToken: " . $ticket['csrf_token']
-            ],
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_TIMEOUT => 10
-        ]);
-
-        $response = curl_exec($ch);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($error) {
-            throw new Exception("Ошибка API запроса: " . $error);
-        }
-
-        $data = json_decode($response, true);
-        if (empty($data['data'])) {
-            throw new Exception("Пустой ответ API");
-        }
-
-        return $this->parseVMResponse(json_encode($data['data']));
+        return $this->parseVMResponse(json_encode($this->apiClient->request('GET', '/nodes/'.$this->nodeName.'/qemu'), JSON_THROW_ON_ERROR));
     }
 
     public function getVNCConsole($vmid) {
-        try {
-            $vmid = (int)$vmid;
-            if ($vmid <= 0) {
-                throw new Exception("Неверный ID виртуальной машины");
-            }
-
-            if (empty($this->nodeName)) {
-                throw new Exception("Имя ноды не указано");
-            }
-
-            // Всегда используем API метод, если есть доступ к БД
-            if ($this->db && $this->nodeId) {
-                $auth = new ProxmoxAuth(
-                    $this->db,
-                    $this->nodeId,
-                    $this->host,
-                    $this->username,
-                    $this->password
-                );
-
-                $vncData = $auth->getVncProxy($vmid, $this->nodeName);
-
-                return [
-                    'hostname' => $this->host,
-                    'port' => $vncData['port'],
-                    'ticket' => $vncData['ticket'],
-                    'vmid' => $vmid,
-                    'node' => $this->nodeName,
-                    'apiPort' => $this->apiPort
-                ];
-            }
-
-            // Fallback на SSH метод (только если нет доступа к API)
-            $command = "pvesh create /nodes/{$this->nodeName}/qemu/{$vmid}/vncproxy --websocket 1 --output-format json";
-            $response = $this->execSSHCommand($command);
-
-            $data = json_decode($response, true);
-            if (empty($data['port']) || empty($data['ticket'])) {
-                throw new Exception("Неполные данные VNC");
-            }
-
-            return [
-                'hostname' => $this->host,
-                'port' => (int)$data['port'],
-                'ticket' => $data['ticket'],
-                'vmid' => $vmid,
-                'node' => $this->nodeName,
-                'apiPort' => $this->apiPort
-            ];
-
-        } catch (Exception $e) {
-            error_log("Ошибка в getVNCConsole() для ноды {$this->host}: " . $e->getMessage());
-            throw $e;
-        }
+        $vmid = filter_var($vmid, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if (!$vmid) throw new InvalidArgumentException('Некорректный VMID');
+        $data = $this->apiClient->request('POST', '/nodes/'.$this->nodeName.'/qemu/'.$vmid.'/vncproxy', ['websocket'=>1]);
+        return ['hostname'=>$this->host,'port'=>$data['port'],'ticket'=>$data['ticket'],'vmid'=>$vmid,'node'=>$this->nodeName,'apiPort'=>$this->apiPort];
     }
 
     public function getLxcStatus($vmid) {
@@ -1060,66 +965,21 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     }
 
     public function execSSHCommand($command) {
-        $stream = @ssh2_exec($this->ssh, $command);
-        if (!$stream) {
-            throw new Exception("Не удалось выполнить удаленную команду");
-        }
-
-        $errorStream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
-        stream_set_blocking($stream, true);
-        stream_set_blocking($errorStream, true);
-
-        $output = stream_get_contents($stream);
-        $error = stream_get_contents($errorStream);
-
-        fclose($stream);
-        fclose($errorStream);
-
-        if (!empty($error)) {
-            throw new Exception("Ошибка выполнения команды: " . trim($error));
-        }
-
-        return trim($output);
+        // Kept for old callers; requests are translated to HTTP and never reach a shell.
+        return $this->commandApi->execute($command);
     }
 
-    public function __destruct() {
-        if ($this->ssh && is_resource($this->ssh)) {
-            @ssh2_disconnect($this->ssh);
-        }
+    public function request($method, $path, array $parameters = []) {
+        return $this->apiClient->requestAndWait($method, $path, $parameters);
     }
 
     public function getNodeResources() {
-    try {
-        // CPU через top
-        $topCommand = "LC_ALL=C top -b -n 1 | grep '^%Cpu'";
-        $topResponse = $this->execSSHCommand($topCommand);
-        $cpuUsage = 0;
-        if (preg_match('/%Cpu\(s\):\s+([\d.]+)\s+us/', $topResponse, $matches)) {
-            $cpuUsage = (float)$matches[1];
-        }
-
-        // Память через free
-        $totalMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $2}'"));
-        $availMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $7}'"));
-        if ($availMemMB == 0) {
-            $freeMemMB = (int)trim($this->execSSHCommand("free -m | awk 'NR==2 {print $4}'"));
-            $availMemMB = $freeMemMB;
-        }
-
-        // Получаем список хранилищ (дисков) – переиспользуем метод getNodeStorages()
-        $storages = $this->getNodeStorages();
-
-        return [
-            'total_memory' => round($totalMemMB / 1024, 2),   // GB
-            'free_memory'  => round($availMemMB / 1024, 2),   // GB
-            'cpu_usage'    => round($cpuUsage, 2),            // %
-            'storages'     => $storages                       // массив хранилищ
-        ];
-    } catch (Exception $e) {
-        error_log("Error getting node resources: " . $e->getMessage());
-        throw new Exception("Could not get node resources: " . $e->getMessage());
+        $state = $this->apiClient->request('GET','/nodes/'.$this->nodeName.'/status');
+        $total = (float)($state['memory']['total']??0);
+        $used = (float)($state['memory']['used']??0);
+        return ['total_memory'=>round($total/1073741824,2), 'free_memory'=>round(max(0,$total-$used)/1073741824,2),
+            'cpu_usage'=>round((float)($state['cpu']??0)*100,2), 'storages'=>$this->getNodeStorages()];
     }
-}
 
     public function getNodeStorages() {
         try {
@@ -1413,39 +1273,12 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
     }
 
     public function execGuestCommand($vmid, $command) {
-    // Проверяем, что VM запущена
-    $status = $this->getVMStatus($vmid);
-    if ($status['status'] !== 'running') {
-        throw new Exception("VM is not running");
-    }
-
-    // Проверяем, что QEMU агент доступен
-    $agentStatus = $this->execSSHCommand("qm agent {$vmid} ping");
-    if (strpos($agentStatus, 'QEMU guest agent is not running') !== false) {
-        throw new Exception("QEMU agent is not running");
-    }
-
-    // Выполняем команду через QEMU агент
-    $fullCommand = "qm guest exec {$vmid} -- " . escapeshellcmd($command);
-    return $this->execSSHCommand($fullCommand);
+        throw new RuntimeException('Выполнение команд внутри гостевой ОС отключено; используйте API чтения состояния');
     }
 
     public function executeGuestCommand($vmid, $command) {
-    // Проверяем, что VM запущена
-    $status = $this->getVMStatus($vmid);
-    if ($status['status'] !== 'running') {
-        throw new Exception("VM {$vmid} is not running");
+        throw new RuntimeException('Выполнение команд внутри гостевой ОС отключено; используйте API чтения состояния');
     }
-
-    // Проверяем, что QEMU агент доступен
-    $agentStatus = $this->execSSHCommand("qm agent {$vmid} ping");
-    if (strpos($agentStatus, 'QEMU guest agent is not running') !== false) {
-        throw new Exception("QEMU agent is not running for VM {$vmid}");
-    }
-
-    // Выполняем команду через QEMU агент
-    return $this->execSSHCommand($command);
-}
 
     public function getVMInfo($vmid) {
     // Получаем полную конфигурацию ВМ
@@ -1513,24 +1346,8 @@ private function getPrimaryStorage($config) {
 }
 
 public function executeLxcCommand($vmid, $command) {
-    try {
-        // Проверяем, что контейнер запущен
-        $status = $this->getLxcStatus($vmid);
-        if (!$status['is_running']) {
-            throw new Exception("LXC container {$vmid} is not running");
-        }
-
-        // Формируем полную команду для выполнения внутри контейнера
-        $fullCommand = "pct exec {$vmid} -- " . escapeshellcmd($command);
-
-        // Выполняем команду через SSH
-        return $this->execSSHCommand($fullCommand);
-
-    } catch (Exception $e) {
-        error_log("[ProxmoxAPI] Error executing LXC command: " . $e->getMessage());
-        throw new Exception("Failed to execute LXC command: " . $e->getMessage());
+        throw new RuntimeException('Выполнение команд внутри гостевой ОС отключено; используйте API чтения состояния');
     }
-}
 
 public function getLXCStatusMetric($vmId) {
     $command = "pvesh get /nodes/{$this->nodeName}/lxc/{$vmId}/status/current --output-format json";
@@ -1970,227 +1787,25 @@ public function getLxcConfig($vmid) {
 }
 
 public function getVncTicket($node, $vmid, $vmType = 'qemu') {
-        if (!function_exists('ssh2_connect')) {
-            throw new Exception("Требуется SSH2 расширение PHP");
-        }
-
-        // Подключаемся к серверу
-        $ssh = ssh2_connect($this->host, 22);
-        if (!$ssh) {
-            throw new Exception("Ошибка подключения к {$this->host}");
-        }
-
-        if (!ssh2_auth_password($ssh, $this->username, $this->password)) {
-            throw new Exception("Ошибка аутентификации SSH");
-        }
-
-        // Формируем команду pvesh
-        $cmd = sprintf(
-            'pvesh create /nodes/%s/%s/%s/vncproxy --output-format json',
-            escapeshellarg($node),
-            escapeshellarg($vmType),
-            escapeshellarg($vmid)
-        );
-
-        // Выполняем команду
-        $stream = ssh2_exec($ssh, $cmd);
-        if (!$stream) {
-            throw new Exception("Ошибка выполнения команды pvesh");
-        }
-
-        stream_set_blocking($stream, true);
-        $output = stream_get_contents($stream);
-        fclose($stream);
-        ssh2_disconnect($ssh);
-
-        if (empty($output)) {
-            throw new Exception("Пустой ответ от pvesh");
-        }
-
-        $data = json_decode($output, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Ошибка парсинга JSON: " . json_last_error_msg());
-        }
-
-        if (!isset($data['data']['ticket'])) {
-            throw new Exception("Неверный формат ответа от pvesh");
-        }
-
-        return $data['data']['ticket'];
-    }
-
-    public function login($username, $password) {
-        $url = "https://{$this->host}:{$this->port}/api2/json/access/ticket";
-
-        $postData = [
-            'username' => $username,
-            'password' => $password
-        ];
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        if ($httpCode !== 200) {
-            throw new Exception("Ошибка аутентификации. Код: {$httpCode}");
-        }
-
-        $data = json_decode($response, true);
-
-        if (!$data || !isset($data['data'])) {
-            throw new Exception("Неверный формат ответа от сервера Proxmox");
-        }
-
-        return $data['data'];
-    }
-
-    public function apiLogin() {
-    $url = "https://{$this->host}:{$this->apiPort}/api2/json/access/ticket";
-
-    $postData = [
-        'username' => $this->username,
-        'password' => $this->password
-    ];
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    if ($httpCode !== 200) {
-        throw new Exception("Ошибка аутентификации API. Код: {$httpCode}");
-    }
-
-    $data = json_decode($response, true);
-    return $data['data'] ?? null;
+    if ($node !== $this->nodeName || !in_array($vmType,['qemu','lxc'],true) || !ctype_digit((string)$vmid) || (int)$vmid<1) throw new InvalidArgumentException('Некорректная консоль');
+    $ticket=$this->apiClient->request('POST','/nodes/'.$this->nodeName.'/'.$vmType.'/'.(int)$vmid.'/vncproxy',['websocket'=>1]);
+    return $ticket['ticket'];
 }
-
-public function getAPITicket() {
-        $url = "https://{$this->host}:{$this->apiPort}/api2/json/access/ticket";
-
-        $postData = [
-            'username' => $this->username,
-            'password' => $this->password
-        ];
-
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query($postData),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded'
-            ]
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($httpCode !== 200) {
-            error_log("Proxmox API Auth Failed. Code: {$httpCode}, Error: {$error}");
-            throw new Exception("Ошибка аутентификации. Проверьте учетные данные");
-        }
-
-        $data = json_decode($response, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("JSON decode error: " . json_last_error_msg());
-            throw new Exception("Ошибка обработки ответа сервера");
-        }
-
-        return $data['data'] ?? null;
-    }
-
-    public function getTicketViaSSH() {
-    $this->connect(); // Устанавливаем SSH соединение
-
-    $command = "pvesh get /access/ticket --username " . escapeshellarg($this->username) .
-        " --password " . escapeshellarg($this->password) . " --output-format json";
-    $stream = ssh2_exec($this->ssh, $command);
-
-    stream_set_blocking($stream, true);
-    $response = stream_get_contents($stream);
-    fclose($stream);
-
-    $data = json_decode($response, true);
-    return $data['data'] ?? null;
+public function login($username, $password) {
+    $client=new ProxmoxApiClient(['hostname'=>$this->host,'api_port'=>$this->apiPort,'username'=>$username,'password'=>$password]);
+    return $client->getPasswordTicket();
 }
+public function apiLogin() { return $this->apiClient->getPasswordTicket(); }
+public function getAPITicket() { return $this->apiClient->getPasswordTicket(); }
+public function getTicketViaSSH() { return $this->apiClient->getPasswordTicket(); }
+
 public function getAvailableTemplates() {
-        try {
-            // Сначала обновляем список (тихо, чтобы не мешать)
-            $this->execSSHCommand("pveam update 2>/dev/null || true");
-
-            // Пробуем получить в формате JSON
-            $cmd = "pveam available --output-format json 2>/dev/null || echo '[]'";
-            $output = $this->execSSHCommand($cmd);
-
-            $templates = json_decode($output, true);
-
-            if (json_last_error() === JSON_ERROR_NONE && is_array($templates) && !empty($templates)) {
-                return $templates;
-            }
-
-            // Если JSON не удался, парсим текстовый вывод
-            $cmd = "pveam available 2>/dev/null | tail -n +2";
-            $output = $this->execSSHCommand($cmd);
-            $lines = explode("\n", trim($output));
-
-            $templates = [];
-            foreach ($lines as $line) {
-                if (empty($line)) continue;
-
-                // Формат: "section template_name size"
-                // Пример: "system alpine-3.18-default_20230608_amd64.tar.xz 2.21MB"
-                $parts = preg_split('/\s+/', $line, 3);
-                if (count($parts) >= 2) {
-                    $template = [
-                        'section' => $parts[0],
-                        'name' => $parts[1],
-                        'id' => $parts[1]
-                    ];
-
-                    if (count($parts) >= 3) {
-                        $template['size'] = $parts[2];
-                    }
-
-                    $templates[] = $template;
-                }
-            }
-
-            return $templates;
-
-        } catch (Exception $e) {
-            error_log("Ошибка получения списка шаблонов: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Скачать шаблон из репозитория в хранилище
-     */
-    public function downloadTemplate($storage, $templateName) {
-        $cmd = "pveam download {$storage} '{$templateName}' 2>&1";
-        return $this->execSSHCommand($cmd);
-    }
+    $rows=$this->apiClient->request('GET','/nodes/'.$this->nodeName.'/aplinfo');
+    foreach($rows as&$row){$row['name']=$row['template']??$row['name']??'';$row['id']=$row['name'];}unset($row);
+    return $rows;
 }
-
-
+public function downloadTemplate($storage, $templateName) {
+    if(!preg_match('/^[A-Za-z0-9_.-]+$/D',$storage)||!preg_match('/^[A-Za-z0-9_.+-]+$/D',$templateName))throw new InvalidArgumentException('Некорректный шаблон');
+    return $this->apiClient->requestAndWait('POST','/nodes/'.$this->nodeName.'/aplinfo',['storage'=>$storage,'template'=>$templateName],600);
+}
+}

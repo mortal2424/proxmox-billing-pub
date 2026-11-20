@@ -4,6 +4,8 @@ session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once 'admin_functions.php';
+require_once __DIR__.'/../includes/node_admin_guard.php';
+header('Cache-Control: no-store');
 
 if (!isAdmin()) {
     header('HTTP/1.1 403 Forbidden');
@@ -17,9 +19,10 @@ if (!isset($_GET['id'])) {
 
 $db = new Database();
 $pdo = $db->getConnection();
+requireNodeAdministrator($pdo);
 
 $nodeId = intval($_GET['id']);
-$stmt = $pdo->prepare("SELECT * FROM proxmox_nodes WHERE id = ?");
+$stmt = $pdo->prepare("SELECT * FROM proxmox_nodes WHERE id = ? AND is_active=1");
 $stmt->execute([$nodeId]);
 $node = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -34,7 +37,7 @@ if (empty($node['hostname']) || empty($node['username']) || empty($node['passwor
 }
 
 try {
-    $info = getNodeSSHInfo($node['hostname'], $node['username'], decryptNodePassword($node['password']));
+    $info = getNodeSSHInfo($node['hostname'], $node['username'], decryptNodePassword($node['password']), $node);
     header('Content-Type: application/json');
     echo json_encode($info);
 } catch (Exception $e) {
