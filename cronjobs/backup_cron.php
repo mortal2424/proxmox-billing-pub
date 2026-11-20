@@ -3,6 +3,11 @@ require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/backup_functions.php';
 
+$backupLock = fopen(sys_get_temp_dir() . '/homevlad-backup-scheduler.lock', 'c');
+if (!$backupLock || !flock($backupLock, LOCK_EX | LOCK_NB)) {
+    exit(0);
+}
+
 // Логирование
 $log_file = __DIR__ . '/../logs/backup_cron.log';
 $log_dir = dirname($log_file);

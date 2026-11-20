@@ -20,7 +20,7 @@ foreach ($pdo->query('SELECT id, hostname, api_port FROM proxmox_nodes WHERE is_
     }
     $curl = curl_init("https://$host:$port/api2/json/version");
     curl_setopt_array($curl, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_NOBODY => true,
+        CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => false, CURLOPT_CONNECTTIMEOUT => 3,
         CURLOPT_TIMEOUT => 5, CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
