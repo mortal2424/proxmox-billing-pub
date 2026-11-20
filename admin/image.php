@@ -9,11 +9,15 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
 require_once __DIR__ . '/admin_functions.php';
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/../includes/node_api_credentials.php';
+header('Cache-Control: no-store');
 
 checkAuth();
 
 $db = new Database();
 $pdo = $db->getConnection();
+requireNodeAdministrator($pdo);
 $user_id = $_SESSION['user']['id'];
 
 // Проверяем, является ли пользователь администратором
@@ -44,8 +48,9 @@ try {
 }
 
 // Устанавливаем текущую ноду и тип образа
-$current_node_id = $_GET['node_id'] ?? null;
-$image_type = $_GET['type'] ?? 'iso'; // 'iso', 'lxc' или 'templates'
+$current_node_id = filter_var($_GET['node_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: null;
+$image_type = $_GET['type'] ?? 'iso';
+if (!in_array($image_type, ['iso','lxc','templates'], true)) $image_type='iso'; // 'iso', 'lxc' или 'templates'
 
 // Определяем, находимся ли мы в разделе шаблонов из репозитория
 $is_templates_section = ($image_type === 'templates');
@@ -78,98 +83,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image_file']) && !$i
         }
 
         // Получаем информацию о ноде
-        $node_stmt = safeQuery($pdo, "SELECT * FROM proxmox_nodes WHERE id = ?", [$node_id], 'proxmox_nodes');
+        $node_stmt = safeQuery($pdo, "SELECT * FROM proxmox_nodes WHERE id = ? AND is_active=1", [$node_id], 'proxmox_nodes');
         $node = $node_stmt->fetch();
         if (!$node) throw new Exception('Нода не найдена');
 
-        // Проверяем расширение файла
-        $filename = $image_file['name'];
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        if ($image_type_post === 'iso') {
-            if (!in_array($extension, ['iso', 'img'])) {
-                throw new Exception('ISO файлы должны иметь расширение .iso или .img');
-            }
-        } elseif ($image_type_post === 'lxc') {
-            $allowed_extensions = ['gz', 'xz'];
-            $filename_lower = strtolower($filename);
-            $is_tar_gz = substr($filename_lower, -7) === '.tar.gz' || substr($filename_lower, -8) === '.tar.xz';
-            $is_gz_xz = in_array($extension, ['gz', 'xz']) && !$is_tar_gz;
-
-            if (!$is_tar_gz && !$is_gz_xz) {
-                throw new Exception('Шаблоны LXC должны иметь расширение .tar.gz, .tar.xz, .gz или .xz');
-            }
+        $filename = (string)$image_file['name'];
+        if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_.+-]{0,254}$/D', $filename) ||
+            !in_array($image_type_post, ['iso','lxc'], true)) {
+            throw new Exception('Некорректное имя или тип образа');
         }
-
-        // Создаем временную директорию если не существует
-        $temp_dir = __DIR__ . '/../temp_uploads/';
-        if (!file_exists($temp_dir)) {
-            mkdir($temp_dir, 0755, true);
+        if (($image_type_post === 'iso' && !preg_match('/\.iso$/iD',$filename)) ||
+            ($image_type_post === 'lxc' && !preg_match('/\.tar\.(?:gz|xz|zst)$/iD',$filename))) {
+            throw new Exception('Поддерживаются .iso и шаблоны .tar.gz, .tar.xz, .tar.zst');
         }
-
-        // Генерируем уникальное имя файла
-        $temp_filename = uniqid('upload_') . '_' . basename($filename);
-        $temp_path = $temp_dir . $temp_filename;
-
-        // Перемещаем загруженный файл
-        if (!move_uploaded_file($image_file['tmp_name'], $temp_path)) {
-            throw new Exception('Не удалось сохранить загруженный файл');
-        }
-
-        // Подключаемся к Proxmox через API
-        $proxmoxApi = new ProxmoxAPI(
-            $node['hostname'],
-            $node['username'],
-            $node['password'],
-            $node['ssh_port'] ?? 22,
-            $node['node_name'],
-            $node['id'],
-            $pdo
-        );
-
-        // Копируем файл на ноду через SCP
-        $temp_path_on_node = "/tmp/" . basename($filename);
-        $scp_command = "scp -P " . ($node['ssh_port'] ?? 22) . " -o StrictHostKeyChecking=no -o ConnectTimeout=10 " .
-                      escapeshellarg($temp_path) . " " .
-                      escapeshellarg($node['username'] . "@" . $node['hostname'] . ":" . $temp_path_on_node);
-
-        exec($scp_command, $output, $return_code);
-
-        if ($return_code !== 0) {
-            throw new Exception("Ошибка копирования файла на ноду (код: $return_code)");
-        }
-
-        // Определяем команду для загрузки в хранилище
-        $content_type = $image_type_post === 'iso' ? 'iso' : 'vztmpl';
-
-        // Проверяем существование файла на ноде
-        $check_cmd = "test -f " . escapeshellarg($temp_path_on_node);
-        try {
-            $proxmoxApi->execSSHCommand($check_cmd);
-        } catch (Exception $e) {
-            throw new Exception("Файл не найден на ноде после копирования");
-        }
-
-        // Загружаем в хранилище
-        $upload_cmd = "pvesh create /nodes/{$node['node_name']}/storage/{$storage_name}/upload " .
-                     "--content {$content_type} " .
-                     "--filename " . escapeshellarg(basename($filename)) . " " .
-                     "--tmpfile " . escapeshellarg($temp_path_on_node);
-
-        try {
-            $proxmoxApi->execSSHCommand($upload_cmd);
-        } catch (Exception $e) {
-            throw new Exception("Ошибка загрузки в хранилище: " . $e->getMessage());
-        }
-
-        // Удаляем временные файлы
-        try {
-            $proxmoxApi->execSSHCommand("rm -f " . escapeshellarg($temp_path_on_node));
-        } catch (Exception $e) {
-            error_log("Не удалось удалить временный файл на ноде: " . $e->getMessage());
-        }
-
-        @unlink($temp_path);
+        if (!is_uploaded_file($image_file['tmp_name'])) throw new Exception('Не найден загруженный файл');
+        $api = new ProxmoxApiClient(panelNodeApiCredentials($node));
+        // Stream the PHP upload directly; never create publicly accessible temporary copies.
+        set_time_limit(3600);
+        $api->uploadImage($node['node_name'], $storage_name, $image_file['tmp_name'], $filename,
+            $image_type_post === 'iso' ? 'iso' : 'vztmpl');
 
         $uploaded_filename = $filename;
         $success = $image_type_post === 'iso'
@@ -202,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if (empty($template_name)) throw new Exception('Не выбран шаблон');
 
         // Получаем информацию о ноде
-        $node_stmt = safeQuery($pdo, "SELECT * FROM proxmox_nodes WHERE id = ?", [$node_id], 'proxmox_nodes');
+        $node_stmt = safeQuery($pdo, "SELECT * FROM proxmox_nodes WHERE id = ? AND is_active=1", [$node_id], 'proxmox_nodes');
         $node = $node_stmt->fetch();
         if (!$node) throw new Exception('Нода не найдена');
 
@@ -217,21 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pdo
         );
 
-        // Обновляем список доступных шаблонов (если давно не обновлялось)
-        $proxmoxApi->execSSHCommand("pveam update 2>/dev/null || true");
-
-        // Скачиваем шаблон в указанное хранилище
-        $download_cmd = "pveam download {$storage_name} {$template_name} 2>&1";
-        $output = $proxmoxApi->execSSHCommand($download_cmd);
-
-        // Проверяем успешность выполнения
-        if (strpos($output, 'downloaded') !== false || strpos($output, 'already exists') !== false || strpos($output, '100%') !== false) {
-            $success = "Шаблон '{$template_name}' успешно скачан в хранилище '{$storage_name}'";
-        } else if (strpos($output, 'not found') !== false) {
-            throw new Exception("Шаблон не найден в репозитории. Возможно, устаревший список шаблонов. Попробуйте обновить список.");
-        } else {
-            throw new Exception("Ошибка скачивания шаблона: " . $output);
-        }
+        $proxmoxApi->downloadTemplate($storage_name, $template_name);
+        $success = "Шаблон '{$template_name}' успешно скачан в хранилище '{$storage_name}'";
 
         // Обновляем страницу для показа новых данных
         header("Location: image.php?node_id={$node_id}&type=templates&success=" . urlencode($success));
@@ -242,41 +161,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Обработка обновления списка шаблонов
-if (isset($_GET['update_templates']) && $current_node_id) {
-    try {
-        if ($current_node) {
-            $proxmoxApi = new ProxmoxAPI(
-                $current_node['hostname'],
-                $current_node['username'],
-                $current_node['password'],
-                $current_node['ssh_port'] ?? 22,
-                $current_node['node_name'],
-                $current_node['id'],
-                $pdo
-            );
-
-            $result = $proxmoxApi->execSSHCommand("pveam update 2>&1");
-
-            if (strpos($result, 'update successful') !== false || strpos($result, 'already up-to-date') !== false) {
-                $success = "Список шаблонов успешно обновлен";
-            } else {
-                $success = "Список шаблонов обновлен: " . $result;
-            }
-
-            header("Location: image.php?node_id=$current_node_id&type=templates&success=" . urlencode($success));
-            exit;
-        }
-    } catch (Exception $e) {
-        $error = "Ошибка обновления списка шаблонов: " . $e->getMessage();
-    }
-}
-
 // Получаем информацию о текущей ноде
 $current_node = null;
 $storages = [];
 $images = [];
 $available_templates = [];
+$image_delete_permissions = [];
 
 if ($current_node_id) {
     // Находим выбранную ноду
@@ -300,8 +190,18 @@ if ($current_node_id) {
                 $pdo
             );
 
+            $permissions = $proxmoxApi->request('GET','/access/permissions');
+            foreach ($permissions as $path => $grants) {
+                if (str_starts_with($path,'/storage/') && !empty($grants['Datastore.Allocate'])) {
+                    $image_delete_permissions[substr($path,9)] = true;
+                }
+            }
+            if (!empty($permissions['/storage']['Datastore.Allocate']) || !empty($permissions['/']['Datastore.Allocate'])) {
+                $image_delete_permissions['*'] = true;
+            }
+
             // Получаем все хранилища
-            $all_storages = $proxmoxApi->getNodeStorages();
+            $all_storages = $proxmoxApi->getNodeStorages(null);
 
             // Фильтруем хранилища по типу контента
             foreach ($all_storages as $storage) {
@@ -335,9 +235,9 @@ if ($current_node_id) {
 }
 
 // Обработка удаления образа
-if (isset($_GET['delete']) && isset($_GET['volid']) && $current_node_id && !$is_templates_section) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_image' && $current_node_id && !$is_templates_section) {
     try {
-        $volid = $_GET['volid'];
+        $volid = (string)($_POST['volid'] ?? '');
 
         if ($current_node) {
             $proxmoxApi = new ProxmoxAPI(
@@ -350,18 +250,16 @@ if (isset($_GET['delete']) && isset($_GET['volid']) && $current_node_id && !$is_
                 $pdo
             );
 
-            // Разбираем volid на части
-            $parts = explode(':', $volid);
-            if (count($parts) < 2) {
-                throw new Exception("Неверный формат volid");
+            $content = $image_type === 'iso' ? 'iso' : 'vztmpl';
+            if (!preg_match('#^([A-Za-z0-9_.-]+):'. $content .'/[A-Za-z0-9_.+-]+$#D', $volid, $match)) {
+                throw new Exception('Неверный идентификатор образа');
             }
-
-            $storage_name = $parts[0];
-            $filename = $parts[1];
-
-            // Удаляем файл через SSH команду
-            $delete_cmd = "pvesh delete /nodes/{$current_node['node_name']}/storage/{$storage_name}/content/{$filename}";
-            $proxmoxApi->execSSHCommand($delete_cmd);
+            if (empty($image_delete_permissions[$match[1]]) && empty($image_delete_permissions['*'])) {
+                throw new Exception('Удаление образов недоступно текущему токену Proxmox: требуется Datastore.Allocate на хранилище');
+            }
+            // Full volid must remain one URL segment; omitting the storage prefix is invalid.
+            $proxmoxApi->request('DELETE', '/nodes/'.rawurlencode($current_node['node_name']).
+                '/storage/'.$match[1].'/content/'.rawurlencode($volid));
 
             $success = "Образ успешно удален";
             // Обновляем список образов
@@ -1268,12 +1166,12 @@ $title = "Управление образами | HomeVlad Cloud";
                                                 </td>
                                                 <td>
                                                     <span class="template-size">
-                                                        <?= is_numeric($size) ? formatBytess((float)$size) : (string)$size ?>
+                                                        <?= htmlspecialchars(is_numeric($size) ? formatBytess((float)$size) : (string)$size, ENT_QUOTES) ?>
                                                     </span>
                                                 </td>
                                                 <td>
                                                     <button class="btn-download"
-                                                            onclick="showDownloadModal('<?= htmlspecialchars($template_name) ?>', '<?= htmlspecialchars($section) ?>')">
+                                                            onclick="showDownloadModal(<?= htmlspecialchars(json_encode($template_name), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($section), ENT_QUOTES) ?>)">
                                                         <i class="fas fa-download"></i> Скачать
                                                     </button>
                                                 </td>
@@ -1293,6 +1191,7 @@ $title = "Управление образами | HomeVlad Cloud";
                         <h3><i class="fas fa-upload"></i> Загрузить <?= $image_type === 'iso' ? 'ISO образ' : 'шаблон LXC' ?></h3>
 
                         <form method="POST" enctype="multipart/form-data" class="upload-form" id="upload-form">
+                            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
                             <input type="hidden" name="node_id" value="<?= $current_node_id ?>">
                             <input type="hidden" name="image_type" value="<?= $image_type ?>">
 
@@ -1309,9 +1208,9 @@ $title = "Управление образами | HomeVlad Cloud";
                                 </select>
                                 <small class="text-muted">
                                     <?php if ($image_type === 'iso'): ?>
-                                        Поддерживаемые форматы: .iso, .img
+                                        Поддерживаемый формат: .iso
                                     <?php else: ?>
-                                        Поддерживаемые форматы: .tar.gz, .tar.xz, .gz, .xz
+                                        Поддерживаемые форматы: .tar.gz, .tar.xz, .tar.zst
                                     <?php endif; ?>
                                 </small>
                             </div>
@@ -1329,7 +1228,7 @@ $title = "Управление образами | HomeVlad Cloud";
                                     <div class="file-name" id="file-name"></div>
                                     <input type="file" name="image_file" class="file-input"
                                            id="image-file" required
-                                           accept="<?= $image_type === 'iso' ? '.iso,.img' : '.tar.gz,.tar.xz,.gz,.xz' ?>">
+                                           accept="<?= $image_type === 'iso' ? '.iso' : '.tar.gz,.tar.xz,.tar.zst' ?>">
                                 </div>
                             </div>
 
@@ -1360,6 +1259,9 @@ $title = "Управление образами | HomeVlad Cloud";
                                 Нет <?= $image_type === 'iso' ? 'ISO образов' : 'шаблонов LXC' ?>
                             </div>
                         <?php else: ?>
+                            <?php if (empty($image_delete_permissions)): ?>
+                                <div class="notification notification-warning">Текущий токен позволяет загружать образы. Удаление требует права Datastore.Allocate, которое также разрешает менять настройки хранилища. Для удаления используйте интерфейс Proxmox.</div>
+                            <?php endif; ?>
                             <div class="table-responsive">
                                 <table class="images-table">
                                     <thead>
@@ -1387,17 +1289,17 @@ $title = "Управление образами | HomeVlad Cloud";
                                                 </td>
                                                 <td>
                                                     <span class="image-size">
-                                                        <?= is_numeric($size) ? formatBytess((float)$size) : (string)$size ?>
+                                                        <?= htmlspecialchars(is_numeric($size) ? formatBytess((float)$size) : (string)$size, ENT_QUOTES) ?>
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <?php if (!empty($volid)): ?>
+                                                    <?php if (!empty($volid) && (!empty($image_delete_permissions[$storage]) || !empty($image_delete_permissions['*']))): ?>
                                                         <button class="btn-delete"
-                                                                onclick="confirmDelete('<?= htmlspecialchars($volid) ?>')">
+                                                                onclick="confirmDelete(<?= htmlspecialchars(json_encode($volid), ENT_QUOTES) ?>)">
                                                             <i class="fas fa-trash"></i> Удалить
                                                         </button>
                                                     <?php else: ?>
-                                                        <span class="text-muted">Нет данных</span>
+                                                        <span class="text-muted" title="Для удаления Proxmox требует Datastore.Allocate на хранилище">Удаление недоступно токену</span>
                                                     <?php endif; ?>
                                                 </td>
                                             </tr>
@@ -1421,6 +1323,7 @@ $title = "Управление образами | HomeVlad Cloud";
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" id="download-template-form">
+                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
                     <div class="modal-body">
                         <input type="hidden" name="action" value="download_template">
                         <input type="hidden" name="node_id" id="modal-node-id" value="<?= $current_node_id ?>">
@@ -1642,7 +1545,14 @@ $title = "Управление образами | HomeVlad Cloud";
                         const nodeId = urlParams.get('node_id');
                         const type = urlParams.get('type') || 'iso';
 
-                        window.location.href = `image.php?node_id=${nodeId}&type=${type}&delete=1&volid=${encodeURIComponent(volid)}`;
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = `image.php?node_id=${encodeURIComponent(nodeId || <?= json_encode((string)$current_node_id) ?>)}&type=${encodeURIComponent(type)}`;
+                        const fields = {action:'delete_image', volid, node_csrf:<?= json_encode($_SESSION['node_csrf']) ?>};
+                        for (const [name,value] of Object.entries(fields)) {
+                            const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;form.appendChild(input);
+                        }
+                        document.body.appendChild(form);form.submit();
                     }
                 });
             };
@@ -1714,7 +1624,7 @@ $title = "Управление образами | HomeVlad Cloud";
                     }
                 });
 
-                window.location.href = `image.php?node_id=${nodeId}&type=templates&update_templates=1`;
+                window.location.href = `image.php?node_id=${nodeId}&type=templates`;
             };
 
             // Мобильное меню

@@ -64,6 +64,24 @@ final class ProxmoxApiClient
         return $this->exchange($method, $path, $parameters, $headers);
     }
 
+    public function uploadImage(string $node, string $storage, string $file, string $filename, string $content): mixed
+    {
+        if (!preg_match('/^[A-Za-z0-9_.-]+$/D',$node) || !preg_match('/^[A-Za-z0-9_.-]+$/D',$storage)) {
+            throw new InvalidArgumentException('Некорректное хранилище');
+        }
+        require_once __DIR__.'/ProxmoxUpload.php';
+        if ($this->token) {
+            $headers=['Authorization: PVEAPIToken='.$this->username.'='.$this->secret];
+        } else {
+            $ticket=$this->getPasswordTicket();
+            $headers=['Cookie: PVEAuthCookie='.rawurlencode($ticket['ticket']), 'CSRFPreventionToken: '.$ticket['CSRFPreventionToken']];
+        }
+        $result=ProxmoxUpload::send($this->baseUrl.'/nodes/'.$node.'/storage/'.$storage.'/upload',
+            $this->tls,$headers,$file,$filename,$content);
+        if(is_string($result)&&str_starts_with($result,'UPID:'))$this->waitForTask($result,600);
+        return $result;
+    }
+
     public function getPasswordTicket(): array
     {
         if ($this->token) throw new RuntimeException('API-токен не использует парольные билеты');

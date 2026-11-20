@@ -981,7 +981,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             'cpu_usage'=>round((float)($state['cpu']??0)*100,2), 'storages'=>$this->getNodeStorages()];
     }
 
-    public function getNodeStorages() {
+    public function getNodeStorages(?string $requiredContent = 'images') {
         try {
             $command = "pvesh get /nodes/{$this->nodeName}/storage --output-format json";
             $response = $this->execSSHCommand($command);
@@ -1005,7 +1005,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                     }
 
                     // Включаем только хранилища, содержащие 'images' в content
-                    if (!isset($storage['content']) || strpos($storage['content'], 'images') === false) {
+                    if ($requiredContent !== null && (!isset($storage['content']) || !in_array($requiredContent, explode(',', $storage['content']), true))) {
                         continue;
                     }
 

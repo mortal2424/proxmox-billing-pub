@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/ssh_functions.php';
+require_once __DIR__ . '/../includes/node_api_info.php';
 require_once __DIR__ . '/../includes/config.php';
 
 // Используем PHPMailer для отправки email

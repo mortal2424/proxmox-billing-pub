@@ -114,20 +114,3 @@ foreach ($nodes as $node) {
 
 $log('=== Обновление статистики завершено ===');
 exit(0);
-
-function execSSHCommand($connection, $command) {
-    $stream = @ssh2_exec($connection, $command);
-    if (!$stream) {
-        throw new Exception("Не удалось выполнить команду: $command");
-    }
-
-    stream_set_blocking($stream, true);
-    $output = stream_get_contents($stream);
-    fclose($stream);
-
-    if ($output === false) {
-        throw new Exception("Ошибка чтения вывода команды");
-    }
-
-    return trim($output);
-}
