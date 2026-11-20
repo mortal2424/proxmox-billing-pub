@@ -30,7 +30,7 @@ for row in git("diff", "--name-status", "--no-renames", base, target).decode().s
         continue
     if status == "D":
         parser.error("Deletion needs a separately reviewed migration: " + path)
-    if not re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9_./ -]*", path) or ".." in path.split("/"):
+    if (path != ".htaccess" and not re.fullmatch(r"[A-Za-z0-9_-][A-Za-z0-9_./ -]*", path)) or ".." in path.split("/"):
         parser.error("Unsupported path: " + path)
     if path.startswith(("uploads/", "logs/", "backups/", "vendor/")) or path == "includes/config.php":
         parser.error("Runtime/configuration path: " + path)

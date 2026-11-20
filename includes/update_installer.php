@@ -4,7 +4,7 @@ require_once __DIR__ . '/version.php';
 
 function updateTarget(string $root, string $path): string
 {
-    if (!preg_match('~^[A-Za-z0-9_-][A-Za-z0-9_./ -]*$~D', $path) ||
+    if (($path !== '.htaccess' && !preg_match('~^[A-Za-z0-9_-][A-Za-z0-9_./ -]*$~D', $path)) ||
         (in_array('..', explode('/', $path), true) || in_array('.', explode('/', $path), true)) || str_contains($path, '//') ||
         preg_match('~^(?:vendor|uploads|logs|backups|\.git)(?:/|$)|^includes/config\.php$~', $path)) {
         throw new RuntimeException('Недопустимый путь обновления');
