@@ -43,6 +43,9 @@ function previewUpdate(string $root, array $manifest): array
 
 function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null): void
 {
+    if ($connect) {
+        $pdo = $connect();
+    }
     $storage = $root . '/backups/updates';
     if (!is_dir($storage) && !mkdir($storage, 0700, true)) {
         throw new RuntimeException('Не удалось создать каталог обновлений');
@@ -141,6 +144,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
                     unlink($storage . '/recovery.json');
                     return;
                 }
+                throw new RuntimeException('Результат фиксации не подтверждён');
             } catch (Throwable $verificationError) {
                 throw new RuntimeException('Не удалось проверить фиксацию БД. Сохранён журнал восстановления', 0, $error);
             }
