@@ -1,6 +1,6 @@
 # HomeVlad Cloud · Proxmox Billing
 
-Панель управления и биллинга для Proxmox VE. Текущая бета-версия — [v2.5.1-beta7](https://github.com/mortal2424/proxmox-billing-pub/releases/tag/v2.5.1-beta7).
+Панель управления и биллинга для Proxmox VE. Текущая бета-версия — [v2.5.1-beta8](https://github.com/mortal2424/proxmox-billing-pub/releases/tag/v2.5.1-beta8).
 
 - Управление узлами и логическими кластерами, создание и мониторинг ВМ QEMU и контейнеров LXC.
 - Тарифы, квоты, пополнение баланса и автоматические списания.
@@ -14,7 +14,7 @@
 Понадобятся Git, Docker с Compose v2, домен с DNS-записью на сервер и доступные входящие порты 80 и 443. Для выпуска сертификата Let's Encrypt порт 80 должен быть свободен на время запуска `init-ssl`.
 
 ```sh
-git clone --branch v2.5.1-beta7 https://github.com/mortal2424/proxmox-billing-pub.git
+git clone --branch v2.5.1-beta8 https://github.com/mortal2424/proxmox-billing-pub.git
 cd proxmox-billing-pub
 cp .env.example .env
 chmod 600 .env
@@ -41,7 +41,7 @@ mkdir -p webroot uploads logs backups docker/proxmox-tls
 
 ```sh
 git fetch origin --tags
-git switch --detach v2.5.1-beta7
+git switch --detach v2.5.1-beta8
 docker compose up -d --build
 docker compose ps
 ```
@@ -76,6 +76,8 @@ docker compose -f docker-compose.yml -f docker-compose.phpmyadmin.yml up -d phpm
 | --- | --- | --- |
 | Каждый час | `admin/cron_charge.php` | Списания по тарифам. Достаточно одного задания |
 | Каждые 5 минут | `admin/update_node_stats.php` | Статистика узлов |
+| Каждые 5 минут | `cronjobs/check_node_health.php` | Доступность API гипервизоров |
+| Каждую минуту | `cronjobs/backup_cron.php` | Запуск резервных копий по сохранённым расписаниям |
 | Каждые 5 минут | `api/collect_lxc_metrics.php`, `api/collect_vm_metrics.php` | Метрики LXC и ВМ, два задания |
 | Каждые 2 часа | `api/update_proxmox_tickets.php` | Обновление билетов Proxmox |
 | Каждую минуту | `includes/vm_ip_updater.php` | Обновление IP-адресов |
@@ -159,6 +161,16 @@ php docs/seed-user-guides.php
 свежесть данных из `node_stats` по активным гипервизорам, доступным
 пользователям. Для обновления замеров используйте штатное задание
 `admin/update_node_stats.php`.
+
+## Обновления через панель
+
+В разделе «Обновления» администратор получает каталог выпусков из `updates/index.json` официального репозитория. Перед установкой проверяются SHA-256 и локальные изменения файлов. При конфликтах весь пакет останавливается для ручного слияния. Changelog доступен до запуска установки. Подготовка пакетов и восстановление описаны в [инструкции обновлятора](updates/README.md).
+
+В `v2.5.1-beta8` пакеты обновляют файлы и транзакционно записывают версию в БД. Миграции схемы базы и удаление файлов требуют отдельной реализации. Во время установки панель временно отвечает HTTP 503. Если установка аварийно прервалась, сохранённый журнал блокирует работу до проверки и восстановления.
+
+## Приложения iOS и Android
+
+Исходники и инструкции сборки находятся в [mobile](mobile/README.md). Один клиент поддерживает пользователя и администратора. Нативный обзор использует `api/mobile_dashboard.php`, а операции выполняются через кабинет с той же сессией. Debug подключается к dev.homevlad.ru, Release — к homevlad.ru.
 
 ## Скриншоты
 
