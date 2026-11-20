@@ -1,5 +1,7 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/maintenance.php';
+ensureApplicationAvailable();
+require_once __DIR__ . '/config.php';
 
 class Database {
     private $pdo;

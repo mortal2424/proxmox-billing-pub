@@ -13,22 +13,14 @@ if (!isAdmin()) {
 $db = new Database();
 $pdo = $db->getConnection();
 
-// Получаем ноды с количеством ВМ (административных)
+// Получаем ноды (без подсчета ВМ из БД, статистика будет загружена асинхронно)
 $nodes = $pdo->query("
-    SELECT n.*, c.name as cluster_name,
-           (SELECT COUNT(*) FROM vms_admin WHERE node_id = n.id AND status = 'running') as running_vms,
-           (SELECT COUNT(*) FROM vms_admin WHERE node_id = n.id AND status = 'stopped') as stopped_vms,
-           (SELECT COUNT(*) FROM vms_admin WHERE node_id = n.id AND status = 'error') as error_vms
+    SELECT n.*, c.name as cluster_name
     FROM proxmox_nodes n
     JOIN proxmox_clusters c ON c.id = n.cluster_id
     WHERE n.is_active = 1
     ORDER BY c.name, n.node_name
 ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-$total_running_vms = array_sum(array_column($nodes, 'running_vms'));
-$total_stopped_vms = array_sum(array_column($nodes, 'stopped_vms'));
-$total_error_vms = array_sum(array_column($nodes, 'error_vms'));
-$total_vms = $total_running_vms + $total_stopped_vms + $total_error_vms;
 
 $title = "Управление Proxmox | HomeVlad Cloud";
 require 'admin_header.php';
@@ -824,24 +816,19 @@ require 'admin_header.php';
 
     <!-- Карточки статистики -->
     <div class="dashboard-stats-grid">
-        <!-- Всего ВМ -->
+        <!-- Всего ВМ (обновляется через JS) -->
         <div class="dashboard-stat-card dashboard-stat-card-vms">
             <div class="dashboard-stat-header">
                 <div class="dashboard-stat-icon">
                     <i class="fas fa-server"></i>
                 </div>
-                <span class="dashboard-stat-trend <?= $total_running_vms > 0 ? 'dashboard-stat-trend-positive' : 'dashboard-stat-trend-warning' ?>">
-                    <?= $total_running_vms ?> запущено
-                </span>
+                <span class="dashboard-stat-trend dashboard-stat-trend-positive" id="total-running">0 запущено</span>
             </div>
             <div class="dashboard-stat-content">
                 <h3>Виртуальные машины</h3>
-                <div class="dashboard-stat-value"><?= number_format($total_vms) ?></div>
+                <div class="dashboard-stat-value" id="total-vms">0</div>
                 <p class="dashboard-stat-subtext">
-                    <?= $total_running_vms ?> запущено / <?= $total_stopped_vms ?> остановлено
-                    <?php if ($total_error_vms > 0): ?>
-                    <br><span style="color: var(--admin-danger);"><?= $total_error_vms ?> с ошибками</span>
-                    <?php endif; ?>
+                    <span id="total-running-count">0</span> запущено / <span id="total-stopped-count">0</span> остановлено
                 </p>
             </div>
         </div>
@@ -933,18 +920,16 @@ require 'admin_header.php';
                                         <div class="node-stats">
                                             <div class="node-stat">
                                                 <i class="fas fa-play-circle" style="color: var(--admin-success);"></i>
-                                                <span><?= $node['running_vms'] ?></span>
+                                                <span class="running-count">0</span>
                                             </div>
                                             <div class="node-stat">
                                                 <i class="fas fa-stop-circle" style="color: var(--admin-warning);"></i>
-                                                <span><?= $node['stopped_vms'] ?></span>
+                                                <span class="stopped-count">0</span>
                                             </div>
-                                            <?php if ($node['error_vms'] > 0): ?>
                                             <div class="node-stat">
                                                 <i class="fas fa-exclamation-triangle" style="color: var(--admin-danger);"></i>
-                                                <span><?= $node['error_vms'] ?></span>
+                                                <span class="error-count">0</span>
                                             </div>
-                                            <?php endif; ?>
                                         </div>
                                         <i class="fas fa-chevron-down node-chevron"></i>
                                     </div>
@@ -1004,16 +989,12 @@ require 'admin_header.php';
                             $cluster_nodes = array_filter($nodes, function($n) use ($cluster) {
                                 return $n['cluster_name'] === $cluster;
                             });
-                            $cluster_running = array_sum(array_column($cluster_nodes, 'running_vms'));
-                            $cluster_total = array_sum(array_column($cluster_nodes, 'running_vms')) +
-                                            array_sum(array_column($cluster_nodes, 'stopped_vms')) +
-                                            array_sum(array_column($cluster_nodes, 'error_vms'));
                         ?>
                         <div class="dashboard-status-item">
-                            <div class="dashboard-status-indicator <?= $cluster_total > 0 ? '' : 'dashboard-status-indicator-warning' ?>"></div>
+                            <div class="dashboard-status-indicator"></div>
                             <div class="dashboard-status-content">
                                 <div class="dashboard-status-label"><?= htmlspecialchars($cluster) ?></div>
-                                <div class="dashboard-status-value"><?= count($cluster_nodes) ?> нод, <?= $cluster_running ?>/<?= $cluster_total ?> ВМ</div>
+                                <div class="dashboard-status-value"><?= count($cluster_nodes) ?> нод</div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -1028,285 +1009,252 @@ require 'admin_header.php';
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Глобальные переменные для управления состоянием
-const vmActions = {
-    pending: {},
+// Глобальные переменные
+let nodeVmsData = {};
+let nodeStatsLoading = {};
 
-    start: function(nodeId, vmid) {
-        if (this.pending[`${nodeId}-${vmid}`]) return;
-        this.pending[`${nodeId}-${vmid}`] = true;
-
-        Swal.fire({
-            title: 'Запуск VM...',
-            html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>',
-            showConfirmButton: false,
-            allowOutsideClick: false
-        });
-
-        fetch(`vm_action.php?action=start&node_id=${nodeId}&vmid=${vmid}`)
-            .then(response => response.json())
-            .then(data => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                if (data.error) {
-                    Swal.fire({
-                        title: 'Ошибка',
-                        text: data.error,
-                        icon: 'error'
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Успех',
-                        text: 'Виртуальная машина успешно запущена',
-                        icon: 'success',
-                        timer: 2000
-                    }).then(() => {
-                        const header = document.querySelector(`[data-node-id="${nodeId}"] .node-card-header`);
-                        if (header) {
-                            loadNodeVms(nodeId, header);
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                Swal.fire({
-                    title: 'Ошибка',
-                    text: 'Не удалось запустить VM: ' + error.message,
-                    icon: 'error'
-                });
-            });
-    },
-
-    stop: function(nodeId, vmid) {
-        if (this.pending[`${nodeId}-${vmid}`]) return;
-        this.pending[`${nodeId}-${vmid}`] = true;
-
-        Swal.fire({
-            title: 'Остановка VM...',
-            html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>',
-            showConfirmButton: false,
-            allowOutsideClick: false
-        });
-
-        fetch(`vm_action.php?action=stop&node_id=${nodeId}&vmid=${vmid}`)
-            .then(response => response.json())
-            .then(data => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                if (data.error) {
-                    Swal.fire({
-                        title: 'Ошибка',
-                        text: data.error,
-                        icon: 'error'
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Успех',
-                        text: 'Виртуальная машина успешно остановлена',
-                        icon: 'success',
-                        timer: 2000
-                    }).then(() => {
-                        const header = document.querySelector(`[data-node-id="${nodeId}"] .node-card-header`);
-                        if (header) {
-                            loadNodeVms(nodeId, header);
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                Swal.fire({
-                    title: 'Ошибка',
-                    text: 'Не удалось остановить VM: ' + error.message,
-                    icon: 'error'
-                });
-            });
-    },
-
-    reboot: function(nodeId, vmid) {
-        if (this.pending[`${nodeId}-${vmid}`]) return;
-        this.pending[`${nodeId}-${vmid}`] = true;
-
-        Swal.fire({
-            title: 'Перезагрузка VM...',
-            html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>',
-            showConfirmButton: false,
-            allowOutsideClick: false
-        });
-
-        fetch(`vm_action.php?action=reboot&node_id=${nodeId}&vmid=${vmid}`)
-            .then(response => response.json())
-            .then(data => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                if (data.error) {
-                    Swal.fire({
-                        title: 'Ошибка',
-                        text: data.error,
-                        icon: 'error'
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Успех',
-                        text: 'Виртуальная машина успешно перезагружена',
-                        icon: 'success',
-                        timer: 2000
-                    }).then(() => {
-                        const header = document.querySelector(`[data-node-id="${nodeId}"] .node-card-header`);
-                        if (header) {
-                            loadNodeVms(nodeId, header);
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                delete this.pending[`${nodeId}-${vmid}`];
-                Swal.fire({
-                    title: 'Ошибка',
-                    text: 'Не удалось перезагрузить VM: ' + error.message,
-                    icon: 'error'
-                });
-            });
+// Обновление глобальной статистики (верхние карточки)
+function updateGlobalStats() {
+    let totalRunning = 0, totalStopped = 0, totalError = 0;
+    Object.values(nodeVmsData).forEach(nodeData => {
+        totalRunning += nodeData.running;
+        totalStopped += nodeData.stopped;
+        totalError += nodeData.error;
+    });
+    const totalVms = totalRunning + totalStopped + totalError;
+    document.getElementById('total-vms').textContent = totalVms;
+    document.getElementById('total-running-count').textContent = totalRunning;
+    document.getElementById('total-stopped-count').textContent = totalStopped;
+    document.getElementById('total-running').textContent = totalRunning + ' запущено';
+    if (totalError > 0) {
+        document.getElementById('total-running').innerHTML = totalRunning + ' запущено / ' + totalError + ' ошибок';
     }
-};
+}
 
-function loadNodeVms(nodeId, headerElement) {
+// Загрузка статистики для одной ноды
+async function loadNodeStats(nodeId) {
+    if (nodeStatsLoading[nodeId]) return;
+    nodeStatsLoading[nodeId] = true;
+    try {
+        const response = await fetch(`get_node_vms.php?node_id=${nodeId}`);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        const vms = data.vms || [];
+        const running = vms.filter(vm => vm.status === 'running').length;
+        const stopped = vms.filter(vm => vm.status === 'stopped').length;
+        const error = vms.filter(vm => vm.status === 'error').length;
+
+        nodeVmsData[nodeId] = {
+            vms: vms,
+            running: running,
+            stopped: stopped,
+            error: error
+        };
+
+        const nodeCard = document.querySelector(`.proxmox-node-card[data-node-id="${nodeId}"]`);
+        if (nodeCard) {
+            const runningSpan = nodeCard.querySelector('.running-count');
+            const stoppedSpan = nodeCard.querySelector('.stopped-count');
+            const errorSpan = nodeCard.querySelector('.error-count');
+            if (runningSpan) runningSpan.textContent = running;
+            if (stoppedSpan) stoppedSpan.textContent = stopped;
+            if (errorSpan) errorSpan.textContent = error;
+        }
+        updateGlobalStats();
+        return nodeVmsData[nodeId];
+    } catch (error) {
+        console.error(`Ошибка загрузки ноды ${nodeId}:`, error);
+        return null;
+    } finally {
+        nodeStatsLoading[nodeId] = false;
+    }
+}
+
+// Открытие/закрытие списка ВМ
+async function loadNodeVms(nodeId, headerElement) {
     const container = document.getElementById(`node-vms-${nodeId}`);
     const chevron = headerElement.querySelector('.node-chevron');
-
-    // Если уже открыто - закрываем
     if (container.classList.contains('expanded')) {
         container.classList.remove('expanded');
         chevron.classList.remove('fa-rotate-180');
         return;
     }
-
-    // Скрыть другие открытые ноды
+    // Закрыть другие
     document.querySelectorAll('.node-vms-container.expanded').forEach(el => {
         el.classList.remove('expanded');
         el.closest('.proxmox-node-card').querySelector('.node-chevron').classList.remove('fa-rotate-180');
     });
-
-    // Если уже загружено, просто показываем
-    if (container.dataset.loaded === 'true') {
+    // Если данные уже загружены
+    if (nodeVmsData[nodeId]) {
+        renderNodeVms(nodeId, nodeVmsData[nodeId].vms);
         container.classList.add('expanded');
         chevron.classList.add('fa-rotate-180');
         return;
     }
-
     container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Загрузка виртуальных машин...</div>';
     container.classList.add('expanded');
     chevron.classList.add('fa-rotate-180');
-
-    fetch(`get_node_vms.php?node_id=${nodeId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                container.innerHTML = `<div class="error-message">${data.error}</div>`;
-                return;
-            }
-
-            let html = `
-                <div class="vm-table-container">
-                    <div class="table-responsive">
-                        <table class="dashboard-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Имя</th>
-                                    <th>Статус</th>
-                                    <th>CPU</th>
-                                    <th>RAM</th>
-                                    <th>Диск</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-
-            data.vms.forEach(vm => {
-                html += `
-                    <tr>
-                        <td><strong>${vm.vmid}</strong></td>
-                        <td>
-                            <div class="dashboard-table-user">
-                                <div class="dashboard-user-avatar">
-                                    <i class="fas fa-server"></i>
-                                </div>
-                                <div class="dashboard-user-info">
-                                    <div class="dashboard-user-name">${escapeHtml(vm.name)}</div>
-                                    <div class="dashboard-user-email">ID: ${vm.vmid}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="dashboard-item-status ${vm.status === 'running' ? 'dashboard-item-status-running' : 'dashboard-item-status-stopped'}">
-                                ${vm.status === 'running' ? 'Запущена' : 'Остановлена'}
-                            </span>
-                        </td>
-                        <td>${vm.cpus} ядер</td>
-                        <td>${vm.mem} GB</td>
-                        <td>${vm.disk} GB</td>
-                        <td>
-                            <div class="vm-actions">
-                                <button class="dashboard-mini-action-btn" onclick="showVmInfo(${nodeId}, ${vm.vmid})" title="Информация">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                                <button class="dashboard-mini-action-btn" onclick="openVncConsoleProxmox(${nodeId}, ${vm.vmid}, '${escapeHtml(vm.name)}')" title="Консоль">
-                                    <i class="fas fa-terminal"></i>
-                                </button>
-                                ${vm.status === 'running' ?
-                                    `<button class="dashboard-mini-action-btn" onclick="vmActions.stop(${nodeId}, ${vm.vmid})" style="background: rgba(239, 68, 68, 0.1); color: var(--admin-danger);" title="Остановить">
-                                        <i class="fas fa-stop"></i>
-                                    </button>` :
-                                    `<button class="dashboard-mini-action-btn" onclick="vmActions.start(${nodeId}, ${vm.vmid})" style="background: rgba(16, 185, 129, 0.1); color: var(--admin-success);" title="Запустить">
-                                        <i class="fas fa-play"></i>
-                                    </button>`
-                                }
-                                <button class="dashboard-mini-action-btn" onclick="vmActions.reboot(${nodeId}, ${vm.vmid})" style="background: rgba(245, 158, 11, 0.1); color: var(--admin-warning);" title="Перезагрузить">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table></div></div>`;
-            container.innerHTML = html;
-            container.dataset.loaded = 'true';
-        })
-        .catch(error => {
-            container.innerHTML = `<div class="error-message">Ошибка загрузки: ${error.message}</div>`;
-        });
+    try {
+        const response = await fetch(`get_node_vms.php?node_id=${nodeId}`);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        const vms = data.vms || [];
+        const running = vms.filter(vm => vm.status === 'running').length;
+        const stopped = vms.filter(vm => vm.status === 'stopped').length;
+        const error = vms.filter(vm => vm.status === 'error').length;
+        nodeVmsData[nodeId] = { vms, running, stopped, error };
+        // Обновляем счетчики в шапке
+        const nodeCard = document.querySelector(`.proxmox-node-card[data-node-id="${nodeId}"]`);
+        if (nodeCard) {
+            const runningSpan = nodeCard.querySelector('.running-count');
+            const stoppedSpan = nodeCard.querySelector('.stopped-count');
+            const errorSpan = nodeCard.querySelector('.error-count');
+            if (runningSpan) runningSpan.textContent = running;
+            if (stoppedSpan) stoppedSpan.textContent = stopped;
+            if (errorSpan) errorSpan.textContent = error;
+        }
+        updateGlobalStats();
+        renderNodeVms(nodeId, vms);
+    } catch (error) {
+        container.innerHTML = `<div class="error-message">Ошибка загрузки: ${error.message}</div>`;
+    }
 }
 
-function refreshAllNodes() {
-    Swal.fire({
-        title: 'Обновление данных...',
-        html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Обновление информации о нодах...</div>',
-        showConfirmButton: false,
-        allowOutsideClick: false
+function renderNodeVms(nodeId, vms) {
+    const container = document.getElementById(`node-vms-${nodeId}`);
+    if (!container) return;
+    let html = `
+        <div class="vm-table-container">
+            <div class="table-responsive">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Статус</th>
+                            <th>CPU</th>
+                            <th>RAM</th>
+                            <th>Диск</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    vms.forEach(vm => {
+        html += `
+            <tr>
+                <td><strong>${vm.vmid}</strong></td>
+                <td>
+                    <div class="dashboard-table-user">
+                        <div class="dashboard-user-avatar"><i class="fas fa-server"></i></div>
+                        <div class="dashboard-user-info">
+                            <div class="dashboard-user-name">${escapeHtml(vm.name)}</div>
+                            <div class="dashboard-user-email">ID: ${vm.vmid}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><span class="dashboard-item-status ${vm.status === 'running' ? 'dashboard-item-status-running' : 'dashboard-item-status-stopped'}">${vm.status === 'running' ? 'Запущена' : 'Остановлена'}</span></td>
+                <td>${vm.cpus} ядер</td>
+                <td>${vm.mem} GB</td>
+                <td>${vm.disk} GB</td>
+                <td>
+                    <div class="vm-actions">
+                        <button class="dashboard-mini-action-btn" onclick="showVmInfo(${nodeId}, ${vm.vmid})" title="Информация"><i class="fas fa-info-circle"></i></button>
+                        <button class="dashboard-mini-action-btn" onclick="openVncConsoleProxmox(${nodeId}, ${vm.vmid}, '${escapeHtml(vm.name)}')" title="Консоль"><i class="fas fa-terminal"></i></button>
+                        ${vm.status === 'running' ?
+                            `<button class="dashboard-mini-action-btn" onclick="vmActions.stop(${nodeId}, ${vm.vmid})" style="background: rgba(239,68,68,0.1); color: var(--admin-danger);" title="Остановить"><i class="fas fa-stop"></i></button>` :
+                            `<button class="dashboard-mini-action-btn" onclick="vmActions.start(${nodeId}, ${vm.vmid})" style="background: rgba(16,185,129,0.1); color: var(--admin-success);" title="Запустить"><i class="fas fa-play"></i></button>`
+                        }
+                        <button class="dashboard-mini-action-btn" onclick="vmActions.reboot(${nodeId}, ${vm.vmid})" style="background: rgba(245,158,11,0.1); color: var(--admin-warning);" title="Перезагрузить"><i class="fas fa-redo"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
     });
+    html += `</tbody></table></div></div>`;
+    container.innerHTML = html;
+}
 
-    // Закрыть все открытые панели ВМ
+// Действия с ВМ
+const vmActions = {
+    pending: {},
+    start: async function(nodeId, vmid) {
+        if (this.pending[`${nodeId}-${vmid}`]) return;
+        this.pending[`${nodeId}-${vmid}`] = true;
+        Swal.fire({ title: 'Запуск VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
+        try {
+            const response = await fetch(`vm_action.php?action=start&node_id=${nodeId}&vmid=${vmid}`);
+            const data = await response.json();
+            delete this.pending[`${nodeId}-${vmid}`];
+            if (data.error) throw new Error(data.error);
+            Swal.fire({ title: 'Успех', text: 'Виртуальная машина успешно запущена', icon: 'success', timer: 2000 });
+            await loadNodeStats(nodeId);
+            const container = document.getElementById(`node-vms-${nodeId}`);
+            if (container && container.classList.contains('expanded')) {
+                loadNodeVms(nodeId, document.querySelector(`.proxmox-node-card[data-node-id="${nodeId}"] .node-card-header`));
+            }
+        } catch(error) {
+            delete this.pending[`${nodeId}-${vmid}`];
+            Swal.fire({ title: 'Ошибка', text: error.message, icon: 'error' });
+        }
+    },
+    stop: async function(nodeId, vmid) {
+        if (this.pending[`${nodeId}-${vmid}`]) return;
+        this.pending[`${nodeId}-${vmid}`] = true;
+        Swal.fire({ title: 'Остановка VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
+        try {
+            const response = await fetch(`vm_action.php?action=stop&node_id=${nodeId}&vmid=${vmid}`);
+            const data = await response.json();
+            delete this.pending[`${nodeId}-${vmid}`];
+            if (data.error) throw new Error(data.error);
+            Swal.fire({ title: 'Успех', text: 'Виртуальная машина успешно остановлена', icon: 'success', timer: 2000 });
+            await loadNodeStats(nodeId);
+            const container = document.getElementById(`node-vms-${nodeId}`);
+            if (container && container.classList.contains('expanded')) {
+                loadNodeVms(nodeId, document.querySelector(`.proxmox-node-card[data-node-id="${nodeId}"] .node-card-header`));
+            }
+        } catch(error) {
+            delete this.pending[`${nodeId}-${vmid}`];
+            Swal.fire({ title: 'Ошибка', text: error.message, icon: 'error' });
+        }
+    },
+    reboot: async function(nodeId, vmid) {
+        if (this.pending[`${nodeId}-${vmid}`]) return;
+        this.pending[`${nodeId}-${vmid}`] = true;
+        Swal.fire({ title: 'Перезагрузка VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
+        try {
+            const response = await fetch(`vm_action.php?action=reboot&node_id=${nodeId}&vmid=${vmid}`);
+            const data = await response.json();
+            delete this.pending[`${nodeId}-${vmid}`];
+            if (data.error) throw new Error(data.error);
+            Swal.fire({ title: 'Успех', text: 'Виртуальная машина успешно перезагружена', icon: 'success', timer: 2000 });
+            await loadNodeStats(nodeId);
+            const container = document.getElementById(`node-vms-${nodeId}`);
+            if (container && container.classList.contains('expanded')) {
+                loadNodeVms(nodeId, document.querySelector(`.proxmox-node-card[data-node-id="${nodeId}"] .node-card-header`));
+            }
+        } catch(error) {
+            delete this.pending[`${nodeId}-${vmid}`];
+            Swal.fire({ title: 'Ошибка', text: error.message, icon: 'error' });
+        }
+    }
+};
+
+function refreshAllNodes() {
+    Swal.fire({ title: 'Обновление данных...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Обновление информации о нодах...</div>', showConfirmButton: false, allowOutsideClick: false });
     document.querySelectorAll('.node-vms-container.expanded').forEach(el => {
         el.classList.remove('expanded');
         el.closest('.proxmox-node-card').querySelector('.node-chevron').classList.remove('fa-rotate-180');
     });
-
-    // Сбросить загруженные данные
-    document.querySelectorAll('.node-vms-container').forEach(el => {
-        el.dataset.loaded = 'false';
-    });
-
-    // Перезагрузить страницу через 1 секунду
-    setTimeout(() => {
+    nodeVmsData = {};
+    const nodeIds = Array.from(document.querySelectorAll('.proxmox-node-card')).map(card => card.dataset.nodeId);
+    Promise.all(nodeIds.map(id => loadNodeStats(id))).then(() => {
         Swal.close();
-        location.reload();
-    }, 1000);
+        Swal.fire({ title: 'Готово', text: 'Данные обновлены', icon: 'success', timer: 1500 });
+    }).catch(() => { Swal.close(); });
 }
 
 function showAllVms() {
-    // Открыть все ноды
     document.querySelectorAll('.proxmox-node-card').forEach(card => {
         const nodeId = card.dataset.nodeId;
         const header = card.querySelector('.node-card-header');
@@ -1315,10 +1263,9 @@ function showAllVms() {
 }
 
 function showRunningVms() {
-    // Открыть только ноды с запущенными ВМ
     document.querySelectorAll('.proxmox-node-card').forEach(card => {
-        const runningVms = card.querySelector('.node-stat:nth-child(1) span').textContent;
-        if (parseInt(runningVms) > 0) {
+        const running = parseInt(card.querySelector('.running-count').textContent);
+        if (running > 0) {
             const nodeId = card.dataset.nodeId;
             const header = card.querySelector('.node-card-header');
             loadNodeVms(nodeId, header);
@@ -1327,10 +1274,9 @@ function showRunningVms() {
 }
 
 function showStoppedVms() {
-    // Открыть только ноды с остановленными ВМ
     document.querySelectorAll('.proxmox-node-card').forEach(card => {
-        const stoppedVms = card.querySelector('.node-stat:nth-child(2) span').textContent;
-        if (parseInt(stoppedVms) > 0) {
+        const stopped = parseInt(card.querySelector('.stopped-count').textContent);
+        if (stopped > 0) {
             const nodeId = card.dataset.nodeId;
             const header = card.querySelector('.node-card-header');
             loadNodeVms(nodeId, header);
@@ -1348,75 +1294,47 @@ function showVmInfo(nodeId, vmid) {
             fetch(`get_vm_info.php?node_id=${nodeId}&vmid=${vmid}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.error) {
-                        Swal.fire({
-                            title: 'Ошибка',
-                            text: data.error,
-                            icon: 'error'
-                        });
-                        return;
-                    }
-
-                    let html = `
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">ID VM:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${data.vmid}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">Имя:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${escapeHtml(data.name)}</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">Статус:</span>
-                                <span class="dashboard-item-status ${data.status === 'running' ? 'dashboard-item-status-running' : 'dashboard-item-status-stopped'}">
-                                    ${data.status === 'running' ? 'Запущена' : 'Остановлена'}
-                                </span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">CPU:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${data.cpus} ядер</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">Память:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${data.mem} GB</span>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">Диск:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${data.disk} GB</span>
-                            </div>
-                    `;
-
+                    if (data.error) throw new Error(data.error);
+                    let html = `<div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">ID VM:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${data.vmid}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">Имя:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${escapeHtml(data.name)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">Статус:</span>
+                            <span class="dashboard-item-status ${data.status === 'running' ? 'dashboard-item-status-running' : 'dashboard-item-status-stopped'}">${data.status === 'running' ? 'Запущена' : 'Остановлена'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">CPU:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${data.cpus} ядер</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">Память:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${data.mem} GB</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
+                            <span style="color: var(--admin-text-secondary);">Диск:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${data.disk} GB</span>
+                        </div>`;
                     if (data.ip) {
-                        html += `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--admin-border);">
-                                <span style="color: var(--admin-text-secondary); font-weight: 500;">IP-адрес:</span>
-                                <span style="color: var(--admin-text); font-weight: 600;">${data.ip}</span>
-                            </div>
-                        `;
+                        html += `<div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                            <span style="color: var(--admin-text-secondary);">IP-адрес:</span>
+                            <span style="color: var(--admin-text); font-weight: 600;">${data.ip}</span>
+                        </div>`;
                     }
-
                     html += `</div>`;
-
-                    Swal.fire({
-                        title: `Информация о VM ${data.vmid}`,
-                        html: html,
-                        confirmButtonText: 'Закрыть',
-                        width: 500
-                    });
+                    Swal.fire({ title: `Информация о VM ${data.vmid}`, html: html, confirmButtonText: 'Закрыть', width: 500 });
                 })
                 .catch(error => {
-                    Swal.fire({
-                        title: 'Ошибка',
-                        text: 'Не удалось получить информацию: ' + error.message,
-                        icon: 'error'
-                    });
+                    Swal.fire({ title: 'Ошибка', text: 'Не удалось получить информацию: ' + error.message, icon: 'error' });
                 });
         }
     });
 }
-
-// Функция для открытия VNC консоли для ВМ из Proxmox API
 
 function openVncConsoleProxmox(nodeId, vmId) {
     const query = new URLSearchParams({node_id: nodeId, vm_id: vmId, redirect: '1'});
@@ -1425,32 +1343,21 @@ function openVncConsoleProxmox(nodeId, vmId) {
 
 function escapeHtml(unsafe) {
     if (!unsafe) return '';
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
+    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// Обновление отступа при сворачивании сайдбара
+// Загрузка статистики для всех нод при старте
 document.addEventListener('DOMContentLoaded', function() {
+    const nodeIds = Array.from(document.querySelectorAll('.proxmox-node-card')).map(card => card.dataset.nodeId);
+    nodeIds.forEach(id => loadNodeStats(id));
+    // Обновление отступа при сворачивании сайдбара
     const sidebar = document.querySelector('.admin-sidebar');
     const dashboard = document.querySelector('.dashboard-wrapper');
-
     if (sidebar && dashboard) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.attributeName === 'class') {
-                    if (sidebar.classList.contains('compact')) {
-                        dashboard.style.marginLeft = '70px';
-                    } else {
-                        dashboard.style.marginLeft = '280px';
-                    }
-                }
-            });
+        const observer = new MutationObserver(() => {
+            if (sidebar.classList.contains('compact')) dashboard.style.marginLeft = '70px';
+            else dashboard.style.marginLeft = '280px';
         });
-
         observer.observe(sidebar, { attributes: true });
     }
 });

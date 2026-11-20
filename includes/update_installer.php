@@ -83,7 +83,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest): void
             if (file_put_contents($staged, $bytes, LOCK_EX) !== strlen($bytes)) {
                 throw new RuntimeException('Не удалось сохранить пакет');
             }
-            if (is_file($target) && !copy($target, $staged . '.before')) {
+            if (is_file($target) && (!copy($target, $staged . '.before') || !chmod($staged . '.before', fileperms($target) & 0777))) {
                 throw new RuntimeException("Не удалось сохранить исходный файл $path");
             }
         }
@@ -126,7 +126,10 @@ function installUpdate(PDO $pdo, string $root, array $manifest): void
         foreach (array_reverse($applied) as $path) {
             $target = updateTarget($root, $path);
             $backup = $work . '/' . hash('sha256', $path) . '.before';
-            $restored = (is_file($backup) ? copy($backup, $target) : unlink($target)) && $restored;
+            $restoredFile = is_file($backup)
+                ? copy($backup, $target) && chmod($target, fileperms($backup) & 0777)
+                : unlink($target);
+            $restored = $restoredFile && $restored;
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($target, true);
             }
