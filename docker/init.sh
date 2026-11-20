@@ -4,9 +4,12 @@ set -e
 
 # Apply safe permissions to bind-mounted runtime directories as well as image layers.
 mkdir -p /var/www/html/uploads /var/www/html/logs /var/www/html/backups
+mkdir -p /var/www/html/admin/backups
 chown -R www-data:www-data /var/www/html/uploads /var/www/html/logs /var/www/html/backups
+chown -R www-data:www-data /var/www/html/admin/backups
 chmod 0755 /var/www/html/uploads
 chmod 0750 /var/www/html/logs /var/www/html/backups
+chmod 0750 /var/www/html/admin/backups
 
 echo "⏳ Waiting for database connection..."
 
