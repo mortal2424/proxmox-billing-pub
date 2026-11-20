@@ -9,6 +9,8 @@ if (!isLoggedIn()) {
     exit;
 }
 $userId = (int) $_SESSION['user']['id'];
+$_SESSION['mobile_csrf'] ??= bin2hex(random_bytes(32));
+$mobileCsrf = $_SESSION['mobile_csrf'];
 session_write_close();
 try {
     $pdo = (new Database())->getConnection();
@@ -52,6 +54,7 @@ try {
         ];
     }
     echo json_encode([
+        'csrf' => $mobileCsrf,
         'name' => $user['full_name'] ?: 'Пользователь',
         'balance' => (float) $user['balance'], 'bonusBalance' => (float) $user['bonus_balance'],
         'isAdmin' => (bool) $user['is_admin'], 'guests' => $guests, 'nodes' => $infrastructure,

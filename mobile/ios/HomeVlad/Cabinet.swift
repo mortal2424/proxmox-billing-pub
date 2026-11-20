@@ -4,104 +4,115 @@ struct Cabinet: View {
     @ObservedObject var session: CloudSession
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let snapshot = session.snapshot {
-                    List {
-                        Section("Личный кабинет") {
-                            Text(snapshot.name).font(.headline)
-                            LabeledContent("Баланс", value: snapshot.balance.formatted(.currency(code: "RUB")))
-                            LabeledContent("Бонусы", value: snapshot.bonusBalance.formatted(.currency(code: "RUB")))
-                        }
-                        Section("Машины") {
-                            if snapshot.guests.isEmpty { Text("Серверов пока нет").foregroundStyle(.secondary) }
-                            ForEach(snapshot.guests) { guest in
-                                NavigationLink {
-                                    CabinetDestination(session: session, title: guest.name, path: guest.managementPath)
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(guest.name).font(.headline)
-                                        Text("\(guest.type.uppercased()) · №\(guest.vmId) · \(status(guest.status))")
-                                        Text("\(guest.cpu) vCPU · \(guest.ramMiB / 1024) ГБ RAM · \(guest.diskGiB) ГБ")
-                                            .font(.caption).foregroundStyle(.secondary)
+        Group {
+            if let snapshot = session.snapshot {
+                TabView {
+                    NavigationStack {
+                        List {
+                            Section("Личный кабинет") {
+                                Text(snapshot.name).font(.headline)
+                                LabeledContent("Баланс", value: snapshot.balance.formatted(.currency(code: "RUB")))
+                                LabeledContent("Бонусы", value: snapshot.bonusBalance.formatted(.currency(code: "RUB")))
+                            }
+                            Section("Машины") {
+                                if snapshot.guests.isEmpty { Text("Серверов пока нет").foregroundStyle(.secondary) }
+                                ForEach(snapshot.guests) { guest in
+                                    NavigationLink {
+                                        NativeGuestDetail(session: session, guest: guest)
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 5) {
+                                            Text(guest.name).font(.headline)
+                                            Text("\(guest.type.uppercased()) · №\(guest.vmId) · \(cloudStatus(guest.status))")
+                                                .font(.caption).foregroundStyle(.secondary)
+                                            Text("\(guest.cpu) vCPU · \(guest.ramMiB / 1024) ГБ RAM · \(guest.diskGiB) ГБ")
+                                                .font(.caption)
+                                        }
                                     }
                                 }
                             }
+                            Section { Button("Выйти", role: .destructive) { Task { await session.logout() } } }
                         }
-                        Section("Инфраструктура") {
-                            if snapshot.nodes.isEmpty { Text("Доступных узлов пока нет") }
+                        .navigationTitle("HomeVlad")
+                        .refreshable { await session.refresh() }
+                    }.tabItem { Label("Обзор", systemImage: "cloud") }
+                    NavigationStack {
+                        List {
                             ForEach(snapshot.nodes) { node in
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text("\(node.zone) / \(node.name)").font(.headline)
-                                    Text(status(node.status))
+                                Section(node.zone + " / " + node.name) {
+                                    Text(cloudStatus(node.status))
                                     if let cpu = node.cpu, let memory = node.memory {
-                                        Text("CPU \(cpu, specifier: "%.1f")% · RAM \(memory, specifier: "%.1f")%").font(.caption)
+                                        LabeledContent("CPU", value: String(format: "%.1f%%", cpu))
+                                        ProgressView(value: min(100, max(0, cpu)), total: 100)
+                                        LabeledContent("Память", value: String(format: "%.1f%%", memory))
+                                        ProgressView(value: min(100, max(0, memory)), total: 100)
                                     } else {
-                                        Text("Нет свежих замеров").font(.caption).foregroundStyle(.secondary)
+                                        Text("Нет свежих замеров").foregroundStyle(.secondary)
                                     }
                                 }
                             }
+                            if snapshot.nodes.isEmpty { Text("Доступных узлов пока нет") }
                         }
-                        Section("Управление") {
-                            destination("Заказать сервер", "/templates/order_vm.php")
-                            destination("Финансы", "/templates/billing.php")
-                            destination("Поддержка", "/templates/support.php")
-                            destination("Профиль", "/templates/settings.php")
-                        }
-                        if snapshot.isAdmin {
-                            Section("Администрирование") {
-                                destination("Панель администратора", "/admin/")
-                                destination("Платежи", "/admin/payments.php")
-                                destination("Инфраструктура", "/admin/nodes.php")
-                                destination("Обновления", "/admin/update.php")
-                            }
-                        }
-                        Section { Button("Выйти", role: .destructive) { Task { await session.logout() } } }
+                        .navigationTitle("Мониторинг")
+                        .refreshable { await session.refresh() }
+                    }.tabItem { Label("Мониторинг", systemImage: "chart.bar") }
+                    NavigationStack {
+                        NativeTickets(session: session, admin: false)
+                    }.tabItem { Label("Поддержка", systemImage: "bubble.left.and.bubble.right") }
+                    NavigationStack {
+                        NativePayments(session: session, admin: false)
+                    }.tabItem { Label("Финансы", systemImage: "creditcard") }
+                    if snapshot.isAdmin {
+                        NavigationStack {
+                            List {
+                                Section("Администрирование") {
+                                    NavigationLink("Платежи пользователей") { NativePayments(session: session, admin: true) }
+                                    NavigationLink("Все обращения") { NativeTickets(session: session, admin: true) }
+                                }
+                            }.navigationTitle("Администратор")
+                        }.tabItem { Label("Админ", systemImage: "person.badge.shield.checkmark") }
                     }
-                    .refreshable { await session.refresh() }
-                } else {
-                    VStack(spacing: 20) {
-                        Image(systemName: "cloud.fill").font(.system(size: 60)).foregroundStyle(.tint)
-                        Text("HomeVlad Cloud").font(.largeTitle.bold())
-                        Text("Серверы и инфраструктура").foregroundStyle(.secondary)
-                        Button("Войти в кабинет") { session.signingIn = true }.buttonStyle(.borderedProminent).disabled(session.loading)
-                        if session.loading { ProgressView() }
-                    }.padding()
                 }
+            } else {
+                NativeLogin(session: session)
             }
-            .navigationTitle("HomeVlad")
-            .safeAreaInset(edge: .bottom) {
-                if let error = session.error {
-                    HStack {
-                        Text(error).font(.caption)
-                        Spacer()
-                        Button("Повторить") { Task { await session.refresh() } }
-                    }.padding().background(.regularMaterial)
-                }
-            }
-            .sheet(isPresented: $session.signingIn) {
-                NavigationStack {
-                    WebCabinet(session: session, path: "/login/login.php")
-                        .navigationTitle("Вход")
-                        .toolbar { Button("Закрыть") { session.signingIn = false } }
-                }
-            }
-            .task { await session.refresh() }
-        }
+        }.task { await session.start() }
     }
+}
 
-    private func destination(_ title: String, _ path: String) -> some View {
-        NavigationLink(title) { CabinetDestination(session: session, title: title, path: path) }
-    }
+struct NativeLogin: View {
+    @ObservedObject var session: CloudSession
+    @State private var email = ""
+    @State private var password = ""
+    @State private var answer = ""
 
-    private func status(_ value: String) -> String {
-        switch value {
-        case "online", "running": "Работает"
-        case "offline": "Нет ответа"
-        case "stopped": "Остановлен"
-        case "suspended": "Приостановлен"
-        case "creating": "Создаётся"
-        default: "Неизвестно"
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Image(systemName: "cloud.fill").font(.system(size: 48)).foregroundStyle(.tint)
+                        .frame(maxWidth: .infinity).padding()
+                    Text("HomeVlad").font(.largeTitle.bold()).frame(maxWidth: .infinity)
+                    TextField("Email", text: $email).keyboardType(.emailAddress)
+                        .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    SecureField("Пароль", text: $password).textContentType(.password)
+                    if let challenge = session.challenge {
+                        TextField("CAPTCHA · \(challenge.captcha) = ?", text: $answer).keyboardType(.numberPad)
+                    }
+                    Button("Обновить CAPTCHA") {
+                        answer = ""
+                        Task { await session.prepareLogin() }
+                    }.disabled(session.loading)
+                    Button("Войти") {
+                        Task {
+                            await session.login(email: email, password: password, answer: answer)
+                            password = ""
+                            answer = ""
+                        }
+                    }.disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty || answer.isEmpty)
+                    if session.loading { ProgressView() }
+                }
+                if let error = session.error { Section { Text(error).foregroundStyle(.red) } }
+            }.navigationTitle("Вход")
         }
     }
 }

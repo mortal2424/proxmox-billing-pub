@@ -13,7 +13,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".dev"
-            resValue("string", "app_name", "HomeVlad Dev")
+            resValue("string", "app_name", "HomeVlad")
             buildConfigField("String", "HOST", "\"dev.homevlad.ru\"")
         }
         release {

@@ -10,6 +10,7 @@ enum CloudEnvironment {
 }
 
 struct CloudSnapshot: Decodable {
+    let csrf: String
     let name: String
     let balance: Double
     let bonusBalance: Double
@@ -29,9 +30,7 @@ struct CloudGuest: Decodable, Identifiable {
     let ramMiB: Int
     let diskGiB: Int
 
-    var managementPath: String {
-        "/templates/my_vms.php?guest=\(vmId)&type=\(type == "lxc" ? "lxc" : "qemu")"
-    }
+
 }
 
 struct CloudNode: Decodable, Identifiable {
@@ -51,5 +50,59 @@ enum CloudError: LocalizedError {
         case .signIn: "Войдите в кабинет"
         case .unavailable: "Не удалось загрузить данные. Проверьте соединение."
         }
+    }
+}
+
+
+struct CloudPayment: Decodable, Identifiable {
+    let id: Int
+    let amount: Double
+    let status: String
+    let createdAt: String
+    let method: String
+    let userName: String
+}
+struct CloudTicket: Decodable, Identifiable {
+    let id: Int
+    let subject: String
+    let message: String
+    let status: String
+    let createdAt: String
+    let updatedAt: String
+    let userName: String
+}
+struct CloudReply: Decodable, Identifiable {
+    let id: Int
+    let message: String
+    let isAdmin: Bool
+    let createdAt: String
+    let userName: String
+}
+struct CloudTicketThread: Decodable {
+    let ticket: CloudTicket
+    let replies: [CloudReply]
+}
+struct CloudItems<T: Decodable>: Decodable { let items: [T] }
+struct CloudGuestLive: Decodable {
+    let status: String
+    let cpu: Double?
+    let memory: Double?
+    let uptime: Int
+}
+
+func cloudStatus(_ value: String) -> String {
+    switch value {
+    case "online", "running": "Работает"
+    case "offline": "Нет ответа"
+    case "stopped": "Остановлен"
+    case "suspended": "Приостановлен"
+    case "creating": "Создаётся"
+    case "pending": "Ожидает"
+    case "completed": "Подтверждён"
+    case "failed": "Отклонён"
+    case "open": "Открыто"
+    case "answered": "Есть ответ"
+    case "closed": "Закрыто"
+    default: "Неизвестно"
     }
 }

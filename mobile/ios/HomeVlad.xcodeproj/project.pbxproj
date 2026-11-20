@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A00000000000000000000015 /* WebCabinet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* WebCabinet.swift */; };
+		A00000000000000000000015 /* NativeScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* NativeScreens.swift */; };
 		A00000000000000000000013 /* Cabinet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000014 /* Cabinet.swift */; };
 		A0000000000000000000000D /* HomeVladApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000009 /* HomeVladApp.swift */; };
 		A0000000000000000000000E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000A /* Models.swift */; };
@@ -16,7 +16,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A00000000000000000000016 /* WebCabinet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebCabinet.swift; sourceTree = "<group>"; };
+		A00000000000000000000016 /* NativeScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeScreens.swift; sourceTree = "<group>"; };
 		A00000000000000000000014 /* Cabinet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cabinet.swift; sourceTree = "<group>"; };
 		A00000000000000000000007 /* HomeVlad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HomeVlad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000009 /* HomeVladApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeVladApp.swift; sourceTree = "<group>"; };
@@ -49,7 +49,7 @@
 				A0000000000000000000000A /* Models.swift */,
 				A0000000000000000000000B /* Session.swift */,
 				A00000000000000000000014 /* Cabinet.swift */,
-				A00000000000000000000016 /* WebCabinet.swift */,
+				A00000000000000000000016 /* NativeScreens.swift */,
 				A0000000000000000000000C /* Assets.xcassets */,
 			);
 			path = HomeVlad;
@@ -126,7 +126,7 @@
 				A0000000000000000000000E /* Models.swift in Sources */,
 				A0000000000000000000000F /* Session.swift in Sources */,
 				A00000000000000000000013 /* Cabinet.swift in Sources */,
-				A00000000000000000000015 /* WebCabinet.swift in Sources */,
+				A00000000000000000000015 /* NativeScreens.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -160,7 +160,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "HomeVlad Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = "HomeVlad";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				MARKETING_VERSION = 1.0;

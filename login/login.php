@@ -10,6 +10,7 @@ session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/password_login.php';
 
 // Функция для получения данных бота из базы данных
 function getTelegramBotData() {
@@ -153,34 +154,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
     } elseif (!isset($_SESSION['captcha']) || $captcha_answer !== $_SESSION['captcha']) {
         $error = "Неправильный ответ капчи!";
     } else {
-        $db = new Database();
-        $stmt = $db->getConnection()->prepare("SELECT * FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
-
-        if ($user && password_verify($password, $user['password_hash'])) {
-            // Проверяем активность пользователя
-            if ($user['is_active'] == 0) {
-                $error = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
-            } else {
-                session_regenerate_id(true);
-                unset($user['password_hash']);
-                $_SESSION['user'] = $user;
-
-                // Удаляем использованную капчу
-                unset($_SESSION['captcha']);
-                unset($_SESSION['captcha_question']);
-
-                // Очищаем предыдущие ошибки
-                unset($_SESSION['login_error']);
-                unset($_SESSION['error']);
-
-                header('Location: /templates/dashboard.php');
-                exit;
-            }
-        } else {
-            $error = "Неверный email или пароль!";
+        try {
+            completePasswordLogin((new Database())->getConnection(), $email, $password);
+            header('Location: /templates/dashboard.php');
+            exit;
+        } catch (PDOException $loginError) {
+            $error = "Сервис входа временно недоступен";
+        } catch (RuntimeException $loginError) {
+            $error = $loginError->getMessage();
         }
+
     }
 
     if ($error) {
