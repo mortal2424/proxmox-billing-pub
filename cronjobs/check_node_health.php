@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/proxmox_tls.php';
 
 $lock = fopen(sys_get_temp_dir() . '/homevlad-node-health.lock', 'c');
 if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
@@ -18,21 +19,28 @@ foreach ($pdo->query('SELECT id, hostname, api_port FROM proxmox_nodes WHERE is_
     if (str_contains($host, ':')) {
         $host = '[' . $host . ']';
     }
-    $curl = curl_init("https://$host:$port/api2/json/version");
-    curl_setopt_array($curl, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => false, CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_TIMEOUT => 5, CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-    ]);
-    curl_exec($curl);
-    $code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    $errno = curl_errno($curl);
-    curl_close($curl);
-    // Certificate failures mean unknown health, not proof that the node is offline.
-    $state = in_array($code, [200, 401, 403], true) ? 'online'
-        : (in_array($errno, [CURLE_COULDNT_CONNECT, CURLE_COULDNT_RESOLVE_HOST, CURLE_OPERATION_TIMEDOUT], true)
-            ? 'offline' : 'unknown');
+    $http_response_header = [];
+    try {
+        $context = stream_context_create([
+            'ssl' => proxmoxTlsOptions($node['hostname'], $port),
+            'http' => ['timeout' => 5, 'follow_location' => 0, 'ignore_errors' => true,
+                'header' => "Connection: close\r\n"],
+        ]);
+        $body = @file_get_contents("https://$host:$port/api2/json/version", false, $context, 0, 4096);
+        $code = 0;
+        foreach ($http_response_header as $header) {
+            if (preg_match('~^HTTP/\S+ (\d{3})~', $header, $match)) $code = (int) $match[1];
+        }
+        $state = $body !== false && in_array($code, [200, 401, 403], true) ? 'online' : 'unknown';
+        if ($body === false) {
+            $socket = @stream_socket_client("tcp://$host:$port", $errno, $message, 3);
+            if ($socket) fclose($socket);
+            else $state = 'offline';
+        }
+    } catch (Throwable $error) {
+        error_log('Node health TLS configuration failed for node ' . (int) $node['id']);
+        $state = 'unknown';
+    }
     $update->execute([$state, $node['id']]);
 }
 flock($lock, LOCK_UN);
