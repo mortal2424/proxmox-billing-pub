@@ -30,6 +30,12 @@
       "commit": "095ae37b8417c682fbfc3fe766b3a284e9dec561",
       "sha256": "4e139bb375cad8b413a1178a64c21f32973d60f5c2328764fe26a07e4c76b0dd",
       "summary": "Шифрование реквизитов нод: совместимость SSH/API, CSRF настроек и проверка актуальных прав, безопасный обновлятор билетов, диагностика миграции и исправление падения PHP SSH2."
+    },
+    {
+      "version": "2.5.1-beta8.6",
+      "commit": "ed48becd2dac6a54eb790cd2569c6243dccc72f6",
+      "sha256": "cb0bf59fe7a0fbddfa848be6ff3ed1f2ec41ee6a3cf7b9fd26ba0f54092f0014",
+      "summary": "Scoped service API tokens: encrypted candidates, privilege separation, permission verification and Docker persistence."
     }
   ]
 }
