@@ -3,7 +3,36 @@ import RFB from '/console/assets/novnc/core/rfb.js';
 const status = document.querySelector('#status');
 const screen = document.querySelector('#screen');
 const cad = document.querySelector('#cad');
-const token = location.hash.slice(1);
+const [token, controlPart] = location.hash.slice(1).split('&control=');
+const control = controlPart || '';
+const power = document.querySelector('#power');
+const powerResult = document.querySelector('#power-result');
+if (/^[a-f0-9]{48}$/.test(control)) {
+    power.hidden = false;
+    power.addEventListener('click', async event => {
+        const action = event.target.dataset.action;
+        if (!action) return;
+        const labels = {start: 'Запустить', shutdown: 'Выключить ОС', reboot: 'Перезагрузить', stop: 'Принудительно остановить'};
+        if (action !== 'start' && !confirm(labels[action] + ' машину?')) return;
+        const buttons = [...power.querySelectorAll('button')];
+        buttons.forEach(button => { button.disabled = true; });
+        powerResult.textContent = 'Отправка команды…';
+        try {
+            const response = await fetch('/console/control.php', {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({control, action}),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.error || 'Команда не выполнена');
+            powerResult.textContent = 'Команда принята. При отключении откройте консоль повторно из кабинета.';
+        } catch (error) {
+            powerResult.textContent = error.message;
+        } finally {
+            buttons.forEach(button => { button.disabled = false; });
+        }
+    });
+}
 history.replaceState(null, '', location.pathname);
 
 function disconnected() {

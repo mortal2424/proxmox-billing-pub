@@ -51,6 +51,17 @@ class ProxmoxAPI {
         }
     }
 
+    public function controlGuest(int $vmid, string $type, string $action): string {
+        if ($vmid < 1 || !in_array($type, ['qemu', 'lxc'], true) ||
+            !in_array($action, ['start', 'shutdown', 'reboot', 'stop'], true) ||
+            !preg_match('/^[A-Za-z0-9_.-]+$/D', $this->nodeName)) {
+            throw new InvalidArgumentException('Некорректная команда управления');
+        }
+        return $this->execSSHCommand(
+            "pvesh create /nodes/{$this->nodeName}/{$type}/{$vmid}/status/{$action}"
+        );
+    }
+
     public function createVM($params) {
     // Validate every value that becomes part of a remote shell command.
     $storage = (string)($params['storage'] ?? 'local');

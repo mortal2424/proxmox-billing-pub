@@ -7,11 +7,16 @@
 <link rel="stylesheet" href="/console/assets/xterm/css/xterm.css">
 <style>
     body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #131923; color: #fff; font: 1rem system-ui; }
-    header { padding: .6rem 1rem; display: flex; gap: 1rem; align-items: center; }
+    header { padding: .6rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     main { flex: 1; min-height: 0; overflow: hidden; }
     button { font: inherit; }
 </style>
-<header><span id="status" role="status">Подключение…</span><button id="cad" hidden>Ctrl+Alt+Del</button></header>
+<header><span id="status" role="status">Подключение…</span><button id="cad" hidden>Ctrl+Alt+Del</button><div id="power" hidden aria-label="Управление машиной">
+<button data-action="start">Запустить</button>
+<button data-action="shutdown">Выключить ОС</button>
+<button data-action="reboot">Перезагрузить</button>
+<button data-action="stop">Остановить принудительно</button>
+</div><span id="power-result" role="status"></span></header>
 <main id="screen"></main>
-<script type="module" src="/console/view.js"></script>
+<script type="module" src="/console/view.js?v=2"></script>
 </html>

@@ -20,7 +20,7 @@ if ($consoleScope !== 'customer' && !isAdmin()) {
     consoleError(403, 'Доступ запрещён');
 }
 $userId = (int) $_SESSION['user']['id'];
-session_write_close();
+
 
 $nodeId = filter_var($_GET['node_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 $vmId = filter_var($_GET['vm_id'] ?? $_GET['vmid'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -70,7 +70,18 @@ try {
     if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
         consoleError(503, 'Не удалось открыть консоль');
     }
-    $url = '/console/view.html#' . $token;
+    $control = bin2hex(random_bytes(24));
+    $_SESSION['console_controls'] = array_filter(
+        $_SESSION['console_controls'] ?? [],
+        static fn ($entry) => ($entry['expires'] ?? 0) > time()
+    );
+    $_SESSION['console_controls'] = array_slice($_SESSION['console_controls'], -19, null, true);
+    $_SESSION['console_controls'][$control] = [
+        'node_id' => (int) $nodeId, 'vm_id' => (int) $vmId,
+        'scope' => $consoleScope, 'type' => $type, 'expires' => time() + 28800,
+    ];
+    session_write_close();
+    $url = '/console/view.html#' . $token . '&control=' . $control;
     if (($_GET['redirect'] ?? '') === '1') {
         header('Location: ' . $url, true, 303);
         exit;
