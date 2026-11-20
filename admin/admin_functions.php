@@ -149,14 +149,16 @@ function getNodeSSHInfo($hostname, $username, $password) {
         $result['mac'] = trim(stream_get_contents($stream)) ?: 'N/A';
 
         // 5. Получаем данные для графиков
-        $result['stats'] = getNodeStats($hostname, $username, $password);
+        if (isset($stream) && is_resource($stream)) fclose($stream);
+        $result['stats'] = getNodeStats($hostname, $username, $password, $connection);
 
-        ssh2_disconnect($connection);
         return $result;
 
-    } catch (Exception $e) {
-        if (isset($connection)) @ssh2_disconnect($connection);
+    } catch (Throwable $e) {
         return ['error' => $e->getMessage()];
+    } finally {
+        if (isset($stream) && is_resource($stream)) fclose($stream);
+        if (isset($connection) && is_resource($connection)) @ssh2_disconnect($connection);
     }
 }
 

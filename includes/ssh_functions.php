@@ -32,9 +32,10 @@ if (!function_exists('exec_ssh_command')) {
 }
 
 if (!function_exists('getNodeStats')) {
-    function getNodeStats($hostname, $username, $password) {
+    function getNodeStats($hostname, $username, $password, $existingConnection = null) {
+        $ownsConnection = $existingConnection === null;
         try {
-            $connection = ssh_connect_and_auth($hostname, $username, $password);
+            $connection = $existingConnection ?? ssh_connect_and_auth($hostname, $username, $password);
 
             $result = [
                 'cpu_usage' => (float)exec_ssh_command($connection, "(head -n 1 /proc/stat; sleep 1; head -n 1 /proc/stat) | awk 'NR==1 {idle=\$5+\$6; for(i=2;i<=9;i++) total+=\$i; next} {idle2=\$5+\$6; for(i=2;i<=9;i++) total2+=\$i; if(total2>total) printf \"%.2f\", 100*(1-(idle2-idle)/(total2-total))}'"),
@@ -56,7 +57,7 @@ if (!function_exists('getNodeStats')) {
             return $result;
 
         } finally {
-            if (isset($connection) && is_resource($connection)) {
+            if ($ownsConnection && isset($connection) && is_resource($connection)) {
                 @ssh2_disconnect($connection);
             }
         }
