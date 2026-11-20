@@ -5,6 +5,7 @@ const screen = document.querySelector('#screen');
 const cad = document.querySelector('#cad');
 const [token, controlPart] = location.hash.slice(1).split('&control=');
 const control = controlPart || '';
+let guestType = null;
 const power = document.querySelector('#power');
 const powerResult = document.querySelector('#power-result');
 if (/^[a-f0-9]{48}$/.test(control)) {
@@ -21,7 +22,7 @@ if (/^[a-f0-9]{48}$/.test(control)) {
             const response = await fetch('/console/control.php', {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({control, action}),
+                body: JSON.stringify({control, action, type: guestType}),
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || 'Команда не выполнена');
@@ -61,6 +62,7 @@ if (!/^[a-f0-9]{64}$/.test(token)) {
         socket.addEventListener('message', event => {
             try {
                 const setup = JSON.parse(event.data);
+                guestType = setup.type;
                 if (setup.type === 'qemu') {
                     const rfb = new RFB(screen, socket, {credentials: {password: setup.password}});
                     rfb.scaleViewport = true;

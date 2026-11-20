@@ -40,12 +40,16 @@ try {
         }
         $type = $context['type'];
         if ($type === 'detect') {
-            throw new RuntimeException('Для управления откройте консоль из списка машин панели');
-        }
-        $query = $pdo->prepare('SELECT 1 FROM vms_admin WHERE node_id = ? AND vm_id = ?');
-        $query->execute([$context['node_id'], $context['vm_id']]);
-        if (!$query->fetchColumn()) {
-            throw new RuntimeException('Машина недоступна');
+            $type = $input['type'] ?? '';
+            if (!in_array($type, ['qemu', 'lxc'], true)) {
+                throw new RuntimeException('Дождитесь подключения консоли');
+            }
+        } else {
+            $query = $pdo->prepare('SELECT 1 FROM vms_admin WHERE node_id = ? AND vm_id = ?');
+            $query->execute([$context['node_id'], $context['vm_id']]);
+            if (!$query->fetchColumn()) {
+                throw new RuntimeException('Машина недоступна');
+            }
         }
     }
     $query = $pdo->prepare('SELECT * FROM proxmox_nodes WHERE id = ? AND is_active = 1');
