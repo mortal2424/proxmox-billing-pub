@@ -23,7 +23,7 @@ try {
         $manifest = releaseManifest($version);
         $conflicts = previewUpdate(dirname(__DIR__), $manifest);
         if (($_POST['action'] ?? '') === 'install') {
-            installUpdate($pdo, dirname(__DIR__), $manifest);
+            installUpdate($pdo, dirname(__DIR__), $manifest, static fn () => (new Database())->getConnection());
             $message = 'Обновление установлено. Версия записана в базу данных.';
         }
     }

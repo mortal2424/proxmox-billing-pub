@@ -41,7 +41,7 @@ function previewUpdate(string $root, array $manifest): array
     return $conflicts;
 }
 
-function installUpdate(PDO $pdo, string $root, array $manifest): void
+function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null): void
 {
     $storage = $root . '/backups/updates';
     if (!is_dir($storage) && !mkdir($storage, 0700, true)) {
@@ -59,6 +59,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest): void
     }
     $work = $storage . '/' . bin2hex(random_bytes(16));
     $applied = [];
+    $committing = false;
     try {
         if (is_file($storage . '/recovery.json')) {
             throw new RuntimeException('Предыдущее обновление прервано. Требуется восстановление по журналу');
@@ -90,6 +91,14 @@ function installUpdate(PDO $pdo, string $root, array $manifest): void
         if (previewUpdate($root, $manifest)) {
             throw new RuntimeException('Файлы изменились во время подготовки');
         }
+        if ($connect) {
+            $pdo = $connect();
+        }
+        $current = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());
+        if (($manifest['from'] ?? '') !== $current) {
+            throw new RuntimeException('Установленная версия изменилась во время загрузки');
+        }
+        $pdo->beginTransaction();
         $journal = ['work' => $work, 'files' => $manifest['files'], 'version' => $manifest['version']];
         $encoded = json_encode($journal, JSON_THROW_ON_ERROR);
         if (file_put_contents($storage . '/recovery.json', $encoded, LOCK_EX) !== strlen($encoded)) {
@@ -110,17 +119,38 @@ function installUpdate(PDO $pdo, string $root, array $manifest): void
                 opcache_invalidate($target, true);
             }
         }
-        $pdo->beginTransaction();
         $query = $pdo->prepare('INSERT INTO system_versions (version, release_date, description) VALUES (?, CURDATE(), ?)');
         $query->execute([$manifest['version'], $manifest['changelog'] ?? '']);
         $query = $pdo->prepare("INSERT INTO system_updates (version, update_type, description, success, backup_path)
             VALUES (?, 'upgrade', ?, 1, ?)");
         $query->execute([$manifest['version'], $manifest['changelog'] ?? '', $work]);
+        $committing = true;
         $pdo->commit();
+        $committing = false;
         unlink($storage . '/recovery.json');
     } catch (Throwable $error) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
+        if ($committing) {
+            try {
+                if (!$connect) {
+                    throw new RuntimeException('Нужна проверка результата фиксации БД');
+                }
+                $verification = $connect();
+                $query = $verification->prepare('SELECT COUNT(*) FROM system_versions WHERE version = ?');
+                $query->execute([$manifest['version']]);
+                if ((int) $query->fetchColumn() > 0) {
+                    unlink($storage . '/recovery.json');
+                    return;
+                }
+            } catch (Throwable $verificationError) {
+                throw new RuntimeException('Не удалось проверить фиксацию БД. Сохранён журнал восстановления', 0, $error);
+            }
+        }
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (Throwable $rollbackError) {
+            error_log('Update database rollback could not be confirmed');
         }
         $restored = true;
         foreach (array_reverse($applied) as $path) {

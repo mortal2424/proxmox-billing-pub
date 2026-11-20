@@ -13,7 +13,7 @@ try {
         throw new RuntimeException('Доступ запрещён');
     }
     $manifest = releaseManifest((string) ($_POST['version'] ?? ''));
-    installUpdate((new Database())->getConnection(), dirname(__DIR__), $manifest);
+    installUpdate((new Database())->getConnection(), dirname(__DIR__), $manifest, static fn () => (new Database())->getConnection());
     echo json_encode(['success' => true]);
 } catch (Throwable $error) {
     if (http_response_code() < 400) http_response_code(400);

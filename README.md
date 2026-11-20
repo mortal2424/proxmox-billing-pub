@@ -1,6 +1,6 @@
 # HomeVlad Cloud · Proxmox Billing
 
-Панель управления и биллинга для Proxmox VE. Текущая бета-версия — [v2.5.1-beta8](https://github.com/mortal2424/proxmox-billing-pub/releases/tag/v2.5.1-beta8).
+Панель управления и биллинга для Proxmox VE. Текущая бета-версия — [v2.5.1-beta8.1](https://github.com/mortal2424/proxmox-billing-pub/releases/tag/v2.5.1-beta8.1).
 
 - Управление узлами и логическими кластерами, создание и мониторинг ВМ QEMU и контейнеров LXC.
 - Тарифы, квоты, пополнение баланса и автоматические списания.
@@ -14,7 +14,7 @@
 Понадобятся Git, Docker с Compose v2, домен с DNS-записью на сервер и доступные входящие порты 80 и 443. Для выпуска сертификата Let's Encrypt порт 80 должен быть свободен на время запуска `init-ssl`.
 
 ```sh
-git clone --branch v2.5.1-beta8 https://github.com/mortal2424/proxmox-billing-pub.git
+git clone --branch v2.5.1-beta8.1 https://github.com/mortal2424/proxmox-billing-pub.git
 cd proxmox-billing-pub
 cp .env.example .env
 chmod 600 .env
@@ -41,7 +41,7 @@ mkdir -p webroot uploads logs backups docker/proxmox-tls
 
 ```sh
 git fetch origin --tags
-git switch --detach v2.5.1-beta8
+git switch --detach v2.5.1-beta8.1
 docker compose up -d --build
 docker compose ps
 ```
@@ -166,7 +166,7 @@ php docs/seed-user-guides.php
 
 В разделе «Обновления» администратор получает каталог выпусков из `updates/index.json` официального репозитория. Перед установкой проверяются SHA-256 и локальные изменения файлов. При конфликтах весь пакет останавливается для ручного слияния. Changelog доступен до запуска установки. Подготовка пакетов и восстановление описаны в [инструкции обновлятора](updates/README.md).
 
-В `v2.5.1-beta8` пакеты обновляют файлы и транзакционно записывают версию в БД. Миграции схемы базы и удаление файлов требуют отдельной реализации. Во время установки панель временно отвечает HTTP 503. Если установка аварийно прервалась, сохранённый журнал блокирует работу до проверки и восстановления.
+В `v2.5.1-beta8.1` пакеты обновляют файлы и транзакционно записывают версию в БД. Миграции схемы базы и удаление файлов требуют отдельной реализации. Во время установки панель временно отвечает HTTP 503. Если установка аварийно прервалась, сохранённый журнал блокирует работу до проверки и восстановления.
 
 ## Приложения iOS и Android
 
