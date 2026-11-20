@@ -10,7 +10,8 @@ if($mode==='--plan'){echo json_encode(homevladTokenRoles(),JSON_PRETTY_PRINT|JSO
 $lock=null;
 try{
  $lock=backupOperationLock(dirname(__DIR__));nodeCredentialKey();
- $directory=dirname(__DIR__,2).'/.proxmox-api-candidates';
+ $directory=getenv('PROXMOX_TOKEN_CANDIDATE_DIR')?:dirname(__DIR__,2).'/.proxmox-api-candidates';
+ if(!str_starts_with($directory,'/'))throw new RuntimeException('Каталог токенов должен быть абсолютным путём');
  $pdo=(new Database)->getConnection();$nodes=$pdo->query('SELECT * FROM proxmox_nodes WHERE is_active=1')->fetchAll(PDO::FETCH_ASSOC);
  foreach($nodes as$node){
   $node['api_port']=(int)($node['api_port']?:8006);

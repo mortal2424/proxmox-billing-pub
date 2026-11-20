@@ -84,17 +84,20 @@ function prepareHomevladToken(callable $request, array $node, string $directory)
     }
     $roles = $request('GET','/access/roles',[]);
     $byName = []; foreach($roles as $role) $byName[$role['roleid']] = $role;
+    $users = $request('GET','/access/users',[]); $existing = null;
+    foreach($users as$user)if($user['userid']===HOMEVLAD_SERVICE_USER)$existing=$user;
+    if($existing && (($existing['comment']??'')!==HOMEVLAD_SERVICE_MARKER || empty($existing['enable']) ||
+        (!empty($existing['expire']) && $existing['expire']<=time()))) throw new RuntimeException('Служебная учётная запись существует с другими настройками');
     foreach(homevladTokenRoles() as $name=>$policy) {
         if(isset($byName[$name])) {
             if(homevladPrivilegeSet($byName[$name]['privs']??[])!==homevladPrivilegeSet($policy['privileges'])) throw new RuntimeException('Существующая роль отличается от политики HomeVlad: '.$name);
-        } else $request('POST','/access/roles',['roleid'=>$name,'privs'=>implode(',',$policy['privileges'])]);
+        }
     }
-    $users = $request('GET','/access/users',[]); $existing = null;
-    foreach($users as$user)if($user['userid']===HOMEVLAD_SERVICE_USER)$existing=$user;
-    if($existing) {
-        if(($existing['comment']??'')!==HOMEVLAD_SERVICE_MARKER || empty($existing['enable']) ||
-            (!empty($existing['expire']) && $existing['expire']<=time())) throw new RuntimeException('Служебная учётная запись существует с другими настройками');
-    } else $request('POST','/access/users',['userid'=>HOMEVLAD_SERVICE_USER,'enable'=>1,'comment'=>HOMEVLAD_SERVICE_MARKER]);
+    $audit=$directory.'/'.(int)$node['id'].'.before.json';
+    if(is_link($audit))throw new RuntimeException('Недопустимая ссылка на журнал подготовки');
+    if(!is_file($audit))writeHomevladTokenCandidate($audit,['created_at'=>date(DATE_ATOM),'roles'=>$roles,'users'=>$users,'acl'=>$request('GET','/access/acl',[])]);
+    foreach(homevladTokenRoles()as$name=>$policy)if(!isset($byName[$name]))$request('POST','/access/roles',['roleid'=>$name,'privs'=>implode(',',$policy['privileges'])]);
+    if(!$existing)$request('POST','/access/users',['userid'=>HOMEVLAD_SERVICE_USER,'enable'=>1,'comment'=>HOMEVLAD_SERVICE_MARKER]);
     foreach(homevladTokenRoles()as$name=>$policy)$request('PUT','/access/acl',[
         'path'=>$policy['path'],'users'=>HOMEVLAD_SERVICE_USER,'roles'=>$name,'propagate'=>1]);
     $tokenName = 'homevlad-node-' . (int)$node['id'] . '-v1';
