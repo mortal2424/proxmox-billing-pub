@@ -2,7 +2,7 @@
 /** Locks are persistent files: unlinking a locked file would allow a second lock inode. */
 function withGuestOperationLocks(array $keys, callable $operation): mixed
 {
-    $directory=getenv('PROXMOX_GUEST_LOCK_DIR')?:dirname(__DIR__,2).'/.proxmox-guest-locks';
+    $directory=getenv('PROXMOX_GUEST_LOCK_DIR')?:dirname(__DIR__).'/backups/guest-locks';
     if(!str_starts_with($directory,'/')||is_link($directory)||
         (!is_dir($directory)&&!@mkdir($directory,0700,true)&&!is_dir($directory))||
         (fileperms($directory)&0077)!==0)throw new RuntimeException('Недоступен приватный каталог блокировок');
