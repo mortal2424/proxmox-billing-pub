@@ -1,0 +1,65 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.18",
+  "from": "2.5.1-beta8.17",
+  "source_commit": "f59afa7f37795b25e23cf67243eb14fa9cc14ad6",
+  "changelog": "Управление cloud-образами в «Образы ОС»: названия для пользователей, добавление из официального каталога, фоновый импорт, переключение хранилища и снятие с публикации. Удаление файла требует Datastore.Allocate на хранилище. Для существующих установок запустите php cronjobs/create_cloud_image_settings.php и настройте cron согласно README. Для Docker пересоберите контейнер Apache.\n",
+  "files": {
+    "admin/cloud_image_action.php": {
+      "before": null,
+      "sha256": "1d98e97d9e8a8a14323abaf8763443e4b8e459cc3210f3004b02b110349069a4"
+    },
+    "admin/image.php": {
+      "before": "e45ed6ce952106c33a7eb68a616712b34108cd19a21ad0ff95b31889b58ac98a",
+      "sha256": "6a003141ac27c62173f724f3f99038bf98828dccbb220eab24b9d161db1322c7"
+    },
+    "cronjobs/create_cloud_image_settings.php": {
+      "before": null,
+      "sha256": "dee917763f47b235697eb79eb31d104a295dd6c0c54ca31a4f01350b4be6aa98"
+    },
+    "cronjobs/import_cloud_image.php": {
+      "before": "cb96f4e3ffa0a956a2458d486000c69ba4dc6ac1c81dd37ba50cd1b8181be6ef",
+      "sha256": "4da4a225bb9ee37a89f8f836e9b4c606b480045356208de3e696de88efcbf124"
+    },
+    "cronjobs/process_cloud_image_imports.php": {
+      "before": null,
+      "sha256": "bc97d1f1119d8b17e45e50bed0479176e1504097b58766b4c541c267cdd1f8dd"
+    },
+    "docker/console-supervisor.conf": {
+      "before": "1c881f2c6859d09d40ecbe1e119d374fb7d251af10bc5d4d947ccefee7279683",
+      "sha256": "bb73954fdcb6e8a2415dbee772a0335239f9efa71669c06abf5546a039e5d340"
+    },
+    "docker/cron-scheduler.sh": {
+      "before": "dd3d1270d60d29538446e616f111c7ade5f497145fd2548b5ca0a1e10e4b6759",
+      "sha256": "37e579479e546e2f3dd45f80ef82eebf55bcf1f4f21ee9678f97996eebd7bb21"
+    },
+    "docker/init.sh": {
+      "before": "b2f2fe42844cb065241b22ed72ac2669615e759a82b4994a88f24722f3ab9b0f",
+      "sha256": "e5bfc4ae1c6126cc088c1a9b97c476364f2f1b7e6274c3c46e91feeaa5241c08"
+    },
+    "includes/cloud_image_import.php": {
+      "before": null,
+      "sha256": "3c380e7169ecb6fa89bc009ee8736e6f1b15151e523e1f86da0319e9f110d321"
+    },
+    "includes/cloud_images.php": {
+      "before": "663f3b4f252a921be17094ad108cb13c90d8c5a57a3ba6695ec3f053f0862d48",
+      "sha256": "25624eb256dd380880fc6f68ea82e0d7e8fcfe48bbb0f5f33da7586a1010a54b"
+    },
+    "includes/version.php": {
+      "before": "3efe0334536354bb44368c8fefcfaf1eb8985f794d4132d95dd7743bc614741d",
+      "sha256": "9cb1cff87677e4c0e2d05dc016c1845ab9f28000fab51e4b9fbcb4ff597eac3c"
+    },
+    "includes/zone_placement.php": {
+      "before": "5ffffd5fd9bf55a490c5af312471ff4ce50d8539b210b924b040e5db8436153e",
+      "sha256": "3addb218ff87410605161ab73976e4a4bee4d7a68eb6c9891c05c85df0260c49"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "946f66f15fabc065c9d11e444d39006bacec41bfed6ce0772fe444bd5eaacb66",
+      "sha256": "4ddc56b7dce2ab074073d2e58e0080583d4df054bf25f3aad3af2019bb6bc95c"
+    },
+    "templates/order_vm.php": {
+      "before": "29244e7304d275589c0faec8ddbe46d431483e499a663d3551bbd5ac3ea32518",
+      "sha256": "c375ccca4742060ba82d60c109f3c307376967d950cb3cd757f0d8b10b6e3552"
+    }
+  }
+}
