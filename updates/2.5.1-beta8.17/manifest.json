@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.17",
+  "from": "2.5.1-beta8.16",
+  "source_commit": "a7818f57ba45e3523fe4f86a3310af4f22063b83",
+  "changelog": "Cloud-образы Ubuntu 22.04, 24.04 и 26.04 LTS, Debian 12 и 13, CentOS Stream 9 и 10. Автоматическая установка QEMU стала основным способом заказа, ISO доступен для ручной установки и Windows. Импорт официальных образов с проверкой контрольных сумм, подготовка системного диска и параметров cloud-init через API Proxmox.\n",
+  "files": {
+    "admin/image.php": {
+      "before": "ce6291b673ccd9cb5d865a56869a57972d98aa08b2e3c7651e9d51adad65e2ce",
+      "sha256": "e45ed6ce952106c33a7eb68a616712b34108cd19a21ad0ff95b31889b58ac98a"
+    },
+    "cronjobs/import_cloud_image.php": {
+      "before": null,
+      "sha256": "194b3ff231803476043c8c78a6ca0dcd351a5f424eb4cf69e012e704c2d9134e"
+    },
+    "includes/ProxmoxUpload.php": {
+      "before": "65a8384276ddc0e3983c0e6a90f069f52c19379987fa390216433007459071a3",
+      "sha256": "27991abab0dcb46f61d510dab83e6aba719c5bc5dffdfe2f217913e298ab6d39"
+    },
+    "includes/cloud_images.php": {
+      "before": null,
+      "sha256": "e3770b320cf64b1d3539aa4d0b2af691722de2ea28044feec0239a3ea2f58c9b"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "b5ab8145d200c2d64f332342ec03f6a883f4f62a0db0f2b307dd091459028e9e",
+      "sha256": "3af9b144fb9414c5d6db18b828c401d9aa112441470da59acadb41bc03b2bee8"
+    },
+    "includes/version.php": {
+      "before": "368282d8cd7f011a2755693f93b440dd11b92a6a9d2b1829d03ea79b8a88cb56",
+      "sha256": "3efe0334536354bb44368c8fefcfaf1eb8985f794d4132d95dd7743bc614741d"
+    },
+    "includes/zone_placement.php": {
+      "before": "85100ea24c06975812528df5f0094d2375c1e0e1cbeceff4ab0a5d713de5448c",
+      "sha256": "1f623fb52393d0accc3bd545c582f933e0f547d9aa6c6872414e6e3a1d19d298"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "cc1f8e54eb6357fd5401391557217f2fe6e3519b4507edaf94fba0e0a96d1356",
+      "sha256": "946f66f15fabc065c9d11e444d39006bacec41bfed6ce0772fe444bd5eaacb66"
+    },
+    "templates/order_vm.php": {
+      "before": "8db24f65fb31fd0f945d1d8458720342645f60644960bb82ceb55ece7141c308",
+      "sha256": "29244e7304d275589c0faec8ddbe46d431483e499a663d3551bbd5ac3ea32518"
+    }
+  }
+}
