@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.25",
+  "from": "2.5.1-beta8.24",
+  "source_commit": "475075c0ade19d1ead0c13aae6a8c34bb1981e78",
+  "changelog": "При размещении ВМ и LXC учитываются лимит гостей и порог нагрузки зоны.\nРежим обслуживания приостанавливает заказы без изменения настроек нод.\nИсправлены проверка нод, быстрые ссылки и прокрутка к счётчику создания гостя.\nПосле успешного создания карточка ВМ или LXC открывается автоматически через 10 секунд.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "aafc2ecb56ab35f7713c6ce9eb0622959b3e1d4cb36e7ad27cb2e757facf16d5",
+      "sha256": "0978234fb639aff75024b76af213a9725a8a7b08f324845a7e88bd1a49470e11"
+    },
+    "admin/edit_cluster.php": {
+      "before": "fcd42450bb22101407ef10e89889d7ef3eb7e1ef9dd8e06b36bad38bbd1e0ba0",
+      "sha256": "fdacc7078a5a96857c4041a8b9ef7fb789188b6c115583c90864c136278575c0"
+    },
+    "cronjobs/check_node_health.php": {
+      "before": "19a66b57da2e02748d87195d13ea0807e3b1080948ef599d6f6d64badd9d80fc",
+      "sha256": "4e08ae7bd5dcbd0086d80bd54b060fc857a61a601aeb5debb89af2eaf21cf6e5"
+    },
+    "includes/node_health.php": {
+      "before": null,
+      "sha256": "941ce88fd1092d17ea58198b0191c7cfd841293c6c5470c83d3ee888d4669b4d"
+    },
+    "includes/version.php": {
+      "before": "8fcb1c73504af13cbff3afcbdf96904f2b8ac64b9129761c5d95cf040928aa8c",
+      "sha256": "df418d12d714c0412bf79346837d4ef027a8195233de9e8aa4214488fcadd336"
+    },
+    "includes/zone_placement.php": {
+      "before": "6aa7b6d02eeb6355aafd06b5e9fe51df6c0702a0a6ab60e12064b1ab307cab64",
+      "sha256": "122c6307c03a628d6bdc63cb0c0a154768685b5d5dc20256c76fa65879cd63ab"
+    },
+    "templates/order_vm.php": {
+      "before": "859e586cb6e55819c10451a82d312a0454327ad7d342a301ef58956bc7cf2a08",
+      "sha256": "2f947a4ad372879b3e781a740779805abbb5fb05c284b387aca1c7c3d989a661"
+    }
+  }
+}
