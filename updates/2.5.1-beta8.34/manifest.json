@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.34",
+  "from": "2.5.1-beta8.33",
+  "source_commit": "7cc0cdd5980855b3186e200678fea99e00e2882c",
+  "changelog": "При импорте каждый участник Proxmox получает свой проверенный адрес API. Если адрес подтвердить не удалось, панель показывает имя пропущенной ноды.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "0978234fb639aff75024b76af213a9725a8a7b08f324845a7e88bd1a49470e11",
+      "sha256": "1d6f2ff1dbe0a8a117b8be7cad35982ebecfbe3fd5f783c42733633e991afe86"
+    },
+    "admin/edit_node.php": {
+      "before": "d0b7de39f7a685f7a66d3ac55558d87c2b9b418b73921fbdbd6bd5163ce20de4",
+      "sha256": "2a74683f2ed33a60036bc0feab00f54fb25d089f8a75f1a5b4c1b572ad855fcb"
+    },
+    "includes/proxmox_node_import.php": {
+      "before": "65d7cd28b35e67c03e8d9366f1ac4bfd38c36628ac990e8845deddae659defdc",
+      "sha256": "2f64b57be463401c3362edbced08029113a333bdd380b5d4f1d9bb5eca4aaa7d"
+    },
+    "includes/version.php": {
+      "before": "f48d1a3dac3ff26e3af74d8d744cf1e576eac7daa959b222482080e9a0aa9118",
+      "sha256": "8417b96bbab2a101e2a489d9d14173259ac374742bd1493ca626bda974d73591"
+    }
+  }
+}
