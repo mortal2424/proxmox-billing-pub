@@ -195,17 +195,23 @@ class ProxmoxAPI {
                 throw new InvalidArgumentException('Некорректный cloud-образ или недостаточный размер диска');
             }
             $guestPath = $this->guestApi()->base($vmid, 'qemu');
-            $this->apiClient->requestAndWait('POST', $guestPath . '/config', [
+            $cloudConfig = [
                 'scsi0' => "$storage:0,import-from=" . $image['volid'],
                 'efidisk0' => "$storage:0,efitype=4m,pre-enrolled-keys=0",
-                'ide2' => "$storage:cloudinit",
+                // VirtIO SCSI exposes the seed to cloud kernels that lack an AHCI driver.
+                'scsi1' => "$storage:cloudinit,media=cdrom",
                 'boot' => 'order=scsi0',
                 'net0' => "virtio,bridge=$networkValue",
                 'ipconfig0' => 'ip=dhcp',
+                'citype' => 'nocloud',
                 'ciuser' => $image['user'],
                 'cipassword' => $params['password'],
                 'serial0' => 'socket',
-            ], 600);
+            ];
+            if (isset($image['cpu'])) {
+                $cloudConfig['cpu'] = $image['cpu'];
+            }
+            $this->apiClient->requestAndWait('POST', $guestPath . '/config', $cloudConfig, 600);
             $this->guestApi()->resize($vmid, 'qemu', 'scsi0', (int)$diskSize, $storage);
             $this->apiClient->requestAndWait('PUT', $guestPath . '/cloudinit');
         } else {

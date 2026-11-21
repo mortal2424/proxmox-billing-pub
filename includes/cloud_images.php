@@ -23,6 +23,7 @@ function cloudImageCatalog(): array
         $file = "CentOS-Stream-GenericCloud-$version-latest.x86_64.qcow2";
         $images["centos-$version"] = [
             'label' => "CentOS Stream $version", 'user' => 'cloud-user',
+            'cpu' => $version === 10 ? 'x86-64-v3' : 'x86-64-v2',
             'base' => "https://cloud.centos.org/centos/$version-stream/x86_64/images/",
             'file' => $file, 'checksums' => "$file.SHA256SUM", 'hash' => 'sha256',
         ];
