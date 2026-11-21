@@ -6,10 +6,52 @@
 <title>Консоль HomeVlad</title>
 <link rel="stylesheet" href="/console/assets/xterm/css/xterm.css">
 <style>
-    body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #131923; color: #fff; font: 1rem system-ui; }
-    header { padding: .6rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    body {
+        margin: 0;
+        height: 100vh;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background: #131923;
+        color: #edf4f7;
+        font: .9375rem system-ui, sans-serif;
+    }
+    header {
+        padding: .65rem 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .5rem .75rem;
+        background: #172438;
+        border-bottom: 1px solid #35465e;
+    }
+    [hidden] { display: none !important; }
+    #status { font-weight: 650; }
+    #power { display: flex; flex-wrap: wrap; gap: .4rem; }
+    button {
+        min-height: 2.5rem;
+        padding: .45rem .8rem;
+        border: 1px solid #53657d;
+        border-radius: .55rem;
+        background: #23334a;
+        color: #edf4f7;
+        font: 600 .875rem/1.25 system-ui, sans-serif;
+        cursor: pointer;
+    }
+    button:hover:not(:disabled) { background: #30445f; }
+    button:focus-visible { outline: 2px solid #79e0dc; outline-offset: 2px; }
+    button:disabled { opacity: .55; cursor: wait; }
+    button[data-action="start"] { background: #79e0dc; border-color: #79e0dc; color: #102c35; }
+    button[data-action="start"]:hover:not(:disabled) { background: #a1eeea; }
+    button[data-action="stop"] { color: #ffd2d7; background: #482a37; border-color: #a96373; }
+    button[data-action="stop"]:hover:not(:disabled) { background: #603446; }
+    #power-result:not(:empty) { flex-basis: 100%; color: #cbd5e1; }
     main { flex: 1; min-height: 0; overflow: hidden; }
-    button { font: inherit; }
+    @media (max-width: 560px) {
+        header { padding: .55rem .65rem; }
+        #power { flex-basis: 100%; }
+        button { min-height: 2.75rem; }
+    }
 </style>
 <header><span id="status" role="status">Подключение…</span><button id="cad" hidden>Ctrl+Alt+Del</button><div id="power" hidden aria-label="Управление машиной">
 <button data-action="start">Запустить</button>
