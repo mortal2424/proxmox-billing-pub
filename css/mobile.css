@@ -84,3 +84,21 @@
         overflow-y: auto;
     }
 }
+
+@media (min-width: 993px) {
+    #adminSidebar.admin-sidebar.compact :is(.info-title, .info-item, .stat-card, .quick-actions-title) {
+        justify-content: center;
+    }
+
+    #adminSidebar.admin-sidebar.compact :is(.info-title, .quick-actions-title) i {
+        margin-inline: 0;
+    }
+
+    #adminSidebar.admin-sidebar.compact .sidebar-menu-item:hover {
+        transform: none;
+    }
+
+    aside.admin-sidebar.compact .menu-active-indicator {
+        display: none;
+    }
+}

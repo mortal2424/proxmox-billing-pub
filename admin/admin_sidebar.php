@@ -648,24 +648,8 @@ try {
     grid-template-columns: 1fr;
 }
 
-.admin-sidebar.compact .info-title,
-.admin-sidebar.compact .info-item,
-.admin-sidebar.compact .stat-card,
-.admin-sidebar.compact .quick-actions-title {
-    justify-content: center;
-}
-
-.admin-sidebar.compact .info-title i,
-.admin-sidebar.compact .quick-actions-title i {
-    margin-inline: 0;
-}
-
 .admin-sidebar.compact .sidebar-menu-item {
     margin: 2px 10px;
-}
-
-.admin-sidebar.compact .sidebar-menu-item:hover {
-    transform: none;
 }
 
 .admin-sidebar.compact .sidebar-menu-link {

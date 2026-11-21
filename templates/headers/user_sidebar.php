@@ -1288,7 +1288,6 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
     .admin-sidebar.compact .progress-percent,
     .admin-sidebar.compact .menu-text,
     .admin-sidebar.compact .menu-badge,
-    .admin-sidebar.compact .menu-active-indicator,
     .admin-sidebar.compact .balance-info,
     .admin-sidebar.compact .system-status,
     .admin-sidebar.compact .footer-info,
