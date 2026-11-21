@@ -240,6 +240,12 @@
       "commit": "ee9eb1e1412058081d3c71688e37256b6ed1eeeb",
       "sha256": "93f5f96f56e4c178840b1c8f329edda8fcc5173c84ea9abfd506990bcb0882c8",
       "summary": "Нативная VNC-консоль ВМ и LXC для iPhone."
+    },
+    {
+      "version": "2.5.1-beta8.40",
+      "commit": "cff8f75efaaedf1aec1eefd7afa355610b751205",
+      "sha256": "23bca5147eac5a9948b5ed851b0918d2970d1afddf9a08720883c45babbfdcae",
+      "summary": "ВМ и LXC, ноды и зоны в мобильной админке."
     }
   ]
 }
