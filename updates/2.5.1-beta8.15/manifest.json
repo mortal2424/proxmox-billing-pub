@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.15",
+  "from": "2.5.1-beta8.14",
+  "source_commit": "7309812a92cdca8f0bc70fae4da70a71fe756c9e",
+  "changelog": "Компактные формы сетевых пулов и пулов хранилищ. Редактирование состава и названия, удаление с подтверждением и защита от перезаписи существующего пула. Обновлены кнопки списка нод и страницы пулов.\n",
+  "files": {
+    "admin/node_placement_pools.php": {
+      "before": "cc04c97453a153a31958a3071a9964ef469cad5825ae7d92f72d57e44a2a9478",
+      "sha256": "e6faf5e4b6a13d56fbb63e3bca10679c821946466596ea47a9883d114170c7f5"
+    },
+    "admin/nodes.php": {
+      "before": "1a9ffaa02c403724e26616296d2e1b06a6590ce1e17335b469bdd68ad322009f",
+      "sha256": "3fa6c37a1293c5f5d937dadd7bbb34f00eaaf54e039cda2f51512bd55b7815e1"
+    },
+    "includes/version.php": {
+      "before": "77b84d19fd077d4a6e9adb4b7fb12eaba92b1b68a08060f6cbf19f2a7422ad83",
+      "sha256": "c4d6131ee0b9da40032d5281c391a58cdf048deec15ac7beff047b7793785948"
+    }
+  }
+}
