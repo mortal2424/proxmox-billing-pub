@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.22",
+  "from": "2.5.1-beta8.21",
+  "source_commit": "ab69914fe84abe79329bae0947dde67d71bbb244",
+  "changelog": "Исправлен отказ заказа ВМ и LXC при ограничении open_basedir в PHP-FPM.\nПриватные блокировки PHP и CLI по умолчанию используют защищённый каталог backups/guest-locks.\n",
+  "files": {
+    "includes/guest_operation_lock.php": {
+      "before": "84dd369054106ee5abbf6ffa761ebe441762eb3dccccc586b54e5f764558b67e",
+      "sha256": "2a3aaf1d7b4a915e9895737873bee14c1cfa4d64ba757b7945726dd1dd4af3ce"
+    },
+    "includes/version.php": {
+      "before": "b340e7ad548f811d8fcaa75a7a4b42701fafa147eed9c5363865c3cac588b8e3",
+      "sha256": "11aa1679b6e1776751215fd4524eec2b13ab42380cca0dcaa6677fea053ab1a1"
+    }
+  }
+}
