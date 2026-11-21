@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.38",
+  "from": "2.5.1-beta8.37",
+  "source_commit": "65748c545fca48ae115de3a4489382a71dafc480",
+  "changelog": "Исправлена белая страница «Обновления».\nДобавлена фоновая проверка каталога GitHub каждые пять минут. Установка пакетов остаётся ручной.\n",
+  "files": {
+    "admin/update.php": {
+      "before": "b3716a419e10485a2e2ebf207fc55598dbee6efdbc206bca53222e3901d9d1fa",
+      "sha256": "7179c462a9464a3081f15c5d1cd61136360471b9a23ce17b11e7d2b96bd5f58f"
+    },
+    "cronjobs/check_updates.php": {
+      "before": null,
+      "sha256": "80d33abcc28371a9fb9d92cbbe168931cd412678526f0388288d8f9ae1ac7621"
+    },
+    "docker/crontab.txt": {
+      "before": "65af6d96b9e7d43f44e6ce41c4eeb006c8a787cf1bb7c98bc78364197c0b199b",
+      "sha256": "8804807540d7d0c8423ce0454c47619c52027f95533d1ab215ee748b79369749"
+    },
+    "includes/update_catalog.php": {
+      "before": "784ce1cf663fcff6540af40e758a3a1f6e6c7845e4211e5e63479e595f3e19b4",
+      "sha256": "152eb96c973d1009105476dea8b41ac896406a7ba54d885d0747f06c5959c9b7"
+    },
+    "includes/version.php": {
+      "before": "a3b32c82e8ed1619c117684dd50a28080bc58d2c0bde32e2569bc1a30c74c251",
+      "sha256": "3339b0c9b6bf89f05998c8f4f73e618f7fabb52187e90a932f60904a37ed034f"
+    }
+  }
+}
