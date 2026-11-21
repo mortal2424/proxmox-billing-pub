@@ -788,16 +788,17 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             $diskCost = $params['disk'] * $prices['price_per_hour_disk'];
             $totalPerHour = $cpuCost + $ramCost + $diskCost;
 
-            // Создаем запись о биллинге
+            // Existing installations can still record orders before the offline schema migration.
+            $hasGuestId = $this->pdo->query("SHOW COLUMNS FROM vm_billing LIKE 'guest_id'")->fetch() !== false;
+            $guestColumn = $hasGuestId ? 'guest_id, ' : '';
+            $guestPlaceholder = $hasGuestId ? '?, ' : '';
             $stmt = $this->pdo->prepare("
                 INSERT INTO vm_billing
-                (guest_id, vm_id, user_id, cpu, ram, disk, price_per_hour_cpu, price_per_hour_ram,
+                ({$guestColumn}vm_id, user_id, cpu, ram, disk, price_per_hour_cpu, price_per_hour_ram,
                  price_per_hour_disk, total_per_hour, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES ({$guestPlaceholder}?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
-
-            $stmt->execute([
-                $guestId,
+            $values = [
                 $vmid,
                 $params['user_id'] ?? $_SESSION['user']['id'],
                 $params['cpu'],
@@ -807,7 +808,9 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
                 $prices['price_per_hour_ram'],
                 $prices['price_per_hour_disk'],
                 $totalPerHour
-            ]);
+            ];
+            if ($hasGuestId) array_unshift($values, $guestId);
+            $stmt->execute($values);
 
             return true;
         } catch (Exception $e) {
