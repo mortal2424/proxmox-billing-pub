@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.42",
+  "from": "2.5.1-beta8.41",
+  "source_commit": "fdc4753779bc20153b17f58d55963e3af1c09a12",
+  "changelog": "Консоль QEMU и LXC повторно проверяет активность учётной записи и роль перед командами питания. WebSocket и команды питания проверены в Docker с тестовым Proxmox API.\nРезервное копирование в Docker поддерживает встроенную MariaDB. Cron создаёт архивы от www-data, поэтому админка может открывать копии с правами 0600. При сбое записи восстановления откат сохраняет исходную базу и файлы.\nОбновлятор очищает журнал после подтверждённого отката, в том числе при сбое записи первого файла. Проверены конфликт файлов, откат и установка пакета.\nДля Docker пересоберите образы из исходников этого выпуска, сохранив том MariaDB, архивы и ключ шифрования нод.\n",
+  "files": {
+    "console/control.php": {
+      "before": "fa40d76b1579df4cc7aafec6a932c1b855716e46197133bc75f58667f01fb4d8",
+      "sha256": "c9099b71f25fd0d80b4420c16e77dcc7b6e17a4b961e2a10ac98d5d5f7d8defc"
+    },
+    "includes/backup_database.php": {
+      "before": "4caf93a15db344adb4c45d14c3d5dee454f2bd928bb034aa6194747988f76cbc",
+      "sha256": "33ff50c687df8bda9c8d78db7a643c8b8b642e6f941564527e94028f7a6a8e44"
+    },
+    "includes/backup_functions.php": {
+      "before": "70832be12033ebc4b6108ef61cbde13999c3de71cf803c8c06b767de533f9ce4",
+      "sha256": "d67d05aad7fd639d4d411cf16cedc141809864cde4965fea79de12b6128299a0"
+    },
+    "includes/backup_restore.php": {
+      "before": "59b90826e1f84de44ff6e6f301412becafca77b8786e73790c0b1400f20a0ba5",
+      "sha256": "30258ea017c1885797e57e8adfad4594d9c45de41605b5ea2b0a4c5cb4ef5091"
+    },
+    "includes/update_installer.php": {
+      "before": "f8029a0e5df24ef79645c092914ce79293cff7cc5fa283749cca5a97f92c9a8f",
+      "sha256": "1cfe329b2446358d0f575e0251420969aad47b54d947f1a88b6573459f897db2"
+    },
+    "includes/version.php": {
+      "before": "37a3cdf93f16c0aa307c43d51d1183937431342d61ba05d94c8909182c90e5e8",
+      "sha256": "63cd49fa04952a1fa6002095c138b6279aaae427287c2a265d57029f5a316994"
+    }
+  }
+}
