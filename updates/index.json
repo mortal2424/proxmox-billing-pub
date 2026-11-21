@@ -126,6 +126,12 @@
       "commit": "19ef7ffc8613d540c21bad731c7e8a045e4dc73d",
       "sha256": "a25187615cdf1a04e24827be017718befeb002457d33e7b162ee3772bcc0ef8f",
       "summary": "Проверка DNS и HTTPS из контрольных ВМ с результатами по гипервизорам в мониторинге."
+    },
+    {
+      "version": "2.5.1-beta8.22",
+      "commit": "142ccd24b9c9426d7e22a398c96d716b1dec1e2a",
+      "sha256": "9ee0e550942827b0ffb7cc9daa1e01abb7b9f003a60c6abb470c6574762618ae",
+      "summary": "Восстановлено создание ВМ и LXC при ограничении PHP-FPM на доступ к каталогам."
     }
   ]
 }
