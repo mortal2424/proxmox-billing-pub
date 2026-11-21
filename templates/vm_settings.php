@@ -183,6 +183,7 @@ $passwordInfo = null;
 $passwordUnavailable = false;
 try {
     $passwordInfo = visibleGuestPassword($pdo, $vm_db_id, (int) $user_id);
+    $passwordMask = $passwordInfo ? str_repeat('*', strlen($passwordInfo['password'])) : '';
     unset($passwordInfo['password']);
 } catch (Throwable $error) {
     $passwordUnavailable = true;
@@ -795,8 +796,10 @@ try {
                                  data-guest-id="<?= $vm_db_id ?>"
                                  data-csrf="<?= htmlspecialchars($_SESSION['guest_settings_csrf'], ENT_QUOTES) ?>"
                                  data-ttl="<?= max(0, $passwordInfo['expires_at'] - time()) ?>">
-                                <button class="btn btn-secondary" type="button" data-reveal aria-pressed="false" aria-label="Показать пароль">••••••••••••</button>
-                                <button class="btn btn-primary" type="button" data-copy>Копировать пароль</button>
+                                <button class="btn btn-secondary" type="button" data-reveal aria-pressed="false" aria-label="Показать пароль"><?= $passwordMask ?></button>
+                                <button class="btn btn-primary" type="button" data-copy aria-label="Копировать пароль" title="Копировать пароль">
+                                    <i class="fas fa-copy" aria-hidden="true"></i>
+                                </button>
                                 <span role="status" data-result></span>
                             </div>
                             <p>Пароль доступен 24 часа с момента генерации.</p>
@@ -878,7 +881,6 @@ try {
                 <div class="settings-card" id="networks-section">
                     <div class="card-header">
                         <h5><i class="fas fa-network-wired"></i> Управление сетями</h5>
-                        <a href="/templates/my_networks.php">Мои сети</a>
                     </div>
                     <div class="card-body">
                         <div class="loading-placeholder">
@@ -1263,6 +1265,6 @@ try {
         return form;
     }
     </script>
-    <script defer src="/js/guest-password.js?v=2"></script>
+    <script defer src="/js/guest-password.js?v=3"></script>
 </body>
 </html>

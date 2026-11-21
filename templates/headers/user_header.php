@@ -23,9 +23,6 @@
                     <a href="/templates/dashboard.php" class="quick-action" data-tooltip="Дашборд">
                         <i class="fas fa-chart-line"></i>
                     </a>
-                    <a href="/templates/my_networks.php" class="quick-action" aria-label="Мои сети" data-tooltip="Мои сети">
-                        <i class="fas fa-network-wired" aria-hidden="true"></i>
-                    </a>
                     <a href="/templates/billing.php" class="quick-action" data-tooltip="Финансы">
                         <i class="fas fa-credit-card"></i>
                     </a>

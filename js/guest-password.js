@@ -5,7 +5,7 @@
     const copy = group.querySelector('[data-copy]');
     const result = group.querySelector('[data-result]');
     const form = document.querySelector('#guest-password [data-generate]');
-    const mask = '••••••••••••';
+    const mask = reveal.textContent;
     const expires = Date.now() + Number(group.dataset.ttl) * 1000;
     let revision = 0;
     let revealTimer;
