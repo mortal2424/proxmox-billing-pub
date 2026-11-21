@@ -49,7 +49,7 @@ function updateCatalog(bool $live = false): array
     if (!$live && !is_link(HOMEVLAD_UPDATE_CATALOG_CACHE) && is_file(HOMEVLAD_UPDATE_CATALOG_CACHE)) {
         $modified = filemtime(HOMEVLAD_UPDATE_CATALOG_CACHE);
         if ($modified !== false && $modified >= time() - HOMEVLAD_UPDATE_CATALOG_MAX_AGE) {
-            $document = @file_get_contents(HOMEVLAD_UPDATE_CATALOG_CACHE, false, null, 1048577);
+            $document = @file_get_contents(HOMEVLAD_UPDATE_CATALOG_CACHE, false, null, 0, 1048577);
             if (is_string($document) && strlen($document) <= 1048576) {
                 try {
                     return decodeUpdateCatalog($document);
