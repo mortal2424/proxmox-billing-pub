@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.35",
+  "from": "2.5.1-beta8.34",
+  "source_commit": "5987ad903152e02698c00061b8dd92ff1b17671c",
+  "changelog": "Мобильный API поддерживает вход по биометрии, административную сводку и получение IP гостей.\n",
+  "files": {
+    "api/mobile_auth.php": {
+      "before": "26c797ac6ec39e3473655fd7431cdfdd2dd9cbc3011cde70e7358102ccde218c",
+      "sha256": "89e83fc5e5705246add9dd0e3439e164256977ee7720d15ed67ad7f40a913c7b"
+    },
+    "api/mobile_dashboard.php": {
+      "before": "5a17af47553c0b37fd8829afbdb87bcb44a734a41b45dbb9e72c1055dc8776db",
+      "sha256": "abd05757241fd514ed96bddff321c5f5517adb16d11a32e1dd1baceebde0008e"
+    },
+    "api/mobile_resources.php": {
+      "before": "ff31a65024081a5b3de8bb674e40e01b2492dab5e691c584804b3d77c01efd74",
+      "sha256": "12cc43b57167ec4491463f4c11b3d624eb6d3d30eb5b9921f9a804ec9b77d27d"
+    },
+    "cronjobs/create_mobile_device_tokens.php": {
+      "before": null,
+      "sha256": "a7cdcb91ce9d4979519b9d8dbe80928a9628bff6454f44ac9b9da5648c1de0d4"
+    },
+    "includes/mobile_device_login.php": {
+      "before": null,
+      "sha256": "111c9d5db8faecd06f1e346b47ab6ffce1368da22f1941c07c6a593c16f80bcf"
+    },
+    "includes/version.php": {
+      "before": "8417b96bbab2a101e2a489d9d14173259ac374742bd1493ca626bda974d73591",
+      "sha256": "4d615b0eb616da819a1280646f7e7021e7e6dce4e5d431ce7011cb6ef74d208a"
+    }
+  }
+}
