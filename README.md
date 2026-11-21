@@ -151,8 +151,8 @@ php cronjobs/encrypt_node_passwords.php
 
 Панель использует подготовленный администратором самостоятельный QCOW2 x86-64. Для запуска профиля Windows нужна поддержка x86-64-v2 и AES на гипервизоре. Для коммерческих заказов используйте образ и лицензию, которые разрешают развёртывание на вашей инфраструктуре. Оценочные образы используйте в изолированной проверке. [Microsoft Evaluation Center](https://www.microsoft.com/en-us/evalcenter/evaluate-windows-server-2025)
 
-1. На Proxmox создайте эталонную ВМ **Q35 + OVMF (UEFI)** с системным диском **VirtIO SCSI** и сетевой картой **VirtIO**. Установите Windows из подходящего ISO, драйверы VirtIO SCSI и NetKVM, обновления и QEMU Guest Agent. Рекомендуется английский образ, так как сценарий панели использует локальную учётную запись `Administrator`. Проверьте загрузку эталонной ВМ с системного диска.
-2. Установите [Cloudbase-Init x64](https://cloudbase.it/cloudbase-init/). В обоих файлах `cloudbase-init.conf` и `cloudbase-init-unattend.conf` проверьте источник ConfigDrive и имя пользователя. В основном конфиге оставьте плагины создания пользователя и установки пароля. Проверьте, что целевая учётная запись включена и имеет административные права.
+1. На Proxmox создайте эталонную ВМ **Q35 + OVMF (UEFI)** с системным диском **VirtIO SCSI** и сетевой картой **VirtIO**. Если на ноде есть NVMe, разместите на нём системный диск эталона. Установите Windows из подходящего ISO, драйверы VirtIO SCSI и NetKVM, обновления и QEMU Guest Agent. В локализованной Windows переименуйте встроенную учётную запись администратора (SID заканчивается на `-500`) в `Administrator`, сохранив её права. Проверьте загрузку эталонной ВМ с системного диска.
+2. Установите [Cloudbase-Init x64](https://cloudbase.it/cloudbase-init/). В обоих файлах `cloudbase-init.conf` и `cloudbase-init-unattend.conf` проверьте источник ConfigDrive и имя пользователя. Проверьте, что целевая учётная запись включена и имеет административные права.
 
    ```ini
    [DEFAULT]
@@ -161,7 +161,23 @@ php cronjobs/encrypt_node_passwords.php
    metadata_services=cloudbaseinit.metadata.services.configdrive.ConfigDriveService
    ```
 
+   В основном `cloudbase-init.conf` поместите установку пароля сразу после подготовки встроенной учётной записи. Пустой `groups` сохраняет её существующее членство по SID, поэтому имя локализованной группы не требуется.
+
+   ```ini
+   rename_admin_user=true
+   groups=
+   plugins=cloudbaseinit.plugins.windows.createuser.CreateUserPlugin,cloudbaseinit.plugins.common.setuserpassword.SetUserPasswordPlugin,cloudbaseinit.plugins.common.networkconfig.NetworkConfigPlugin,cloudbaseinit.plugins.windows.extendvolumes.ExtendVolumesPlugin
+   ```
+
 3. Выполните Sysprep с ответным файлом Cloudbase-Init, режимами **Generalize**, **OOBE** и **Shutdown**. Экспортируйте системный диск только после выключения. Эталон должен быть без пользовательских данных, сохранённых ключей и временных паролей. Не запускайте его повторно перед экспортом. [Подготовка шаблона Cloudbase-Init](https://cloudbase-init.readthedocs.io/en/latest/tutorial.html)
+
+   Откройте командную строку от имени администратора и скопируйте ответный файл в каталог без пробелов в пути.
+
+   ```bat
+   copy "%ProgramFiles%\Cloudbase Solutions\Cloudbase-Init\conf\Unattend.xml" "%SystemRoot%\Temp\hv-unattend.xml"
+   "%SystemRoot%\System32\Sysprep\Sysprep.exe" /oobe /generalize /shutdown /unattend:%SystemRoot%\Temp\hv-unattend.xml
+   ```
+
 4. На Linux-хосте подготовьте самостоятельный QCOW2 и имя файла для каталога. Для 2025 замените `edition` на `2025`. Команды требуют `qemu-img`, Python 3 и `sha256sum`.
 
    ```sh
@@ -176,6 +192,8 @@ php cronjobs/encrypt_node_passwords.php
 
 5. Для другой зоны добавьте гипервизор в нужную **зону доступности** и разрешите его для заказов. На гипервизоре создайте файловое хранилище с типом **Import**. Загрузите туда именованный QCOW2 через Proxmox. В HomeVlad в «Образы ОС» → «Cloud-образы» выберите именно этот гипервизор, откройте нужную версию Windows, укажите хранилище и нажмите «Добавить в каталог». Для переноса загрузите подготовленный файл в новый Import и выберите его в панели. На каждой ноде, где нужно размещать такие ВМ, повторите публикацию или используйте доступное ей общее хранилище.
 6. Для этой зоны настройте сетевой пул с DHCP и пул дисков с содержимым `images`. Хранилище Import держит исходник, системный диск новой ВМ создаётся в выбранном пуле дисков. Проверьте через тестовый заказ загрузку, появление сетевого адреса и вход в консоль под `Administrator`.
+
+Импорт больших образов может занять до 10 минут. Для HTTP-заказов настройте тайм-ауты PHP-FPM и обратного прокси минимум на 660 секунд, если они завершают запрос раньше импорта.
 
 В заказе Windows из готового образа установочный ISO и отдельный ISO драйверов не нужны. Панель генерирует ConfigDrive2 с временным паролем. Proxmox и служебный диск могут хранить этот пароль в открытом виде. Используйте одноразовое значение и смените его внутри Windows после первого входа. Имя заказа назначается ВМ в Proxmox. Чтобы поменять имя компьютера в госте, используйте настройки Windows или предусмотрите это в эталонном образе. При ручной установке переключитесь на ISO и выберите редакцию Windows. [Документация Proxmox по Cloud-Init](https://pve.proxmox.com/pve-docs/chapter-qm.html#qm_cloud_init)
 

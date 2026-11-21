@@ -115,6 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         if ($fromCloud && (!is_string($cloudKey) || !isset(cloudImageCatalog()[$cloudKey]))) {
             throw new InvalidArgumentException('Выберите cloud-образ');
         }
+        if ($fromCloud) {
+            // Allow the 600-second Proxmox disk import and subsequent setup to finish.
+            set_time_limit(660);
+        }
         $osType = $fromCloud ? (cloudImageCatalog()[$cloudKey]['os_type'] ?? 'linux') : ($_POST['os_type'] ?? 'linux');
         $osVersion = $fromCloud ? cloudImageCatalog()[$cloudKey]['label'] : ($vmType === 'qemu' ? ($_POST['os_version'] ?? '') : 'linux');
 
