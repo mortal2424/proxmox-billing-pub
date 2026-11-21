@@ -16,8 +16,12 @@ $inventory = ['network'=>[], 'storage'=>[]];
 try {
     $api = placementClient($node, $pdo);
     $path = '/nodes/' . rawurlencode($node['node_name']);
-    foreach ($api->request('GET', $path . '/network') as $entry) {
+    $interfaces = $api->request('GET', $path . '/network', ['type'=>'any_bridge']);
+    foreach ($interfaces as $entry) {
         if (in_array($entry['type'] ?? '', ['bridge','OVSBridge'], true)) $inventory['network'][] = $entry['iface'];
+    }
+    foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
+        if (strlen($entry['name']) <= 64) $inventory['network'][] = $entry['name'];
     }
     foreach ($api->request('GET', $path . '/storage') as $entry) {
         if (array_intersect(['images','rootdir'], explode(',', $entry['content'] ?? ''))) {
@@ -165,7 +169,7 @@ foreach ($query->fetchAll() as $entry) {
 </label>
 <fieldset><legend>Ресурсы</legend>
 <?php foreach (array_unique(array_merge($inventory[$kind],$selected)) as $resource): ?>
-<label><input type="checkbox" name="members[]" value="<?= $escape($resource) ?>" <?= in_array($resource,$selected,true) ? 'checked' : '' ?>> <?= $escape($resource) ?></label>
+<label><input type="checkbox" name="members[]" value="<?= $escape($resource) ?>" <?= in_array($resource,$selected,true) ? 'checked' : '' ?>> <?= $escape(str_contains($resource, '/') ? 'SDN · ' . $resource : $resource) ?></label>
 <?php endforeach ?>
 </fieldset>
 <div class="pool-actions"><button name="action" value="save" <?= !$inventory[$kind] ? 'disabled' : '' ?>><?= $name === '' ? 'Создать пул' : 'Сохранить' ?></button>
