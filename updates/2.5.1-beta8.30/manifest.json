@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.30",
+  "from": "2.5.1-beta8.29",
+  "source_commit": "082b946d6f82729576f5f9262e334bd25767a008",
+  "changelog": "Исправлена передача заглавных букв и знака восклицания в пароле через VNC.\n",
+  "files": {
+    "console/view.html": {
+      "before": "b9d29999098a40842c70219ddc4cd93484089b2d6970be77c168237ae4336829",
+      "sha256": "0d7fce7d3fd6df0b7739944f9bab37e9935e6d7041ec3fdbd1ff8dcc0360cdad"
+    },
+    "console/view.js": {
+      "before": "e3a8222b4b9914313c2e3fa3d85582801c3f19d108ef714274032aac67cd18cc",
+      "sha256": "bb1dfbcaf6052f6c86182eead614c938547269ca16dd338cf677aa2d40d36299"
+    },
+    "includes/version.php": {
+      "before": "66ae71f62096c44bb20c6507425e394b2f2d5776945089c5a36a3ef9b3d69170",
+      "sha256": "c749afda93db5e15a35287c8b5d8e741559a9a690146566a7b33e312ddd84b10"
+    }
+  }
+}
