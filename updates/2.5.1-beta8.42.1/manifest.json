@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.42.1",
+  "from": "2.5.1-beta8.42",
+  "source_commit": "5196aa074253e97d493beb927bea30601fb077f7",
+  "changelog": "Исправлено управление питанием LXC из консоли администратора. Тип гостя определяется на стороне панели по данным Proxmox. Кнопка запуска доступна при отключённой консоли.\n",
+  "files": {
+    "console/control.php": {
+      "before": "c9099b71f25fd0d80b4420c16e77dcc7b6e17a4b961e2a10ac98d5d5f7d8defc",
+      "sha256": "f5e795e16c752ee420cc43dba726bd0c655ac0bf72786e7104986857187a93a3"
+    },
+    "console/view.js": {
+      "before": "bb1dfbcaf6052f6c86182eead614c938547269ca16dd338cf677aa2d40d36299",
+      "sha256": "53ee8778eb562685f9cb83a7aa301a861c0bb210515a1a9d5fb4db1b29f6d031"
+    },
+    "includes/version.php": {
+      "before": "63cd49fa04952a1fa6002095c138b6279aaae427287c2a265d57029f5a316994",
+      "sha256": "91d1b5d39112dc0c044e4bebdc04dfcbe478b10656f3946deea805ce67440db9"
+    }
+  }
+}
