@@ -246,6 +246,12 @@
       "commit": "cff8f75efaaedf1aec1eefd7afa355610b751205",
       "sha256": "23bca5147eac5a9948b5ed851b0918d2970d1afddf9a08720883c45babbfdcae",
       "summary": "ВМ и LXC, ноды и зоны в мобильной админке."
+    },
+    {
+      "version": "2.5.1-beta8.41",
+      "commit": "a952159fc2e540c3729b6f10615fd904d29bbc7d",
+      "sha256": "dfd7546a62405c49c54b521b723ec5c36fedb3c2fc954f6d42de1ea11824a3f9",
+      "summary": "Управление пользователями и платежами в HomeVlad для iPhone."
     }
   ]
 }
