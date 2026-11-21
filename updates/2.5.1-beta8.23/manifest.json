@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.23",
+  "from": "2.5.1-beta8.22",
+  "source_commit": "7c9f2e095dc3a2442f70a264d0281186c66687d7",
+  "changelog": "В заказе ВМ и LXC выбирается сетевой пул, включая входящие в него SDN.\nРесурсы зоны загружаются в фоне. У LXC-шаблонов отображаются понятные названия.\nДобавлена генерация пароля и защищённый показ владельцу на 24 часа с копированием.\nВ пользовательской консоли добавлен ввод логина и доступного пароля без подтверждения входа.\nВыровнены иконки в свёрнутых сайдбарах кабинета и админки.\nНа node2 проверено создание Debian cloud-ВМ и LXC через SDN-пул.\n",
+  "files": {
+    "admin/admin_sidebar.php": {
+      "before": "050df085d593194737827c509613efd3bc85f1d3b2094714467fe221fa55ca54",
+      "sha256": "5df51af543595cdbd8943c24a6df86b30105340555aa4dfa37ff145b591731b6"
+    },
+    "console/credential.php": {
+      "before": null,
+      "sha256": "cee75d177fc909062f7a5433b38428b5b655c7d3c01000dfc38eada78bf3233c"
+    },
+    "console/view.html": {
+      "before": "1a7aaf33243b14f7f65a340b25d6b17f61701be01a592832c304a20a6ff9b7b2",
+      "sha256": "a7a86165337023958d704e6f4186842cd46035c1d2693351d42aa29412772a8b"
+    },
+    "console/view.js": {
+      "before": "b06245110d2f643478a2f50197014be9ee8d84452b5297b8d788ef0e3bc9b779",
+      "sha256": "37daa5e7b4e45fc7e5a6f6368a43a0733831dab4eec1b033de19425f8484874f"
+    },
+    "cronjobs/create_guest_initial_passwords.php": {
+      "before": null,
+      "sha256": "f56a906601ff5e187f5bfa980387046b312bea21a870966bb464509ee186e48e"
+    },
+    "includes/console_launch.php": {
+      "before": "da7973cd5f814f7a464800a3304776bb6baa52c2ecae4d187a71a15b1b32c632",
+      "sha256": "ccb4ade2f9e873fe59cddf9e806f2048ea68b9e5c6c031de51ee3cdce203074d"
+    },
+    "includes/guest_initial_password.php": {
+      "before": null,
+      "sha256": "44d1a301fffe27dc68d4302d7b159ed0a5e2fca997b0ff3006b92fdac3af0258"
+    },
+    "includes/lxc_template_labels.php": {
+      "before": null,
+      "sha256": "0137e1b70d137f750a3580f5bca6ff6de5d0907f5da38516822319faf263e37b"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "878387537b0b94dda4b54be7236264d52a92a4e25ba9bf15e5fa1e49afb5a316",
+      "sha256": "471789f17252ba9a0f6b874498e11d1ca74ae4e76038227e484e346c34e6659f"
+    },
+    "includes/version.php": {
+      "before": "11aa1679b6e1776751215fd4524eec2b13ab42380cca0dcaa6677fea053ab1a1",
+      "sha256": "fa7f638e4e2a851989cfeb38b4384c5a0414fd4d2d6d7efb00bde7845398f63b"
+    },
+    "includes/zone_placement.php": {
+      "before": "0625671488cc176da3a8e215a08e084f2267f599ad52a9b8ca259ded82edeb85",
+      "sha256": "6aa7b6d02eeb6355aafd06b5e9fe51df6c0702a0a6ab60e12064b1ab307cab64"
+    },
+    "js/guest-password.js": {
+      "before": null,
+      "sha256": "6825f5cdea480fc366a15a83474da5dd408943d59ee549ef868e73e303dd0a35"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "c7eec762f39ea65d55430ec830500bb0837bea0f7ea85316b9c4426a884be327",
+      "sha256": "700b0b79b9c7965e377cce7607a58b42ec9284dfb6fbc4e0f795ef44c4301800"
+    },
+    "templates/headers/user_sidebar.php": {
+      "before": "edbe1f21742da67dca6106f072d7d4025724892cf220abd5b1ff542c96c2344f",
+      "sha256": "55f3225a2880b9123e0833566c774274720475675718745a4f12c345253fde6e"
+    },
+    "templates/my_vms.php": {
+      "before": "fd573302cab53db20017d8cd5bfd76579c77aa143ec593029ae58ab7e8363855",
+      "sha256": "614f78d7aa6d08875abdab8f24cb7b3edf70d657db0b4dca148429f6e662e574"
+    },
+    "templates/order_vm.php": {
+      "before": "20d9f3666850c6747170113f22dff17e7666e09c0d2ab359fd43df23babb67e2",
+      "sha256": "859e586cb6e55819c10451a82d312a0454327ad7d342a301ef58956bc7cf2a08"
+    },
+    "templates/vm_settings.php": {
+      "before": "7cfcac6d3cba9c77d8e48f1af286afb600b6ce6ed79172e4a6b01384ea367af0",
+      "sha256": "56680b62faf94b32fdfa8ab784f03805165b9885ed5748046a5bc25390b44ecd"
+    }
+  }
+}
