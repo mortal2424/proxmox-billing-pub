@@ -281,11 +281,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         $successMessage = $vmType === 'qemu'
             ? "Виртуальная машина #{$vmId} успешно создана на ноде {$node['node_name']}!"
             : "LXC контейнер #{$vmId} успешно создан на ноде {$node['node_name']}!";
+        if (isset($creationResult['warning'])) {
+            $successMessage .= ' ' . $creationResult['warning'];
+        }
         $creationTime = time() - $creationStart;
 
     } catch (Throwable $e) {
-        if (isset($tariffId) && $is_custom) {
-            $pdo->exec("DELETE FROM tariffs WHERE id = $tariffId");
+        if (isset($tariffId) && $is_custom && $e->getCode() !== ProxmoxAPI::ORDER_COMMIT_UNCONFIRMED) {
+            try {
+                $cleanupPdo = (new Database())->getConnection();
+                $cleanup = $cleanupPdo->prepare('DELETE FROM tariffs WHERE id=? AND NOT EXISTS (SELECT 1 FROM vms WHERE tariff_id=?)');
+                $cleanup->execute([$tariffId, $tariffId]);
+            } catch (Throwable $cleanupError) {
+                error_log('Could not clean up unused order tariff');
+            }
         }
 
         error_log("[Creation Error] " . date('Y-m-d H:i:s') . " - " . $e->getMessage());

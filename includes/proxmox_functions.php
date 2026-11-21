@@ -7,6 +7,8 @@ require_once __DIR__ . '/guest_mutations.php';
 
 class ProxmoxAPI {
     use ProxmoxGuestMutations;
+
+    public const ORDER_COMMIT_UNCONFIRMED = 19001;
     private $host;
     private $username;
     private $password;
@@ -72,6 +74,53 @@ class ProxmoxAPI {
         throw new RuntimeException('ISO-образ отсутствует в выбранном хранилище');
     }
 
+    private function beginGuestBilling(int $vmid, string $type, string $marker): void
+    {
+        $config = $this->guestApi()->config($vmid, $type);
+        if (trim((string)($config['description'] ?? '')) !== $marker) {
+            throw new RuntimeException('Не удалось подтвердить созданного гостя.');
+        }
+        $this->pdo = (new Database())->getConnection();
+        $this->pdo->beginTransaction();
+        // Lock the VMID range while the legacy billing foreign key still uses vm_id.
+        $query = $this->pdo->prepare('SELECT id FROM vms WHERE vm_id=? FOR UPDATE');
+        $query->execute([$vmid]);
+        if ($query->fetchColumn() !== false) {
+            throw new RuntimeException('Этот VMID уже используется в биллинге.');
+        }
+    }
+
+    private function finishGuestCreation(int $vmid, string $type, bool $start): array
+    {
+        $result = ['status' => 'stopped'];
+        if (!$start) return $result;
+        try {
+            $this->controlGuest($vmid, $type, 'start');
+            $result['status'] = 'running';
+            $stmt = $this->pdo->prepare("UPDATE vms SET status='running' WHERE node_id=? AND vm_id=? AND vm_type=? AND status='stopped'");
+            $stmt->execute([$this->nodeId, $vmid, $type]);
+        } catch (Throwable $error) {
+            $result['warning'] = 'Гость создан. Проверьте его текущий статус в списке ВМ перед повторным запуском.';
+            error_log("Guest start or status update unconfirmed: node={$this->nodeId} vmid={$vmid}");
+        }
+        return $result;
+    }
+
+    private function rollbackGuestCreation(?int $vmid, string $type, string $marker, bool $commitAttempted): void
+    {
+        if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+        if ($vmid === null || $commitAttempted) return;
+        try {
+            $api = $this->guestApi();
+            $config = $api->config($vmid, $type);
+            if (trim((string)($config['description'] ?? '')) === $marker) {
+                $api->destroy($vmid, $type);
+            }
+        } catch (Throwable $error) {
+            error_log("Guest creation requires reconciliation: node={$this->nodeId} type={$type} vmid={$vmid} marker={$marker}");
+        }
+    }
+
     public function createVM($params) {
     // Validate every value that becomes part of a remote shell command.
     $storage = (string)($params['storage'] ?? 'local');
@@ -102,20 +151,13 @@ class ProxmoxAPI {
         }
     }
 
-    $createdGuest = false;
-    $this->pdo->beginTransaction();
+    $marker = 'HomeVlad provisioning ' . bin2hex(random_bytes(16));
+    $commitAttempted = false;
 
     try {
         // 1. Получаем уникальный ID для VM
         $vmid = $this->getClusterNextID();
         error_log("[VM Creation] Starting creation of VM ID: {$vmid}");
-
-        // 2. Проверка существования VM
-        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE node_id = {$this->nodeId} AND vm_id = ?");
-        $checkStmt->execute([$vmid]);
-        if ($checkStmt->fetchColumn() > 0) {
-            throw new Exception("VM with ID {$vmid} already exists in database");
-        }
 
         // 3. Подготовка параметров
         $nodeId = $this->nodeId;
@@ -134,16 +176,16 @@ class ProxmoxAPI {
 
         // 4. Создаем базовую VM
         $createCmd = sprintf(
-            "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s",
+            "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s --description %s",
             $vmid,
             escapeshellarg($params['hostname'] ?? 'vm-' . $vmid),
             $cpu,
             $ram,
-            escapeshellarg($scsihw)
+            escapeshellarg($scsihw),
+            escapeshellarg($marker)
         );
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
-        $createdGuest = true;
 
         // 5. Настройка дисков
         $diskSize = (string)($params['disk'] ?? '10');
@@ -250,7 +292,8 @@ class ProxmoxAPI {
         }
 
         // 11. Сохранение в базу данных
-        $status = $hasIso ? 'stopped' : 'running';
+        $this->beginGuestBilling($vmid, 'qemu', $marker);
+        $status = 'stopped';
         $stmt = $this->pdo->prepare("
             INSERT INTO vms
             (user_id, vm_id, node_id, tariff_id, hostname, cpu, ram, disk,
@@ -282,34 +325,31 @@ class ProxmoxAPI {
             $this->createBillingRecord($vmid, $params);
         }
 
-        // 13. Запуск VM если не указан ISO
-        if (!$hasIso) {
-            $this->execSSHCommand("qm start {$vmid}");
-        }
-
+        $commitAttempted = true;
         $this->pdo->commit();
+        $launch = $this->finishGuestCreation($vmid, 'qemu', !$hasIso);
         error_log("[VM Creation] VM {$vmid} created successfully");
 
-        return [
+        return $launch + [
             'vmid' => $vmid,
-            'status' => $status,
             'node_name' => $this->nodeName,
             'hostname' => $params['hostname'] ?? 'vm-' . $vmid
         ];
 
-    } catch (Exception $e) {
-        $this->pdo->rollBack();
-
-        if ($createdGuest && isset($vmid)) {
-            try {
-                $this->execSSHCommand("qm destroy {$vmid} --purge");
-            } catch (Exception $cleanupError) {
-                error_log("[VM Creation] Cleanup error: " . $cleanupError->getMessage());
-            }
+    } catch (Throwable $error) {
+        try {
+            $this->rollbackGuestCreation($vmid ?? null, 'qemu', $marker, $commitAttempted);
+        } catch (Throwable $rollbackError) {
+            error_log("Could not roll back guest creation on node {$this->nodeId}");
         }
-
-        error_log("[VM Creation] Error: " . $e->getMessage());
-        throw new Exception("Failed to create VM: " . $e->getMessage());
+        if ($commitAttempted) {
+            error_log("Guest billing commit unconfirmed: node={$this->nodeId} vmid={$vmid} marker={$marker}");
+            throw new RuntimeException('Результат записи заказа требует проверки администратора. Не повторяйте заказ.', self::ORDER_COMMIT_UNCONFIRMED, $error);
+        }
+        if ($error instanceof PDOException) {
+            throw new RuntimeException('Не удалось сохранить заказ. Обратитесь в поддержку.', 0, $error);
+        }
+        throw $error;
     }
 }
 
@@ -383,20 +423,13 @@ public function createLXC($params) {
         $disk === false || $disk < 1 || $disk > 1048576) {
         throw new InvalidArgumentException('Invalid LXC template, storage, network or resource parameters');
     }
-    $createdGuest = false;
-    $this->pdo->beginTransaction();
+    $marker = 'HomeVlad provisioning ' . bin2hex(random_bytes(16));
+    $commitAttempted = false;
 
     try {
         // Получение уникального ID
         $vmid = $this->getClusterNextID();
         error_log("[LXC Creation] Starting creation of container ID: {$vmid}");
-
-        // Проверка существования контейнера
-        $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM vms WHERE node_id = {$this->nodeId} AND vm_id = ?");
-        $checkStmt->execute([$vmid]);
-        if ($checkStmt->fetchColumn() > 0) {
-            throw new Exception("Container with ID {$vmid} already exists in database");
-        }
 
         // Подготовка параметров
         $hostname = $params['hostname'] ?? 'lxc-' . $vmid;
@@ -419,11 +452,10 @@ public function createLXC($params) {
                     "--password " . escapeshellarg($password) . " " .
                     "--unprivileged 1 " .
                     "--onboot 1 " .
-                    "--features nesting=1";
+                    "--features nesting=1 --description " . escapeshellarg($marker);
 
         error_log("[LXC Creation] Creating container {$vmid} with validated parameters");
         $this->execSSHCommand($createCmd);
-        $createdGuest = true;
 
         // Настройка сети
         $network = (string)($params['network'] ?? 'vmbr0');
@@ -460,17 +492,13 @@ public function createLXC($params) {
         // $this->execSSHCommand("pct exec {$vmid} -- bash -c 'echo \"nameserver 77.88.8.88\" > /etc/resolv.conf'");
         // $this->execSSHCommand("pct exec {$vmid} -- bash -c 'echo \"nameserver 77.88.8.2\" >> /etc/resolv.conf'");
 
-        // Запуск контейнера
-        error_log("[LXC Creation] Starting container {$vmid}");
-        $this->execSSHCommand("pct start {$vmid}");
-
-        // Сохранение в базу данных
+        $this->beginGuestBilling($vmid, 'lxc', $marker);
         $stmt = $this->pdo->prepare("
             INSERT INTO vms
             (user_id, vm_id, node_id, tariff_id, hostname, cpu, ram, disk,
              network, sdn, storage, os_type, vm_type, status, created_at, is_custom)
             VALUES (:user_id, :vm_id, :node_id, :tariff_id, :hostname, :cpu, :ram, :disk,
-                    :network, :sdn, :storage, :os_type, 'lxc', 'running', NOW(), :is_custom)
+                    :network, :sdn, :storage, :os_type, 'lxc', 'stopped', NOW(), :is_custom)
         ");
 
         $stmt->execute([
@@ -493,30 +521,31 @@ public function createLXC($params) {
             $this->createBillingRecord($vmid, $params);
         }
 
+        $commitAttempted = true;
         $this->pdo->commit();
+        $launch = $this->finishGuestCreation($vmid, 'lxc', true);
         error_log("[LXC Creation] Container {$vmid} created successfully");
 
-        return [
+        return $launch + [
             'vmid' => $vmid,
-            'status' => 'running',
             'node_name' => $this->nodeName,
             'hostname' => $hostname
         ];
 
-    } catch (Exception $e) {
-        $this->pdo->rollBack();
-
-        if ($createdGuest && isset($vmid)) {
-            try {
-                error_log("[LXC Creation] Cleanup failed container {$vmid}");
-                $this->execSSHCommand("pct destroy {$vmid}");
-            } catch (Exception $cleanupError) {
-                error_log("[LXC Creation] Cleanup error: " . $cleanupError->getMessage());
-            }
+    } catch (Throwable $error) {
+        try {
+            $this->rollbackGuestCreation($vmid ?? null, 'lxc', $marker, $commitAttempted);
+        } catch (Throwable $rollbackError) {
+            error_log("Could not roll back guest creation on node {$this->nodeId}");
         }
-
-        error_log("[LXC Creation] Error: " . $e->getMessage());
-        throw new Exception("Failed to create LXC container: " . $e->getMessage());
+        if ($commitAttempted) {
+            error_log("Guest billing commit unconfirmed: node={$this->nodeId} vmid={$vmid} marker={$marker}");
+            throw new RuntimeException('Результат записи заказа требует проверки администратора. Не повторяйте заказ.', self::ORDER_COMMIT_UNCONFIRMED, $error);
+        }
+        if ($error instanceof PDOException) {
+            throw new RuntimeException('Не удалось сохранить заказ. Обратитесь в поддержку.', 0, $error);
+        }
+        throw $error;
     }
 }
 
@@ -1181,34 +1210,23 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
         }
     }
 
-    private function getClusterNextID() {
-        // Пытаемся получить ID из кластера
-        $command = "pvesh get /cluster/nextid";
-        $response = trim($this->execSSHCommand($command));
-
-        if (empty($response) || !is_numeric($response)) {
-            // Fallback для автономной ноды
-            $command = "pvesh get /nodes/{$this->nodeName}/nextid";
-            $response = trim($this->execSSHCommand($command));
-
-            if (empty($response) || !is_numeric($response)) {
-                // Последний fallback - ручной поиск
-                $command = "pvesh get /cluster/resources --type vm --output-format json";
-                $vms = json_decode($this->execSSHCommand($command), true);
-                $maxId = 100; // Начальный минимальный ID
-
-                if (is_array($vms)) {
-                    foreach ($vms as $vm) {
-                        if (isset($vm['vmid']) && $vm['vmid'] > $maxId) {
-                            $maxId = $vm['vmid'];
-                        }
-                    }
-                }
-                $response = $maxId + 1;
-            }
+    private function getClusterNextID(): int
+    {
+        $next = filter_var($this->apiClient->request('GET', '/cluster/nextid'), FILTER_VALIDATE_INT);
+        if ($next === false || $next < 100 || $next > 999999999) {
+            throw new RuntimeException('Proxmox не вернул допустимый VMID.');
         }
-
-        return (int)$response;
+        $reserved = $this->pdo->prepare(
+            'SELECT (SELECT COUNT(*) FROM vms WHERE vm_id=?) + (SELECT COUNT(*) FROM vms_admin WHERE vm_id=?)'
+        );
+        $guests = $this->apiClient->request('GET', '/cluster/resources', ['type' => 'vm']);
+        $occupied = array_column($guests, 'vmid', 'vmid');
+        for ($vmid = $next; $vmid <= min($next + 999, 999999999); $vmid++) {
+            if (isset($occupied[$vmid])) continue;
+            $reserved->execute([$vmid, $vmid]);
+            if ((int)$reserved->fetchColumn() === 0) return $vmid;
+        }
+        throw new RuntimeException('Не удалось подобрать свободный VMID.');
     }
 
     private function getStorageInfo($storageName) {
