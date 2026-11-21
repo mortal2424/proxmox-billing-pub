@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.11",
+  "from": "2.5.1-beta8.10",
+  "source_commit": "d1a80fe25f52f901a537b3216bc90ff2af3cc173",
+  "changelog": "Возвращена шапка форм добавления и редактирования ноды. Названия приведены к зонам доступности.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "14e6b7ffefc9c40cf726fd65d72c6b59abb1703674d64baaff67566c94219686",
+      "sha256": "aafc2ecb56ab35f7713c6ce9eb0622959b3e1d4cb36e7ad27cb2e757facf16d5"
+    },
+    "admin/edit_node.php": {
+      "before": "416ac2e4c9e35622aa256c4a855f1f0d471b91ca117e2215675d55bf247ba4f9",
+      "sha256": "eb905d183ecbed2a7d4385004d4a88934e88dc5466277f5102621306cf6412eb"
+    },
+    "includes/version.php": {
+      "before": "e1d941c9290c1d830a84ec7721114084707970e27889d25008c503df43b2ce31",
+      "sha256": "77a2154ea8ae6c509026fbc864b48ed48b625b0a88b76e6b1448c4d8c6fbf941"
+    }
+  }
+}
