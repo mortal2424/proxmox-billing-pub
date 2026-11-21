@@ -3,8 +3,12 @@ import RFB from '/console/assets/novnc/core/rfb.js';
 const status = document.querySelector('#status');
 const screen = document.querySelector('#screen');
 const cad = document.querySelector('#cad');
-const [token, controlPart] = location.hash.slice(1).split('&control=');
-const control = controlPart || '';
+const [token, ...fragmentParameters] = location.hash.slice(1).split('&');
+const fragment = new URLSearchParams(fragmentParameters.join('&'));
+const control = fragment.get('control') || '';
+const credentialPanel = document.querySelector('#guest-credentials');
+const passwordButton = credentialPanel.querySelector('[data-credential="password"]');
+let sendCredential = null;
 let guestType = null;
 const power = document.querySelector('#power');
 const powerResult = document.querySelector('#power-result');
@@ -34,10 +38,55 @@ if (/^[a-f0-9]{48}$/.test(control)) {
         }
     });
 }
+async function requestCredential(action) {
+    const response = await fetch('/console/credential.php', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({control, action}),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Данные недоступны');
+    return data;
+}
+
+async function enableGuestCredentials(send) {
+    if (fragment.get('owner') !== '1' || !/^[a-f0-9]{48}$/.test(control)) return;
+    sendCredential = send;
+    try {
+        const availability = await requestCredential('available');
+        if (sendCredential !== send) return;
+        passwordButton.hidden = !availability.password;
+        credentialPanel.hidden = false;
+    } catch {
+        // Guest console stays usable when its credential endpoint is unavailable.
+    }
+}
+
+credentialPanel.addEventListener('click', async event => {
+    const button = event.target.closest('[data-credential]');
+    const send = sendCredential;
+    if (!button || !send) return;
+    const action = button.dataset.credential;
+    button.disabled = true;
+    try {
+        const {value} = await requestCredential(action);
+        if (sendCredential !== send || typeof value !== 'string' || !/^[ -~]{1,128}$/.test(value)) return;
+        send(value);
+        powerResult.textContent = 'Данные введены. Проверьте поле и подтвердите вход.';
+    } catch (error) {
+        powerResult.textContent = error.message;
+        if (action === 'password') passwordButton.hidden = true;
+    } finally {
+        button.disabled = false;
+    }
+});
+
 history.replaceState(null, '', location.pathname);
 
 function disconnected() {
     cad.hidden = true;
+    credentialPanel.hidden = true;
+    sendCredential = null;
     status.textContent = 'Консоль отключена. Откройте её снова из биллинга.';
 }
 
@@ -69,6 +118,10 @@ if (!/^[a-f0-9]{64}$/.test(token)) {
                     rfb.addEventListener('connect', () => {
                         status.textContent = 'Консоль QEMU';
                         cad.hidden = false;
+                        enableGuestCredentials(value => {
+                            for (const character of value) rfb.sendKey(character.charCodeAt(0));
+                            rfb.focus();
+                        });
                     });
                     cad.addEventListener('click', () => rfb.sendCtrlAltDel());
                     rfb.addEventListener('disconnect', disconnected);
@@ -95,7 +148,8 @@ function openTerminal(socket) {
         if (socket.readyState === WebSocket.OPEN) socket.send(data);
     };
     const encoder = new TextEncoder();
-    terminal.onData(data => send('0:' + encoder.encode(data).length + ':' + data));
+    const enterText = data => send('0:' + encoder.encode(data).length + ':' + data);
+    terminal.onData(enterText);
     terminal.onResize(({cols, rows}) => send('1:' + cols + ':' + rows + ':'));
     socket.addEventListener('message', event => {
         terminal.write(typeof event.data === 'string' ? event.data : new Uint8Array(event.data));
@@ -104,6 +158,10 @@ function openTerminal(socket) {
     send('1:' + terminal.cols + ':' + terminal.rows + ':');
     terminal.focus();
     status.textContent = 'Консоль LXC';
+    enableGuestCredentials(value => {
+        enterText(value);
+        terminal.focus();
+    });
     const observer = new ResizeObserver(() => fit.fit());
     observer.observe(screen);
     const timer = setInterval(() => send('2'), 30000);

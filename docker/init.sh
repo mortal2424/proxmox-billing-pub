@@ -60,5 +60,6 @@ else
 fi
 
 php /var/www/html/cronjobs/create_cloud_image_settings.php
+php /var/www/html/cronjobs/create_guest_initial_passwords.php
 
 echo "✅ Init script finished."

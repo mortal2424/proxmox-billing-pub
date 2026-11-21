@@ -5,6 +5,7 @@ ini_set('display_errors', 0);
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/zone_placement.php';
+require_once __DIR__ . '/../includes/guest_initial_password.php';
 
 session_start();
 checkAuth();
@@ -103,8 +104,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         $hostname = trim($_POST['hostname'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
+        if (!is_string($password) || !is_string($confirmPassword)) {
+            throw new InvalidArgumentException('Некорректный формат пароля');
+        }
+        $generatedPassword = $password === '' && $confirmPassword === '';
+        if ($generatedPassword) $password = $confirmPassword = generateGuestPassword();
         $networkPool = (string)($_POST['network_pool'] ?? '');
-        $sdn = $_POST['sdn'] ?? '';
         $storagePool = (string)($_POST['storage_pool'] ?? '');
         $template = $_POST['template'] ?? '';
         if ($vmType === 'qemu' && !in_array($installMethod, ['cloud', 'iso'], true)) {
@@ -129,9 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
 
         if (!$zoneId) throw new Exception('Не выбрана зона доступности');
         if (empty($hostname)) throw new Exception('Укажите имя хоста');
-        if (empty($password)) throw new Exception('Необходимо задать пароль администратора');
-        if ($fromCloud && (!is_string($password) || strlen($password) < 8)) {
-            throw new InvalidArgumentException('Пароль cloud-init должен содержать минимум 8 символов');
+        if (strlen($password) < 8 || strlen($password) > 1024 || preg_match('/[\x00\r\n]/', $password)) {
+            throw new InvalidArgumentException('Пароль должен содержать 8–1024 символа и быть в одной строке');
         }
         if ($password !== $confirmPassword) throw new Exception('Пароли не совпадают');
         if ($fromCloud && $osType === 'windows') {
@@ -147,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
                 throw new InvalidArgumentException('Пароль Windows должен содержать 12–127 печатных ASCII-символов из трёх групп: прописные, строчные, цифры и специальные символы');
             }
         }
+        if ($networkPool === '') throw new Exception('Не выбран пул сети');
         if ($storagePool === '') throw new Exception('Не выбран пул хранилищ');
         if ($vmType === 'qemu' && empty($osVersion)) throw new Exception('Необходимо указать версию ОС');
         if ($vmType === 'lxc' && empty($template)) throw new Exception('Необходимо выбрать шаблон LXC');
@@ -250,11 +255,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
 
         $media = $vmType === 'qemu' ? ($fromCloud ? '' : (string)($_POST['iso'] ?? '')) : (string)$template;
         [$creationResult, $node] = withGuestOperationLocks(['placement-zone:' . $zoneId], function () use (
-            $pdo, $zoneId, $vmType, $networkPool, $storagePool, $sdn, $media, $total_cpu, $total_ram, $total_disk,
-            $osType, $hostname, $password, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey
+            $pdo, $zoneId, $vmType, $networkPool, $storagePool, $media, $total_cpu, $total_ram, $total_disk,
+            $osType, $hostname, $password, $generatedPassword, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey
         ) {
             $placement = choosePlacement($pdo, $zoneId, $vmType, $networkPool, $storagePool,
-                (string)$sdn, $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows', $cloudKey);
+                $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows', $cloudKey);
             $node = $placement['node'];
             $proxmoxApi = placementClient($node, $pdo);
             $network = $placement['network'];
@@ -263,6 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
                 'vm_type' => $vmType,
                 'hostname' => $hostname,
                 'password' => $password,
+                'show_initial_password' => $generatedPassword,
                 'cpu' => $total_cpu,
                 'ram' => $total_ram,
                 'disk' => $total_disk,
@@ -295,6 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         ]);
 
         $vmId = $creationResult['vmid'];
+        $guestDetailsUrl = 'vm_settings.php?id=' . (int) $creationResult['guest_id'] . '#guest-password';
 
         $success = true;
         $successMessage = $vmType === 'qemu'
@@ -1076,51 +1083,6 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
         }
 
-        /* Прогресс загрузки ноды */
-        .node-loading-container {
-            margin: 20px 0;
-            padding: 20px;
-            background: rgba(248, 250, 252, 0.5);
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-
-        body.dark-theme .node-loading-container {
-            background: rgba(30, 41, 59, 0.3);
-        }
-
-        .node-loading-text {
-            margin-bottom: 10px;
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        body.dark-theme .node-loading-text {
-            color: #94a3b8;
-        }
-
-        .node-loading-progress {
-            height: 6px;
-            background: rgba(148, 163, 184, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .node-loading-progress:after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 0;
-            background: linear-gradient(135deg, #007b72, #00635f);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-        }
-
         /* Ресурсы ноды */
         .resources-info {
             display: grid;
@@ -1464,6 +1426,9 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     <strong><?= htmlspecialchars($successMessage) ?></strong>
 
                     <div class="creation-status-wrapper">
+                        <?php if (!empty($guestDetailsUrl)): ?>
+                            <p><a href="<?= htmlspecialchars($guestDetailsUrl, ENT_QUOTES) ?>">Открыть карточку и пароль</a></p>
+                        <?php endif; ?>
                         <?php if (!empty($vncUrl)): ?>
                             <div class="vnc-section">
                                 <a href="<?= $vncUrl ?>" target="_blank" class="vnc-button">
@@ -1705,32 +1670,19 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                         <small class="text-muted">Панель подберёт хост после проверки ресурсов и выбранных пулов.</small>
                     </div>
 
-                    <!-- Прогресс-бар загрузки данных ноды -->
-                    <div id="node-loading-container" class="node-loading-container" style="display: none;">
-                        <div class="node-loading-text" id="node-loading-text">Загрузка данных ноды...</div>
-                        <div class="node-loading-progress" id="node-loading-progress"></div>
-                    </div>
-
-                    <div id="node-resources" style="display: none;"></div>
+                    <p id="zone-resource-error" role="status" hidden></p>
                 </div>
 
                 <!-- 3. Настройка сети -->
                 <div class="form-section">
                     <h3><i class="fas fa-network-wired"></i> 3. Настройка сети</h3>
                     <div class="form-group">
-                        <label class="form-label">Пул внешних сетей:</label>
-                        <select name="network_pool" class="form-control" id="network-select">
+                        <label class="form-label" for="network-select">Пул сети:</label>
+                        <select name="network_pool" class="form-control" required id="network-select">
                             <option value="">Выберите пул</option>
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">SDN вместо внешней сети:</label>
-                        <select name="sdn" class="form-control" id="sdn-select">
-                            <option value="">-- Не использовать SDN --</option>
-                        </select>
-                        <small class="text-muted">SDN сети работают как обычные bridge-интерфейсы</small>
-                    </div>
                 </div>
 
                 <!-- 4. Настройка диска -->
@@ -1826,16 +1778,19 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label" id="guest-password-label">Пароль администратора:</label>
-                        <input type="password" name="password" class="form-control" required minlength="8">
-                        <small class="text-muted">Минимум 8 символов</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Подтверждение пароля:</label>
-                        <input type="password" name="confirm_password" class="form-control" required minlength="8">
-                    </div>
+                    <p>Панель сгенерирует пароль. Он будет доступен в карточке гостя 24 часа. При установке из ISO введите его в установщике.</p>
+                    <details>
+                        <summary>Задать свой пароль</summary>
+                        <div class="form-group">
+                            <label class="form-label" id="guest-password-label" for="guest-password-input">Пароль администратора</label>
+                            <input type="password" name="password" id="guest-password-input" class="form-control" minlength="8" maxlength="1024" autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="guest-password-confirm">Подтверждение пароля</label>
+                            <input type="password" name="confirm_password" id="guest-password-confirm" class="form-control" minlength="8" maxlength="1024" autocomplete="new-password">
+                            <small class="text-muted">Оставьте оба поля пустыми для автоматической генерации. Собственный пароль в карточке не сохраняется.</small>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Предупреждение о квотах -->
@@ -1870,9 +1825,6 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             const mobileMenuToggle = document.getElementById('mobileMenuToggle');
 
             // Элементы прогресс-бара загрузки ноды
-            const nodeLoadingContainer = document.getElementById('node-loading-container');
-            const nodeLoadingProgress = document.getElementById('node-loading-progress');
-            const nodeLoadingText = document.getElementById('node-loading-text');
 
             <?php if ($quota_exceeded): ?>
                 // Если превышены квоты, блокируем форму
@@ -1930,14 +1882,6 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 }
             }
 
-            // Функция для обновления прогресс-бара
-            function updateNodeProgress(percent, text = '') {
-                if (nodeLoadingProgress && nodeLoadingText) {
-                    nodeLoadingProgress.style.width = percent + '%';
-                    if (text) nodeLoadingText.textContent = text;
-                }
-            }
-
             // Загрузка данных ноды
             let zoneRequest = 0;
             async function loadNodeResources(zoneId, vmType) {
@@ -1945,18 +1889,17 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 const fields = {
                     network: document.getElementById('network-select'),
                     storage: document.getElementById('storage-select'),
-                    sdn: document.getElementById('sdn-select'),
                     media: document.getElementById(vmType === 'qemu' ? 'iso-select' : 'template-select')
                 };
                 if (vmType === 'qemu') fields.cloud = document.getElementById('cloud-image-select');
-                const placeholders = {cloud:'Выберите cloud-образ', network:'Выберите пул', storage:'Выберите пул', sdn:'Без SDN',
+                const placeholders = {cloud:'Выберите cloud-образ', network:'Выберите пул', storage:'Выберите пул',
                     media: vmType === 'qemu' ? 'Без ISO' : 'Выберите шаблон'};
                 for (const [key, select] of Object.entries(fields)) select.replaceChildren(new Option(placeholders[key], ''));
                 if (fields.cloud) updateInstallMethod();
+                const resourceError = document.getElementById('zone-resource-error');
+                resourceError.hidden = true;
                 if (!zoneId) return;
                 const query = new URLSearchParams({zone_id: zoneId, vm_type: vmType});
-                if (nodeLoadingContainer) nodeLoadingContainer.style.display = 'block';
-                updateNodeProgress(30, 'Загрузка ресурсов зоны…');
                 try {
                     const response = await fetch('get_zone_placement.php?' + query);
                     if (!response.ok) throw new Error('Ресурсы зоны недоступны');
@@ -1982,10 +1925,11 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                         }
                         updateInstallMethod();
                     }
-                    fields.network.disabled = false;
-                    updateNodeProgress(100, 'Ресурсы зоны загружены');
                 } catch (error) {
-                    if (requestId === zoneRequest) updateNodeProgress(100, 'Не удалось загрузить ресурсы зоны');
+                    if (requestId === zoneRequest) {
+                        resourceError.textContent = 'Не удалось получить ресурсы зоны. Выберите зону ещё раз.';
+                        resourceError.hidden = false;
+                    }
                 }
             }
 
@@ -2223,7 +2167,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     const isCustom = document.getElementById('is-custom').value === '1';
                     const vmType = document.getElementById('vm-type').value;
                     const zoneId = document.querySelector('select[name="zone_id"]')?.value;
-                    const network = document.getElementById('network-select').value || document.getElementById('sdn-select').value;
+                    const network = document.getElementById('network-select').value;
                     const storage = document.querySelector('select[name="storage_pool"]')?.value;
                     const tariffId = !isCustom ? document.querySelector('input[name="tariff_id"]:checked')?.value : null;
                     const cloud = vmType === 'qemu' && installMethodSelect?.value === 'cloud';
@@ -2355,27 +2299,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 });
             }
 
-            // Обработчик SDN сети
-            const sdnSelect = document.getElementById('sdn-select');
-            if (sdnSelect) {
-                sdnSelect.addEventListener('change', function() {
-                    const networkSelect = document.getElementById('network-select');
-                    if (networkSelect) {
-                        if (this.value) {
-                            networkSelect.disabled = true;
-                            networkSelect.value = '';
-                        } else {
-                            networkSelect.disabled = false;
-                        }
-                    }
-                });
-            }
 
-            // Загружаем ресурсы ноды, если она уже выбрана
-            const selectedNode = document.querySelector('select[name="zone_id"]')?.value;
-            if (selectedNode) {
-                loadNodeResources(selectedNode, vmTypeInput.value);
-            }
+
         });
     </script>
 </body>

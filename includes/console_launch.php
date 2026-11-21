@@ -37,7 +37,7 @@ try {
         consoleError(403, 'Доступ запрещён');
     }
     if ($consoleScope === 'customer') {
-        $guest = $pdo->prepare('SELECT vm_type FROM vms WHERE node_id = ? AND vm_id = ? AND user_id = ?');
+        $guest = $pdo->prepare("SELECT vm_type FROM vms WHERE node_id = ? AND vm_id = ? AND user_id = ? AND status <> 'deleted'");
         $guest->execute([$nodeId, $vmId, $userId]);
         $type = $guest->fetchColumn();
     } elseif ($consoleScope === 'managed') {
@@ -88,7 +88,7 @@ try {
         'scope' => $consoleScope, 'type' => $type, 'expires' => time() + 28800,
     ];
     session_write_close();
-    $url = '/console/view.html#' . $token . '&control=' . $control;
+    $url = '/console/view.html#' . $token . '&control=' . $control . ($consoleScope === 'customer' ? '&owner=1' : '');
     if (($_GET['redirect'] ?? '') === '1') {
         header('Location: ' . $url, true, 303);
         exit;

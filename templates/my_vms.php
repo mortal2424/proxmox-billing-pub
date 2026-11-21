@@ -1739,6 +1739,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <button class="vm-action-btn secondary vm-metrics" title="Метрики">
                                         <i class="fas fa-chart-line"></i> Метрики
                                     </button>
+                                    <a href="vm_settings.php?id=${vm.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
                                     <a href="vm_settings.php?id=${vm.id}" class="vm-action-btn secondary" title="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>
@@ -1808,6 +1809,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <button class="vm-action-btn secondary vm-metrics" title="Метрики">
                                         <i class="fas fa-chart-line"></i>
                                     </button>
+                                    <a href="vm_settings.php?id=${vm.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
                                     <a href="vm_settings.php?id=${vm.id}" class="vm-action-btn secondary" title="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>
@@ -1979,6 +1981,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <button class="vm-action-btn secondary container-metrics" title="Метрики">
                                         <i class="fas fa-chart-line"></i> Метрики
                                     </button>
+                                    <a href="vm_settings.php?id=${ct.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
                                     <a href="vm_settings.php?id=${ct.id}" class="vm-action-btn secondary" title="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>
@@ -2048,6 +2051,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                     <button class="vm-action-btn secondary container-metrics" title="Метрики">
                                         <i class="fas fa-chart-line"></i>
                                     </button>
+                                    <a href="vm_settings.php?id=${ct.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
                                     <a href="vm_settings.php?id=${ct.id}" class="vm-action-btn secondary" title="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>

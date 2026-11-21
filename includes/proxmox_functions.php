@@ -4,6 +4,7 @@ require_once __DIR__ . '/ProxmoxCommandApi.php';
 require_once __DIR__ . '/node_api_credentials.php';
 require_once __DIR__ . '/ProxmoxAuth.php';
 require_once __DIR__ . '/guest_mutations.php';
+require_once __DIR__ . '/guest_initial_password.php';
 
 class ProxmoxAPI {
     use ProxmoxGuestMutations;
@@ -356,9 +357,16 @@ class ProxmoxAPI {
             ':is_custom' => $isCustom ? 1 : 0
         ]);
 
+        $guestId = (int) $this->pdo->lastInsertId();
+        if (!empty($params['show_initial_password'])) {
+            $image = $params['cloud_image'] ?? null;
+            saveGuestPassword($this->pdo, $guestId, $params['password'],
+                $image['user'] ?? ($isWindows ? 'Administrator' : ''), $image !== null);
+        }
+
         // 12. Создаем запись о биллинге для кастомных тарифов
         if ($isCustom) {
-            $this->createBillingRecord((int)$this->pdo->lastInsertId(), $vmid, $params);
+            $this->createBillingRecord($guestId, $vmid, $params);
         }
 
         $commitAttempted = true;
@@ -367,6 +375,7 @@ class ProxmoxAPI {
         error_log("[VM Creation] VM {$vmid} created successfully");
 
         return $launch + [
+            'guest_id' => $guestId,
             'vmid' => $vmid,
             'node_name' => $this->nodeName,
             'hostname' => $params['hostname'] ?? 'vm-' . $vmid
@@ -553,8 +562,12 @@ public function createLXC($params) {
             ':is_custom' => $params['is_custom'] ?? 0
         ]);
 
+        $guestId = (int) $this->pdo->lastInsertId();
+        if (!empty($params['show_initial_password'])) {
+            saveGuestPassword($this->pdo, $guestId, $password, 'root', true);
+        }
         if ($params['is_custom'] ?? 0) {
-            $this->createBillingRecord((int)$this->pdo->lastInsertId(), $vmid, $params);
+            $this->createBillingRecord($guestId, $vmid, $params);
         }
 
         $commitAttempted = true;
@@ -563,6 +576,7 @@ public function createLXC($params) {
         error_log("[LXC Creation] Container {$vmid} created successfully");
 
         return $launch + [
+            'guest_id' => $guestId,
             'vmid' => $vmid,
             'node_name' => $this->nodeName,
             'hostname' => $hostname

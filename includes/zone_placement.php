@@ -38,11 +38,10 @@ function appliedPlacementSdn(ProxmoxAPI $api, array $interfaces): array
 }
 
 function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool, string $storagePool,
-    string $sdn, string $media, int $cpu, int $ram, int $disk, bool $windows = false, string $cloudImage = ''): array
+    string $media, int $cpu, int $ram, int $disk, bool $windows = false, string $cloudImage = ''): array
 {
-    if (!in_array($type, ['qemu', 'lxc'], true) || min($cpu,$ram,$disk) < 1 || $storagePool === '' ||
-        ($networkPool === '' && $sdn === '') || ($networkPool !== '' && $sdn !== '')) {
-        throw new InvalidArgumentException('Выберите пул хранилищ и один вариант сети');
+    if (!in_array($type, ['qemu', 'lxc'], true) || min($cpu,$ram,$disk) < 1 || $storagePool === '' || $networkPool === '') {
+        throw new InvalidArgumentException('Выберите пул сети и пул хранилищ');
     }
     $pools = [];
     foreach (placementPoolEntries($pdo, $zone) as $entry) {
@@ -54,7 +53,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
         $storagePoolMembers = $available['storage'][$storagePool] ?? [];
         if (!$storagePoolMembers) continue;
         $bridges = $available['network'][$networkPool] ?? [];
-        if ($sdn === '' && !$bridges) continue;
+        if (!$bridges) continue;
         try {
             $api = placementClient($node, $pdo);
             $base = '/nodes/' . rawurlencode($node['node_name']);
@@ -63,32 +62,24 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             if ($freeRam < $ram * 1048576 || (int)($status['cpuinfo']['cpus'] ?? 0) < $cpu) continue;
             $network = '';
             $interfaces = $api->request('GET', $base . '/network', ['type'=>'any_bridge']);
-            $selectedSdn = $sdn;
-            if ($sdn !== '') {
-                $permittedSdn = array_merge([], ...array_values($available['network'] ?? []));
-                if (!in_array($sdn, $permittedSdn, true)) continue;
-                $listed = array_column(appliedPlacementSdn($api, $interfaces), 'name');
-                if (!in_array($sdn, $listed, true)) continue;
-                $network = basename($sdn);
-            } else {
-                foreach ($interfaces as $interface) {
-                    if (in_array($interface['type'] ?? '', ['bridge','OVSBridge'], true) &&
-                        !empty($interface['active']) && in_array($interface['iface'] ?? '', $bridges, true)) {
-                        $network = $interface['iface'];
+            $selectedSdn = '';
+            foreach ($interfaces as $interface) {
+                if (in_array($interface['type'] ?? '', ['bridge','OVSBridge'], true) &&
+                    !empty($interface['active']) && in_array($interface['iface'] ?? '', $bridges, true)) {
+                    $network = $interface['iface'];
+                    break;
+                }
+            }
+            if ($network === '' && array_filter($bridges, static fn($entry) => str_contains($entry, '/'))) {
+                foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
+                    if (in_array($entry['name'], $bridges, true)) {
+                        $network = $entry['vnet'];
+                        $selectedSdn = $entry['name'];
                         break;
                     }
                 }
-                if ($network === '' && array_filter($bridges, static fn($entry) => str_contains($entry, '/'))) {
-                    foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
-                        if (in_array($entry['name'], $bridges, true)) {
-                            $network = $entry['vnet'];
-                            $selectedSdn = $entry['name'];
-                            break;
-                        }
-                    }
-                }
-                if ($network === '') continue;
             }
+            if ($network === '') continue;
             if ($media !== '' || ($windows && $cloudImage === '')) {
                 $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
                 $volumes = array_column($images, 'volid');

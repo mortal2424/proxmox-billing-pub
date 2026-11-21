@@ -27,7 +27,7 @@
     }
     [hidden] { display: none !important; }
     #status { font-weight: 650; }
-    #power { display: flex; flex-wrap: wrap; gap: .4rem; }
+    #power, #guest-credentials { display: flex; flex-wrap: wrap; gap: .4rem; }
     button {
         min-height: 2.5rem;
         padding: .45rem .8rem;
@@ -58,7 +58,10 @@
 <button data-action="shutdown">Выключить ОС</button>
 <button data-action="reboot">Перезагрузить</button>
 <button data-action="stop">Остановить принудительно</button>
+</div><div id="guest-credentials" hidden aria-label="Ввод данных гостя">
+<button type="button" data-credential="username">Вставить логин</button>
+<button type="button" data-credential="password" hidden>Вставить пароль</button>
 </div><span id="power-result" role="status"></span></header>
 <main id="screen"></main>
-<script type="module" src="/console/view.js?v=2"></script>
+<script type="module" src="/console/view.js?v=3"></script>
 </html>

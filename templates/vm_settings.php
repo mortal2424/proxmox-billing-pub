@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
+require_once __DIR__ . '/../includes/guest_initial_password.php';
 
 checkAuth();
 
@@ -68,8 +69,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_string($_POST['guest_settings_csrf'] ?? null) || !hash_equals($_SESSION['guest_settings_csrf'],$_POST['guest_settings_csrf'])) {
             http_response_code(403); throw new RuntimeException('Сессия формы истекла. Обновите страницу');
         }
-        $actions = array_filter(['change_resources','change_disk','add_network','delete_vm'],fn($action)=>isset($_POST[$action]));
+        $actions = array_filter(['change_resources','change_disk','add_network','delete_vm','generate_guest_password'],fn($action)=>isset($_POST[$action]));
         if(count($actions)!==1)throw new RuntimeException('Выберите одну операцию');
+        if (isset($_POST['generate_guest_password'])) {
+            proposeGuestPassword($pdo, $vm_db_id, (int) $user_id);
+            header('Location: vm_settings.php?id=' . $vm_db_id . '#guest-password', true, 303);
+            exit;
+        }
         // Инициализация Proxmox API для POST-запросов
         $proxmox = new ProxmoxAPI(
             $vm['node_hostname'],
@@ -160,6 +166,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         $error_message = $e->getMessage();
     }
+}
+$passwordInfo = null;
+$passwordUnavailable = false;
+try {
+    $passwordInfo = visibleGuestPassword($pdo, $vm_db_id, (int) $user_id);
+    unset($passwordInfo['password']);
+} catch (Throwable $error) {
+    $passwordUnavailable = true;
+    error_log('Guest password card unavailable: ' . get_class($error));
 }
 ?>
 <!DOCTYPE html>
@@ -752,6 +767,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <div class="settings-grid">
+                <section class="settings-card" id="guest-password">
+                    <div class="card-header"><h5><i class="fas fa-key"></i> Доступ к гостю</h5></div>
+                    <div class="card-body">
+                        <?php if ($passwordUnavailable): ?>
+                            <p>Раздел пароля временно недоступен.</p>
+                        <?php elseif ($passwordInfo): ?>
+                            <?php if ($passwordInfo['username'] !== ''): ?>
+                                <p>Логин <code><?= htmlspecialchars($passwordInfo['username'], ENT_QUOTES) ?></code></p>
+                            <?php endif; ?>
+                            <p><?= $passwordInfo['applied']
+                                ? 'Пароль задан при создании гостя. Если вы сменили его в ОС, используйте новый.'
+                                : 'Установите этот пароль вручную в гостевой ОС или в установщике.' ?></p>
+                            <div class="guest-password-actions"
+                                 data-guest-id="<?= $vm_db_id ?>"
+                                 data-csrf="<?= htmlspecialchars($_SESSION['guest_settings_csrf'], ENT_QUOTES) ?>"
+                                 data-ttl="<?= max(0, $passwordInfo['expires_at'] - time()) ?>">
+                                <button class="btn btn-secondary" type="button" data-reveal aria-pressed="false" aria-label="Показать пароль">••••••••••••</button>
+                                <button class="btn btn-primary" type="button" data-copy>Копировать пароль</button>
+                                <span role="status" data-result></span>
+                            </div>
+                            <p>Пароль доступен 24 часа с момента генерации.</p>
+                        <?php endif; ?>
+                        <?php if (!$passwordUnavailable): ?>
+                        <form method="POST" action="vm_settings.php?id=<?= $vm_db_id ?>#guest-password" data-generate <?= $passwordInfo ? 'hidden' : '' ?>>
+                            <input type="hidden" name="guest_settings_csrf" value="<?= htmlspecialchars($_SESSION['guest_settings_csrf'], ENT_QUOTES) ?>">
+                            <p>Сохранённый пароль недоступен. Можно сгенерировать новый для ручной установки. Если вход уже потерян, используйте восстановление доступа в самой ОС или обратитесь в поддержку.</p>
+                            <button type="submit" name="generate_guest_password" class="btn btn-primary">Сгенерировать новый пароль</button>
+                        </form>
+                        <?php endif; ?>
+                    </div>
+                </section>
+
                 <!-- Блок изменения ресурсов -->
                 <div class="settings-card">
                     <div class="card-header">
@@ -1182,5 +1229,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return form;
     }
     </script>
+    <script defer src="/js/guest-password.js?v=1"></script>
 </body>
 </html>
