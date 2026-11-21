@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.8",
+  "from": "2.5.1-beta8.7",
+  "source_commit": "7cae2bbc101769d985fa4962c1107b5fe2f3df3c",
+  "changelog": "Инвентаризация QEMU и LXC в админке, консоли гостей и подключение новых нод через API-токен.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "36bd69defe845963eae24b1946f812e4b7c8adc759e2a600a2ac73f84b8cfc38",
+      "sha256": "a531e4a97cf8559b0a4aee8e2889cf619c5c6b515ebd4f4426144bded6fd8598"
+    },
+    "admin/get_node_vms.php": {
+      "before": "ed0f6af6a93a327dfee5c5d55bdff5a60d2c149a769010ee2819f216758e997c",
+      "sha256": "f7c44a9a3ad2f12fdebf9952ab7b1ea0bf8587bf980a1dae3c41dd63ea42d821"
+    },
+    "admin/proxmox.php": {
+      "before": "59c3058f500233ee4f090a908da7f2deec2069e31c0e505408eb9b62ac5cea79",
+      "sha256": "c26bdb4961409c8f0a1a2055b164ae13c0ebe9f319ff32bcb4725020f3b8782b"
+    },
+    "includes/version.php": {
+      "before": "6ada955193b1c709a0287af5a92bb2af3371d559d94755728b25e99fc0206c9f",
+      "sha256": "95eb0880c91effe3bcb16f9c1a15eb9a307c4e21bbd77044a1a050d1489bcfe1"
+    }
+  }
+}
