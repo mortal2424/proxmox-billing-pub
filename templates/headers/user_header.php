@@ -69,7 +69,7 @@
                 <button class="profile-btn" id="profileBtn">
                     <?php if (!empty($user['avatar'])): ?>
                         <div class="user-avatar">
-                            <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар" class="avatar-image">
+                            <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар" class="avatar-image" width="32" height="32">
                         </div>
                     <?php else: ?>
                         <?php
@@ -89,11 +89,11 @@
                     <i class="fas fa-chevron-down dropdown-arrow"></i>
                 </button>
 
-                <div class="profile-menu" id="profileMenu">
+                <div class="profile-menu" id="profileMenu" style="opacity: 0; visibility: hidden;">
                     <div class="profile-header">
                         <div class="profile-avatar-large">
                             <?php if (!empty($user['avatar'])): ?>
-                                <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар">
+                                <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар" width="60" height="60">
                             <?php else: ?>
                                 <i class="fas <?= $randomIcon ?>"></i>
                             <?php endif; ?>

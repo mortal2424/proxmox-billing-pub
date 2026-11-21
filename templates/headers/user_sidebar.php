@@ -108,7 +108,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         <div class="sidebar-profile">
             <div class="sidebar-avatar">
                 <?php if (!empty($user['avatar'])): ?>
-                    <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар" class="avatar-image">
+                    <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="Аватар" class="avatar-image" width="60" height="60">
                 <?php else: ?>
                     <?php
                     $defaultIcons = ['fa-user-tie', 'fa-user-astronaut', 'fa-user-shield', 'fa-user-circle'];
