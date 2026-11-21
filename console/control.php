@@ -43,12 +43,7 @@ try {
         }
     } else {
         $type = $context['type'];
-        if ($type === 'detect') {
-            $type = $input['type'] ?? '';
-            if (!in_array($type, ['qemu', 'lxc'], true)) {
-                throw new RuntimeException('Дождитесь подключения консоли');
-            }
-        } else {
+        if ($context['scope'] === 'managed') {
             $query = $pdo->prepare('SELECT 1 FROM vms_admin WHERE node_id = ? AND vm_id = ?');
             $query->execute([$context['node_id'], $context['vm_id']]);
             if (!$query->fetchColumn()) {
@@ -64,6 +59,21 @@ try {
     }
     $api = new ProxmoxAPI($node['hostname'], $node['username'], $node['password'],
         $node['ssh_port'] ?? 22, $node['node_name'], $node['id'], $pdo);
+    if ($context['scope'] === 'inventory') {
+        // The VNC transport can be used by both QEMU and LXC.
+        $type = null;
+        foreach ($api->request('GET', '/cluster/resources', ['type' => 'vm']) as $guest) {
+            if ((int) $guest['vmid'] === (int) $context['vm_id'] &&
+                $guest['node'] === $node['node_name']) {
+                $type = $guest['type'];
+                break;
+            }
+        }
+        if (!in_array($type, ['qemu', 'lxc'], true)) {
+            http_response_code(404);
+            throw new RuntimeException('ВМ или контейнер не найдены на этом узле');
+        }
+    }
     if ($action === 'start') {
         $method = $type === 'lxc' ? 'startContainer' : 'startVM';
         $result = $api->$method((int) $context['vm_id']);
