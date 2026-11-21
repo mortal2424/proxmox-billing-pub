@@ -41,6 +41,23 @@ function previewUpdate(string $root, array $manifest): array
     return $conflicts;
 }
 
+function replaceUpdateFile(string $source, string $target, int $mode): void
+{
+    $directory = dirname($target);
+    $temp = @tempnam($directory, '.update-');
+    try {
+        // tempnam can fall back to the system temp directory when the target directory is unwritable.
+        if ($temp === false || dirname($temp) !== realpath($directory) ||
+            !copy($source, $temp) || !chmod($temp, $mode) || !rename($temp, $target)) {
+            throw new RuntimeException('Не удалось заменить файл');
+        }
+    } finally {
+        if ($temp !== false && is_file($temp)) {
+            unlink($temp);
+        }
+    }
+}
+
 function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null): void
 {
     if ($connect) {
@@ -63,6 +80,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
     $work = $storage . '/' . bin2hex(random_bytes(16));
     $applied = [];
     $committing = false;
+    $journalWritten = false;
     try {
         if (is_file($storage . '/recovery.json') || is_file($root . '/backups/restore/recovery.json')) {
             throw new RuntimeException('Предыдущее обновление прервано. Требуется восстановление по журналу');
@@ -104,18 +122,21 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
         $pdo->beginTransaction();
         $journal = ['work' => $work, 'files' => $manifest['files'], 'version' => $manifest['version']];
         $encoded = json_encode($journal, JSON_THROW_ON_ERROR);
-        if (file_put_contents($storage . '/recovery.json', $encoded, LOCK_EX) !== strlen($encoded)) {
+        $journalDraft = $work . '/journal.json';
+        if (file_put_contents($journalDraft, $encoded, LOCK_EX) !== strlen($encoded) ||
+            !rename($journalDraft, $storage . '/recovery.json')) {
             throw new RuntimeException('Не удалось создать журнал восстановления');
         }
+        $journalWritten = true;
         foreach ($manifest['files'] as $path => $file) {
             $target = updateTarget($root, $path);
             if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0755, true)) {
                 throw new RuntimeException("Не удалось создать каталог $path");
             }
-            $temp = tempnam(dirname($target), '.update-');
-            if (!$temp || !copy($work . '/' . hash('sha256', $path), $temp) ||
-                !chmod($temp, 0644) || !rename($temp, $target)) {
-                throw new RuntimeException("Не удалось установить $path");
+            try {
+                replaceUpdateFile($work . '/' . hash('sha256', $path), $target, 0644);
+            } catch (RuntimeException $error) {
+                throw new RuntimeException("Не удалось установить $path", 0, $error);
             }
             $applied[] = $path;
             if (function_exists('opcache_invalidate')) {
@@ -149,26 +170,34 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
                 throw new RuntimeException('Не удалось проверить фиксацию БД. Сохранён журнал восстановления', 0, $error);
             }
         }
+        $rollbackConfirmed = true;
         try {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
         } catch (Throwable $rollbackError) {
+            $rollbackConfirmed = false;
             error_log('Update database rollback could not be confirmed');
         }
         $restored = true;
         foreach (array_reverse($applied) as $path) {
             $target = updateTarget($root, $path);
             $backup = $work . '/' . hash('sha256', $path) . '.before';
-            $restoredFile = is_file($backup)
-                ? copy($backup, $target) && chmod($target, fileperms($backup) & 0777)
-                : unlink($target);
-            $restored = $restoredFile && $restored;
+            try {
+                if (is_file($backup)) {
+                    replaceUpdateFile($backup, $target, fileperms($backup) & 0777);
+                } elseif (!unlink($target)) {
+                    throw new RuntimeException('Не удалось удалить добавленный файл');
+                }
+            } catch (Throwable $restoreError) {
+                $restored = false;
+                error_log('Could not restore update file: ' . $path);
+            }
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($target, true);
             }
         }
-        if ($applied && $restored) {
+        if ($journalWritten && $rollbackConfirmed && $restored) {
             unlink($storage . '/recovery.json');
         }
         throw $error;

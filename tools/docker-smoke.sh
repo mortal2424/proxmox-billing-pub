@@ -87,6 +87,18 @@ test "$changed" = "$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.p
 echo 'Installer refused a modified file without applying the rest of the package'
 
 git -C "$checkout" show "$base_ref:api/mobile_admin.php" | "${compose[@]}" exec -T apache tee api/mobile_admin.php >/dev/null
+# An ordinary write error must leave the source version usable, including on the first file.
+source_hash=$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)
+for directory in api includes; do
+    "${compose[@]}" exec -T apache chmod 0555 "$directory"
+    code=$("${https[@]}" "${cookie[@]}" "${update[@]}" -o "$qa/write-error.json" -w '%{http_code}' "$web/admin/ajax_apply_update.php")
+    "${compose[@]}" exec -T apache chmod 0755 "$directory"
+    test "$code" = 400
+    jq -e '.success == false and (.error | startswith("Не удалось установить "))' "$qa/write-error.json"
+    test "$source_hash" = "$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)"
+    "${compose[@]}" exec -T apache test ! -e backups/updates/recovery.json
+done
+echo 'Failed first and later writes kept the source file and cleared maintenance mode'
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" "$web/admin/ajax_apply_update.php" | jq -e '.success'
 "${https[@]}" --fail "${cookie[@]}" "$web/api/mobile_admin.php?resource=accounts&q=example.invalid" |
     jq -e '.items | any(.email == "admin@example.invalid")'

@@ -23,21 +23,25 @@ try {
         http_response_code(403);
         throw new RuntimeException('Сессия управления истекла. Откройте консоль из панели');
     }
-    $admin = isAdmin();
     $userId = (int) $_SESSION['user']['id'];
     session_write_close();
     $pdo = (new Database())->getConnection();
+    $account = $pdo->prepare('SELECT is_active,is_admin FROM users WHERE id=?');
+    $account->execute([$userId]);
+    $currentUser = $account->fetch(PDO::FETCH_ASSOC);
+    if (!$currentUser || !$currentUser['is_active'] ||
+        ($context['scope'] !== 'customer' && !$currentUser['is_admin'])) {
+        http_response_code(403);
+        throw new RuntimeException('Доступ к управлению запрещён');
+    }
     if ($context['scope'] === 'customer') {
-        $query = $pdo->prepare('SELECT vm_type FROM vms WHERE user_id = ? AND node_id = ? AND vm_id = ?');
+        $query = $pdo->prepare("SELECT vm_type FROM vms WHERE user_id = ? AND node_id = ? AND vm_id = ? AND status <> 'deleted'");
         $query->execute([$userId, $context['node_id'], $context['vm_id']]);
         $type = $query->fetchColumn();
         if (!in_array($type, ['qemu', 'lxc'], true)) {
             throw new RuntimeException('Машина недоступна');
         }
     } else {
-        if (!$admin) {
-            throw new RuntimeException('Требуются права администратора');
-        }
         $type = $context['type'];
         if ($type === 'detect') {
             $type = $input['type'] ?? '';
