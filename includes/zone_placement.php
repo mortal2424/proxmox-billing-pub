@@ -62,7 +62,10 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             if ($freeRam < $ram * 1048576 || (int)($status['cpuinfo']['cpus'] ?? 0) < $cpu) continue;
             $network = '';
             $interfaces = $api->request('GET', $base . '/network', ['type'=>'any_bridge']);
+            $selectedSdn = $sdn;
             if ($sdn !== '') {
+                $permittedSdn = array_merge([], ...array_values($available['network'] ?? []));
+                if (!in_array($sdn, $permittedSdn, true)) continue;
                 $listed = array_column(appliedPlacementSdn($api, $interfaces), 'name');
                 if (!in_array($sdn, $listed, true)) continue;
                 $network = basename($sdn);
@@ -72,6 +75,15 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                         !empty($interface['active']) && in_array($interface['iface'] ?? '', $bridges, true)) {
                         $network = $interface['iface'];
                         break;
+                    }
+                }
+                if ($network === '' && array_filter($bridges, static fn($entry) => str_contains($entry, '/'))) {
+                    foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
+                        if (in_array($entry['name'], $bridges, true)) {
+                            $network = $entry['vnet'];
+                            $selectedSdn = $entry['name'];
+                            break;
+                        }
                     }
                 }
                 if ($network === '') continue;
@@ -89,7 +101,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                     !in_array($type === 'qemu' ? 'images' : 'rootdir', $content, true) ||
                     (float)($storage['avail'] ?? 0) < $disk * 1073741824 + ($type === 'qemu' ? 67108864 : 0)) continue;
                 $candidates[] = [
-                    'node' => $node, 'network' => $network, 'storage' => $storage['storage'],
+                    'node' => $node, 'network' => $network, 'sdn' => $selectedSdn, 'storage' => $storage['storage'],
                     'score' => [(float)($status['cpu'] ?? 1), -$freeRam, -(float)$storage['avail'], (int)$node['id'], $storage['storage']],
                 ];
             }

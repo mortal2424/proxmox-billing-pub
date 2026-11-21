@@ -233,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
                 'ram' => $total_ram,
                 'disk' => $total_disk,
                 'network' => $network,
-                'sdn' => $sdn,
+                'sdn' => $placement['sdn'],
                 'storage' => $storage,
                 'template' => $template,
                 'os_type' => $osType,

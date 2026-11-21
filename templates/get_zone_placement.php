@@ -14,8 +14,10 @@ try {
     $pdo = (new Database())->getConnection();
     $nodes = placementNodes($pdo, $zone);
     $result = ['network'=>[], 'storage'=>[], 'sdn'=>[], 'media'=>[]];
+    $permitted = [];
     foreach (placementPoolEntries($pdo, $zone) as $entry) {
         $key = $entry['pool_name'];
+        if ($entry['kind'] === 'network') $permitted[$entry['node_id']][$entry['resource']] = true;
         $label = $entry['display_name'] ?: $key;
         if (!isset($result[$entry['kind']][$key]) || $result[$entry['kind']][$key]['label'] === $key) {
             $result[$entry['kind']][$key] = ['id'=>$key, 'label'=>$label];
@@ -25,7 +27,9 @@ try {
         try {
             $api = placementClient($node, $pdo);
             $interfaces = $api->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/network', ['type'=>'any_bridge']);
-            foreach (appliedPlacementSdn($api, $interfaces) as $entry) $result['sdn'][$entry['name']] = $entry['name'];
+            foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
+                if (isset($permitted[$node['id']][$entry['name']])) $result['sdn'][$entry['name']] = $entry['name'];
+            }
             $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
             foreach ($images as $entry) $result['media'][$entry['volid']] = $entry['volid'];
         } catch (Throwable $error) {
