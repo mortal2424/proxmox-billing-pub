@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/node_api_credentials.php';
+require_once __DIR__ . '/console_ticket.php';
 
 header('Cache-Control: no-store');
 header('Content-Type: application/json; charset=utf-8');
@@ -58,25 +58,7 @@ try {
     if (!$target) {
         consoleError(404, 'Узел Proxmox недоступен');
     }
-    $target = panelNodeApiCredentials($target);
-    $target['password'] = decryptNodePassword($target['password']);
-
-    $socketPath = '/run/homevlad-console/issuer.sock';
-    $socket = @stream_socket_client('unix://' . $socketPath, $errno, $error, 2);
-    if (!$socket) {
-        consoleError(503, 'Сервис консоли недоступен');
-    }
-    stream_set_timeout($socket, 3);
-    $payload = json_encode($target + ['vmid' => $vmId, 'type' => $type], JSON_THROW_ON_ERROR) . "\n";
-    if (fwrite($socket, $payload) !== strlen($payload)) {
-        fclose($socket);
-        consoleError(503, 'Не удалось открыть консоль');
-    }
-    $token = trim((string) fgets($socket, 66));
-    fclose($socket);
-    if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
-        consoleError(503, 'Не удалось открыть консоль');
-    }
+    $token = issueConsoleTicket($target, $vmId, $type);
     $control = bin2hex(random_bytes(24));
     $_SESSION['console_controls'] = array_filter(
         $_SESSION['console_controls'] ?? [],
@@ -94,6 +76,8 @@ try {
         exit;
     }
     echo json_encode(['success' => true, 'data' => ['url' => $url, 'vm_type' => $type]]);
+} catch (ConsoleBrokerUnavailable $exception) {
+    consoleError(503, $exception->getMessage());
 } catch (Throwable $exception) {
     error_log('Console launch failed: ' . get_class($exception));
     consoleError(502, 'Не удалось подготовить консоль');
