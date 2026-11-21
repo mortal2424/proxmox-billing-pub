@@ -34,13 +34,19 @@ try {
                 CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 5,
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTPS, CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
                 CURLOPT_FAILONERROR => true, CURLOPT_CONNECTTIMEOUT => 20, CURLOPT_TIMEOUT => 1200,
+                CURLOPT_USERAGENT => 'HomeVlad-Cloud-Image-Importer/1.0',
                 CURLOPT_WRITEFUNCTION => static function ($curl, string $data) use ($output, $limit, &$received): int {
                     $received += strlen($data);
                     return $received <= $limit ? (int)fwrite($output, $data) : 0;
                 },
             ]);
             try {
-                if (curl_exec($curl) === false) throw new RuntimeException('Не удалось скачать файл из официального каталога');
+                if (curl_exec($curl) === false) {
+                    $http = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+                    throw new RuntimeException(
+                        'Не удалось скачать ' . basename($url) . ' (HTTP ' . $http . ', cURL ' . curl_errno($curl) . ')'
+                    );
+                }
             } finally {
                 curl_close($curl);
             }
