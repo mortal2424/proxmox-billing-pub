@@ -36,6 +36,12 @@
       "commit": "ed48becd2dac6a54eb790cd2569c6243dccc72f6",
       "sha256": "cb0bf59fe7a0fbddfa848be6ff3ed1f2ec41ee6a3cf7b9fd26ba0f54092f0014",
       "summary": "Scoped service API tokens: encrypted candidates, privilege separation, permission verification and Docker persistence."
+    },
+    {
+      "version": "2.5.1-beta8.7",
+      "commit": "8d59d56078e8eac23f5398506f864d557d415d98",
+      "sha256": "c7700f22fac8134b7e9fbbd201c6b1b6591f23d634f0915b100c44a48b1f4295",
+      "summary": "Ограниченные токены Proxmox, консоль QEMU и LXC и привязка биллинга к записи гостя. Для существующей базы предусмотрена отдельная миграция."
     }
   ]
 }
