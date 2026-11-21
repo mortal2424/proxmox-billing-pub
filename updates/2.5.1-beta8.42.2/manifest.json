@@ -2,12 +2,12 @@
   "format": 1,
   "version": "2.5.1-beta8.42.2",
   "from": "2.5.1-beta8.42.1",
-  "source_commit": "9c73413d5ee4353d46039ea73270a97e0d835d51",
+  "source_commit": "9eb153ab22ad220fd0007fce4f4a5314584df864",
   "changelog": "Повторная принудительная остановка виртуальной машины или LXC из VNC теперь сообщает, что гость уже остановлен. Панель проверяет фактическое состояние гостя и сохраняет ошибки незавершённых операций.\n",
   "files": {
     "console/control.php": {
       "before": "f5e795e16c752ee420cc43dba726bd0c655ac0bf72786e7104986857187a93a3",
-      "sha256": "d793a1896f30c814dbddc599c0e3cf8ead5e8906e85466e33e0b3a5d0d10c3b2"
+      "sha256": "23daace63d02f91c9fac768ceb633a45f003dfbe153f84e8b2d23d83990004f2"
     },
     "console/view.html": {
       "before": "0d7fce7d3fd6df0b7739944f9bab37e9935e6d7041ec3fdbd1ff8dcc0360cdad",
@@ -16,6 +16,10 @@
     "console/view.js": {
       "before": "53ee8778eb562685f9cb83a7aa301a861c0bb210515a1a9d5fb4db1b29f6d031",
       "sha256": "81abfabcddb0783c70a0f6b9b36fc817a8f2bd8527a1aa20c395396d6828ad48"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "d9a89a1ab6a2b6854f7b3244d50ad37e748d418726979ed790110abed7a929eb",
+      "sha256": "34a3733851f4c69a6de9af2ca197ce7b7d8f59159458b89ccc2821387223b1ac"
     },
     "includes/version.php": {
       "before": "91d1b5d39112dc0c044e4bebdc04dfcbe478b10656f3946deea805ce67440db9",
