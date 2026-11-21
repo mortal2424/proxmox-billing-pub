@@ -2,7 +2,7 @@
   "format": 1,
   "version": "2.5.1-beta8.17",
   "from": "2.5.1-beta8.16",
-  "source_commit": "bce9ae9874caa42f84e59005340ad7be734d3c18",
+  "source_commit": "2388994b57e7d7f9a15250e0e961c7117be3df70",
   "changelog": "Cloud-образы Ubuntu 22.04, 24.04 и 26.04 LTS, Debian 12 и 13, CentOS Stream 9 и 10. Автоматическая установка QEMU стала основным способом заказа, ISO доступен для ручной установки и Windows. Импорт официальных образов с проверкой контрольных сумм, подготовка системного диска и параметров cloud-init через API Proxmox.\n",
   "files": {
     "admin/image.php": {
@@ -19,7 +19,7 @@
     },
     "includes/cloud_images.php": {
       "before": null,
-      "sha256": "e3770b320cf64b1d3539aa4d0b2af691722de2ea28044feec0239a3ea2f58c9b"
+      "sha256": "663f3b4f252a921be17094ad108cb13c90d8c5a57a3ba6695ec3f053f0862d48"
     },
     "includes/proxmox_functions.php": {
       "before": "b5ab8145d200c2d64f332342ec03f6a883f4f62a0db0f2b307dd091459028e9e",
@@ -31,7 +31,7 @@
     },
     "includes/zone_placement.php": {
       "before": "85100ea24c06975812528df5f0094d2375c1e0e1cbeceff4ab0a5d713de5448c",
-      "sha256": "1f623fb52393d0accc3bd545c582f933e0f547d9aa6c6872414e6e3a1d19d298"
+      "sha256": "5ffffd5fd9bf55a490c5af312471ff4ce50d8539b210b924b040e5db8436153e"
     },
     "templates/get_zone_placement.php": {
       "before": "cc1f8e54eb6357fd5401391557217f2fe6e3519b4507edaf94fba0e0a96d1356",
