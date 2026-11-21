@@ -216,6 +216,12 @@
       "commit": "9eff65df6a85ad48ffcf3bf450cedce961da88b8",
       "sha256": "36bdc5c810f34d0a0bc8b08baa15c7cd83143140f0d25453782384fa6a73c5aa",
       "summary": "Нативный заказ ВМ и LXC и графики ресурсов в карточке гостя."
+    },
+    {
+      "version": "2.5.1-beta8.37",
+      "commit": "5c8dcd43d40ef8deca8199eb6d1ab663101af255",
+      "sha256": "6d33873605b040dec3af6bba71a2e4bb16afb799021b5b9442f1c1e77dd1e58e",
+      "summary": "Обновление IP в карточке ВМ и LXC на iPhone."
     }
   ]
 }
