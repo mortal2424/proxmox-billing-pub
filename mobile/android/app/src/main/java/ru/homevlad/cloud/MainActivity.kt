@@ -284,42 +284,76 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
     var page by remember { mutableStateOf("overview") }
     var selectedGuest by remember { mutableStateOf<JSONObject?>(null) }
     var selectedTicket by remember { mutableStateOf(0) }
-    var adminContext by remember { mutableStateOf(false) }
+    var adminMode by remember { mutableStateOf(false) }
+    var consoleOpen by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { model.start(vault) }
     val isAdmin = model.snapshot?.optBoolean("isAdmin") == true
+    val inAdmin = isAdmin && adminMode
     LaunchedEffect(isAdmin) {
-        if (!isAdmin && (page.startsWith("admin") || adminContext)) {
-            adminContext = false
+        if (!isAdmin && adminMode) {
+            adminMode = false
+            selectedTicket = 0
             page = "overview"
         }
     }
-    BackHandler(enabled = page !in listOf("overview", "monitor", "tickets", "payments", "admin")) {
-        page = if (page == "ticket") { if (adminContext) "admin_tickets" else "tickets" }
-            else if (page.startsWith("admin_")) "admin" else "overview"
+    val guest = selectedGuest
+    if (consoleOpen && guest != null && model.snapshot != null) {
+        ConsoleScreen(model, guest) { consoleOpen = false }
+        return
+    }
+    if (consoleOpen && model.snapshot == null) {
+        LaunchedEffect(Unit) { consoleOpen = false; selectedGuest = null; page = "overview" }
+    }
+    val tabs = if (inAdmin) listOf(
+        "admin" to "Сводка", "admin_users" to "Клиенты", "admin_tickets" to "Тикеты", "admin_payments" to "Платежи"
+    ) else listOf(
+        "overview" to "Обзор", "monitor" to "Мониторинг", "tickets" to "Поддержка", "payments" to "Финансы"
+    )
+    val selectedTab = when (page) {
+        "ticket" -> if (inAdmin) "admin_tickets" else "tickets"
+        "order", "guest" -> "overview"
+        "admin_monitor" -> "admin"
+        else -> page
+    }
+    BackHandler(enabled = page != (if (inAdmin) "admin" else "overview")) {
+        page = when (page) {
+            "ticket" -> if (inAdmin) "admin_tickets" else "tickets"
+            else -> if (inAdmin) "admin" else "overview"
+        }
     }
     Scaffold(containerColor = Color.Transparent, topBar = {
-        if (model.snapshot != null) TopAppBar(title = { Text("HomeVlad") }, actions = {
-            if (isAdmin) IconButton(onClick = { page = "admin" }) {
-                Icon(Icons.Default.Settings, contentDescription = "Админка")
+        if (model.snapshot != null) TopAppBar(
+            title = { Text(if (inAdmin) "Админка" else "HomeVlad", maxLines = 1) },
+            actions = {
+                if (isAdmin) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Администратор", style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.width(6.dp))
+                    Switch(checked = inAdmin, onCheckedChange = { enabled ->
+                        adminMode = enabled
+                        selectedGuest = null
+                        selectedTicket = 0
+                        page = if (enabled) "admin" else "overview"
+                        if (enabled) model.refresh()
+                    }, modifier = Modifier.semantics { contentDescription = "Режим администратора" })
+                }
+                IconButton(onClick = { model.refresh(); revision++ }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Обновить")
+                }
             }
-            if (model.snapshot != null) TextButton(onClick = { model.refresh(); revision++ }) { Text("Обновить") }
-        })
+        )
     }, bottomBar = {
-        val snapshot = model.snapshot
-        if (snapshot != null) NavigationBar {
-            val tabs = mutableListOf("overview" to "Обзор", "monitor" to "Мониторинг", "tickets" to "Поддержка", "payments" to "Финансы")
-            if (snapshot.getBoolean("isAdmin")) tabs += "admin" to "Админ"
+        if (model.snapshot != null) NavigationBar {
             tabs.forEach { (target, label) ->
-                NavigationBarItem(selected = page == target || (target == "admin" && page.startsWith("admin_")),
+                NavigationBarItem(selected = selectedTab == target,
                     onClick = { page = target }, label = { Text(label) },
                     icon = { Icon(when (target) {
-                        "overview" -> Icons.Default.Home
+                        "overview", "admin" -> Icons.Default.Home
                         "monitor" -> Icons.Default.Info
-                        "tickets" -> Icons.Default.MailOutline
-                        "payments" -> Icons.Default.ShoppingCart
-                        else -> Icons.Default.Settings
-                    }, contentDescription = label) })
+                        "tickets", "admin_tickets" -> Icons.Default.MailOutline
+                        "payments", "admin_payments" -> Icons.Default.ShoppingCart
+                        else -> Icons.Default.Person
+                    }, contentDescription = null) })
             }
         }
     }) { padding ->
@@ -362,7 +396,11 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                         TextButton(onClick = { model.logout(vault); page = "overview" }, enabled = !model.loading) { Text("Выйти") }
                     }
                 }
-                "monitor" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                "monitor", "admin_monitor" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    item {
+                        Text(if (inAdmin) "Инфраструктура" else "Мониторинг",
+                            style = MaterialTheme.typography.headlineSmall)
+                    }
                     items(objects(snapshot.getJSONArray("nodes"))) { node ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -388,14 +426,14 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                     model.refresh()
                     page = "overview"
                 }
-                "guest" -> selectedGuest?.let { NativeGuest(model, it, revision) }
-                "payments", "admin_payments" -> NativePayments(model, page.startsWith("admin"), revision)
-                "tickets", "admin_tickets" -> NativeTickets(model, page.startsWith("admin"), revision) { id, admin ->
-                    selectedTicket = id; adminContext = admin; page = "ticket"
+                "guest" -> selectedGuest?.let { NativeGuest(model, it, revision) { consoleOpen = true } }
+                "payments", "admin_payments" -> if (page == "payments" || inAdmin) NativePayments(model, inAdmin, revision)
+                "tickets", "admin_tickets" -> if (page == "tickets" || inAdmin) {
+                    NativeTickets(model, inAdmin, revision) { id, _ -> selectedTicket = id; page = "ticket" }
                 }
-                "ticket" -> NativeTicket(model, selectedTicket, adminContext, revision)
-                "admin" -> if (isAdmin) NativeAdminOverview(model, revision) { page = it }
-                "admin_users" -> if (isAdmin) NativeAdminUsers(model, revision)
+                "ticket" -> if (selectedTicket > 0) NativeTicket(model, selectedTicket, inAdmin, revision)
+                "admin" -> if (inAdmin) NativeAdminOverview(model, revision) { page = it }
+                "admin_users" -> if (inAdmin) NativeAdminUsers(model, revision)
             }
         }
     }
@@ -439,7 +477,7 @@ private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
 }
 
 @Composable
-private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int) {
+private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int, openConsole: () -> Unit) {
     val scope = rememberCoroutineScope()
     var live by remember { mutableStateOf<JSONObject?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -453,12 +491,16 @@ private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int) {
         Text(guest.getString("name"), style = MaterialTheme.typography.headlineSmall)
         Text("№${guest.getInt("vmId")} · ${guest.getString("type").uppercase()}")
         Text(status(live?.optString("status") ?: guest.getString("status")))
-        val ip = guest.takeUnless { it.isNull("ipAddress") }?.optString("ipAddress").orEmpty()
+        val ip = (live?.takeUnless { it.isNull("ipAddress") } ?: guest.takeUnless { it.isNull("ipAddress") })
+            ?.optString("ipAddress").orEmpty()
         Text("Последний известный IP: ${ip.ifBlank { "Пока не определён" }}")
         Text("${guest.getInt("cpu")} vCPU · ${guest.getInt("ramMiB")} МБ RAM · ${guest.getInt("diskGiB")} ГБ")
         live?.let {
             if (!it.isNull("cpu")) Text("CPU ${it.getDouble("cpu")}%")
             if (!it.isNull("memory")) Text("Память ${it.getDouble("memory")}%")
+        }
+        FilledTonalButton(onClick = openConsole, enabled = (live?.optString("status") ?: guest.getString("status")) == "running") {
+            Text("Открыть консоль")
         }
         NativeGuestGraphs(model, guest.getInt("id"), revision)
         listOf("start" to "Запустить", "shutdown" to "Выключить ОС", "reboot" to "Перезагрузить", "stop" to "Остановить принудительно")
@@ -668,20 +710,42 @@ private fun NativeAdminOverview(model: CloudModel, revision: Int, navigate: (Str
             error = exception.message
         }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Администрирование", style = MaterialTheme.typography.headlineSmall)
-        summary?.let {
-            Text("${it.getInt("active_users")} активных пользователей из ${it.getInt("users")}")
-            Text("Зоны доступности: ${it.getInt("zones")}")
-            Text("Активные ноды: ${it.getInt("nodes")}")
-            Text("Платежи к проверке: ${it.getInt("pending_payments")}")
-            Text("Открытые обращения: ${it.getInt("open_tickets")}")
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Text("Сводка", style = MaterialTheme.typography.headlineSmall) }
+        if (summary == null && error == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+        item { AdminSectionCard("Пользователи",
+            summary?.let { "${it.getInt("active_users")} активных из ${it.getInt("users")}" },
+            Icons.Default.Person) { navigate("admin_users") } }
+        item { AdminSectionCard("Тикеты",
+            summary?.let { "Открытых: ${it.getInt("open_tickets")}" },
+            Icons.Default.MailOutline) { navigate("admin_tickets") } }
+        item { AdminSectionCard("Платежи",
+            summary?.let { "К проверке: ${it.getInt("pending_payments")}" },
+            Icons.Default.ShoppingCart) { navigate("admin_payments") } }
+        item { AdminSectionCard("Инфраструктура",
+            summary?.let { "Зон: ${it.getInt("zones")} · Активных нод: ${it.getInt("nodes")}" },
+            Icons.Default.Info) { navigate("admin_monitor") } }
+    }
+}
+
+@Composable
+private fun AdminSectionCard(
+    title: String,
+    detail: String?,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    open: () -> Unit
+) {
+    Card(onClick = open, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+            Icon(Icons.Default.KeyboardArrowRight, null)
         }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        TextButton(onClick = { navigate("admin_users") }) { Text("Пользователи") }
-        TextButton(onClick = { navigate("admin_payments") }) { Text("Платежи пользователей") }
-        TextButton(onClick = { navigate("admin_tickets") }) { Text("Все обращения") }
     }
 }
 
@@ -689,6 +753,7 @@ private fun NativeAdminOverview(model: CloudModel, revision: Int, navigate: (Str
 private fun NativeAdminUsers(model: CloudModel, revision: Int) {
     val scope = rememberCoroutineScope()
     var users by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var search by remember { mutableStateOf("") }
     var next by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -708,9 +773,16 @@ private fun NativeAdminUsers(model: CloudModel, revision: Int) {
         } finally { busy = false }
     }
     LaunchedEffect(revision) { load() }
+    val visibleUsers = users.filter { user ->
+        val query = search.trim()
+        user.getString("name").contains(query, ignoreCase = true) || user.getString("email").contains(query, ignoreCase = true)
+    }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text("Пользователи", style = MaterialTheme.typography.headlineSmall) }
-        items(users, key = { it.getInt("id") }) { user ->
+        item { OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(),
+            label = { Text("Поиск среди загруженных") }, singleLine = true) }
+        if (visibleUsers.isEmpty() && !busy && error == null) item { Text("Пользователи не найдены") }
+        items(visibleUsers, key = { it.getInt("id") }) { user ->
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Text(user.getString("name"), style = MaterialTheme.typography.titleMedium)
