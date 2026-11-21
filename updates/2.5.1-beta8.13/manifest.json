@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.13",
+  "from": "2.5.1-beta8.12",
+  "source_commit": "54297ba81dd3e89707a3f6c39a311fd8dca08594",
+  "changelog": "Общая шапка, боковое меню, фон и адаптивные карточки на странице пулов.\n",
+  "files": {
+    "admin/node_placement_pools.php": {
+      "before": "3bceb9b7aa0b46b3703a54790d6467e7068b189392d5e7c52f0cc052ce67ce6f",
+      "sha256": "ace440a76185bedaab723b6069f5e2b735e026653c26f2bb2a5e63b95b171727"
+    },
+    "includes/version.php": {
+      "before": "f9bfc05b184df2da3eed728473c21566bbf8f979e1732f2b393d5402cfb130d1",
+      "sha256": "d86b1d1d588eecafb0c7c0ba3888f3ad428458792b226a0d1bc97b5da3981d71"
+    }
+  }
+}
