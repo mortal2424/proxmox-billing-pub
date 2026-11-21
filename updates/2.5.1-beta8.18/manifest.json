@@ -3,7 +3,7 @@
   "version": "2.5.1-beta8.18",
   "from": "2.5.1-beta8.17",
   "source_commit": "f59afa7f37795b25e23cf67243eb14fa9cc14ad6",
-  "changelog": "Управление cloud-образами в «Образы ОС»: названия для пользователей, добавление из официального каталога, фоновый импорт, переключение хранилища и снятие с публикации. Удаление файла требует Datastore.Allocate на хранилище. Для существующих установок запустите php cronjobs/create_cloud_image_settings.php и настройте cron согласно README. Для Docker пересоберите контейнер Apache.\n",
+  "changelog": "Управление cloud-образами в «Образы ОС»: названия для пользователей, добавление из официального каталога, фоновый импорт, переключение хранилища и снятие с публикации. Удаление файла требует Datastore.Allocate на хранилище. Для существующих установок запустите php cronjobs/create_cloud_image_settings.php и настройте cron согласно README. Для Docker пересоберите контейнер Apache.\nФайлы конфигурации Docker обновляются при пересборке из main.\n",
   "files": {
     "admin/cloud_image_action.php": {
       "before": null,
@@ -24,18 +24,6 @@
     "cronjobs/process_cloud_image_imports.php": {
       "before": null,
       "sha256": "bc97d1f1119d8b17e45e50bed0479176e1504097b58766b4c541c267cdd1f8dd"
-    },
-    "docker/console-supervisor.conf": {
-      "before": "1c881f2c6859d09d40ecbe1e119d374fb7d251af10bc5d4d947ccefee7279683",
-      "sha256": "bb73954fdcb6e8a2415dbee772a0335239f9efa71669c06abf5546a039e5d340"
-    },
-    "docker/cron-scheduler.sh": {
-      "before": "dd3d1270d60d29538446e616f111c7ade5f497145fd2548b5ca0a1e10e4b6759",
-      "sha256": "37e579479e546e2f3dd45f80ef82eebf55bcf1f4f21ee9678f97996eebd7bb21"
-    },
-    "docker/init.sh": {
-      "before": "b2f2fe42844cb065241b22ed72ac2669615e759a82b4994a88f24722f3ab9b0f",
-      "sha256": "e5bfc4ae1c6126cc088c1a9b97c476364f2f1b7e6274c3c46e91feeaa5241c08"
     },
     "includes/cloud_image_import.php": {
       "before": null,
