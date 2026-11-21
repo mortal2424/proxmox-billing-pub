@@ -2,7 +2,7 @@
   "format": 1,
   "version": "2.5.1-beta8.7",
   "from": "2.5.1-beta8.6",
-  "source_commit": "d2e5c20fd69fe97dc85b152e2503a2b3543cf7fb",
+  "source_commit": "8a295dc6c9281338cb148b516a78481777e3f064",
   "changelog": "Переход на ограниченные токены Proxmox и привязка биллинга к записи гостя.\n",
   "files": {
     "admin/admin_functions.php": {
@@ -75,7 +75,7 @@
     },
     "includes/node_api_credentials.php": {
       "before": null,
-      "sha256": "3e3a9a40aa254277022025671ae9e48de1ea0dfb808be61e3ef6666b3d21f803"
+      "sha256": "35121e67ed85400b813c3f3b0d8792ed31852c0b2a019a6ced8dd7080e2add8a"
     },
     "includes/node_api_info.php": {
       "before": null,
