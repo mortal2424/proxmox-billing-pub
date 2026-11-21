@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.39",
+  "from": "2.5.1-beta8.38.1",
+  "source_commit": "91c5c24f16607d9e756d646583822e80eb4833ea",
+  "changelog": "Нативная консоль ВМ и LXC в HomeVlad для iOS.\nОдноразовый билет выдается после проверки сессии HomeVlad и прав на машину.\n",
+  "files": {
+    "api/mobile_console.php": {
+      "before": null,
+      "sha256": "892292b62ddb0dcde2beefddbbb1e2bc13ab68ac0ce074b4df69a588966a3d10"
+    },
+    "includes/console_launch.php": {
+      "before": "ccb4ade2f9e873fe59cddf9e806f2048ea68b9e5c6c031de51ee3cdce203074d",
+      "sha256": "7e3d693e77efbefa281e10f2ade3a38d23bc90c4741636d21c6595e5f0dc6de0"
+    },
+    "includes/console_ticket.php": {
+      "before": null,
+      "sha256": "a5387ac173f0adc109846d7c82bbe0a2c82804f2e95cf291826cccb5c8933494"
+    },
+    "includes/version.php": {
+      "before": "c56c7987eb9de9812532b606ed8c8c58f0777a28865ab7c413d6b9760e4828d7",
+      "sha256": "691cdb6e5574098c45d8d6f4d37812e818791b483d55d0a3306a484b672d797d"
+    }
+  }
+}
