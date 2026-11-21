@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
+require_once __DIR__ . '/../includes/proxmox_node_import.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -31,6 +31,21 @@ if (isset($_GET['id'])) {
 if (!$node) {
     $_SESSION['error'] = "Нода не найдена";
     header("Location: nodes.php");
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['refresh_cluster_members'])) {
+    try {
+        $members = discoverProxmoxMembers(new ProxmoxApiClient($node), $node['node_name']);
+        $node['cluster_id'] = (int)$node['cluster_id'];
+        $node['api_port'] = (int)$node['api_port'];
+        $count = importProxmoxMembers((new Database())->getConnection(), $node, $members);
+        $_SESSION['success'] = sprintf('Найдено нод: %d. Добавлено: %d.', count($members), $count);
+    } catch (Throwable $error) {
+        error_log('Cluster member refresh failed for node ' . (int)$node['id'] . ': ' . get_class($error));
+        $_SESSION['error'] = $error instanceof PDOException ? 'Не удалось сохранить новых участников.' : $error->getMessage();
+    }
+    header('Location: edit_node.php?id=' . (int)$node['id'], true, 303);
     exit;
 }
 
@@ -1211,6 +1226,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <i class="fas fa-play"></i> Проверить сейчас
                             </button>
                         </form>
+                        <form method="POST" class="action-buttons" style="margin-top: 10px;">
+                            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                            <button type="submit" name="refresh_cluster_members" value="1" class="form-btn form-btn-secondary">
+                                <i class="fas fa-sync-alt" aria-hidden="true"></i> Обновить список нод
+                            </button>
+                        </form>
+                        <p class="form-hint">Новые участники Proxmox добавятся в эту зону. Для заказов их можно включить отдельно.</p>
                     </div>
                 </div>
 

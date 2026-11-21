@@ -31,11 +31,22 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): int
         $zones = $db->query('SELECT id,is_active FROM proxmox_clusters ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_KEY_PAIR);
         $zone = $connection['cluster_id'];
         if (empty($zones[$zone])) throw new RuntimeException('Выберите активную зону доступности');
+        $refresh = isset($connection['id']);
+        if ($refresh) {
+            $source = $db->prepare('SELECT cluster_id,node_name,hostname,api_port,username,password,is_active FROM proxmox_nodes WHERE id=? FOR UPDATE');
+            $source->execute([$connection['id']]);
+            $saved = $source->fetch(PDO::FETCH_ASSOC);
+            foreach (['cluster_id','node_name','hostname','api_port','username','password','is_active'] as $key) {
+                if (!$saved || (string)$saved[$key] !== (string)$connection[$key]) {
+                    throw new RuntimeException('Настройки исходной ноды изменились. Повторите обновление списка.');
+                }
+            }
+        }
         $existing = $db->query('SELECT cluster_id,node_name,hostname,api_port,is_cluster_master FROM proxmox_nodes')->fetchAll(PDO::FETCH_ASSOC);
-        $secret = encryptNodePassword($connection['password']);
+        $secret = encryptNodePassword($refresh ? decryptNodePassword($connection['password']) : $connection['password']);
         $insert = $db->prepare('INSERT INTO proxmox_nodes
-            (cluster_id,node_name,hostname,api_port,ssh_port,username,password,is_active,description,is_cluster_master,last_check,status)
-            VALUES (?,?,?,?,22,?,?,?,?,?,NOW(),?)');
+            (cluster_id,node_name,hostname,api_port,ssh_port,username,password,is_active,description,is_cluster_master,last_check,status,available_for_users)
+            VALUES (?,?,?,?,22,?,?,?,?,?,NOW(),?,?)');
         $count = 0;
         foreach ($members as $name => $status) {
             foreach ($existing as $node) {
@@ -45,11 +56,11 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): int
                     throw new RuntimeException('Этот адрес API уже используется в другой зоне');
                 }
                 if ((int)$node['cluster_id'] === $zone && strcasecmp($node['node_name'], $name) === 0) {
-                    if (!$sameEndpoint) throw new RuntimeException('Имя участника уже занято другим подключением в этой зоне');
+                    if (!$refresh && !$sameEndpoint) throw new RuntimeException('Имя участника уже занято другим подключением в этой зоне');
                     continue 2;
                 }
             }
-            $master = $connection['is_cluster_master'] && $name === $connection['node_name'];
+            $master = !$refresh && $connection['is_cluster_master'] && $name === $connection['node_name'];
             if ($master) {
                 foreach ($existing as $node) {
                     if ((int)$node['cluster_id'] === $zone && $node['is_cluster_master']) {
@@ -58,7 +69,7 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): int
                 }
             }
             $insert->execute([$zone,$name,$connection['hostname'],$connection['api_port'],$connection['username'],
-                $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,$status]);
+                $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,$status,(int)!$refresh]);
             ++$count;
         }
         $db->commit();
