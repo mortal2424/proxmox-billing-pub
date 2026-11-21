@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.10",
+  "from": "2.5.1-beta8.9",
+  "source_commit": "cec541562695358fe57067f26097153d67d7ea97",
+  "changelog": "Импорт участников кластера Proxmox в зону доступности, редактирование подключения по API-токену и проверка статуса конкретной ноды.\n",
+  "files": {
+    "admin/add_node.php": {
+      "before": "a531e4a97cf8559b0a4aee8e2889cf619c5c6b515ebd4f4426144bded6fd8598",
+      "sha256": "14e6b7ffefc9c40cf726fd65d72c6b59abb1703674d64baaff67566c94219686"
+    },
+    "admin/edit_node.php": {
+      "before": "231f255f62ec2e4aeb3011b5cab67929e04227830b44aad2de236a765f6e063f",
+      "sha256": "416ac2e4c9e35622aa256c4a855f1f0d471b91ca117e2215675d55bf247ba4f9"
+    },
+    "cronjobs/check_node_health.php": {
+      "before": "8f9f16969441fcdb6f62f99fbef57eb12f940db7a6afdb9d594a6cff80e64d78",
+      "sha256": "19a66b57da2e02748d87195d13ea0807e3b1080948ef599d6f6d64badd9d80fc"
+    },
+    "includes/proxmox_node_import.php": {
+      "before": null,
+      "sha256": "0da66ab5fb699c935617e1536d3c67395f63d7af15b0d2c7dcff460312fbd2dc"
+    },
+    "includes/version.php": {
+      "before": "dfffeb28069e1e380f295906e40d20ae6483f719ef55144df40d7423128dfa17",
+      "sha256": "e1d941c9290c1d830a84ec7721114084707970e27889d25008c503df43b2ce31"
+    }
+  }
+}
