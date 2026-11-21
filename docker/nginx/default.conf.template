@@ -18,6 +18,9 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
+    # Cloud image orders can wait up to 600 seconds for Proxmox to import a disk.
+    proxy_read_timeout 720s;
+
     location ^~ /uploads/tickets/ { return 403; }
     location ^~ /backups/ { return 403; }
     location ^~ /logs/ { return 403; }
