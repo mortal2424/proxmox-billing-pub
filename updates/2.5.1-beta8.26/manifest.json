@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.26",
+  "from": "2.5.1-beta8.25",
+  "source_commit": "cf2acf184c487446b9dfe38fcf9409f2bca77079",
+  "changelog": "Исправлено получение сохранённого пароля в карточке и консоли через PHP API.\n",
+  "files": {
+    "api/guest_credentials.php": {
+      "before": null,
+      "sha256": "cee75d177fc909062f7a5433b38428b5b655c7d3c01000dfc38eada78bf3233c"
+    },
+    "console/credential.php": {
+      "before": "cee75d177fc909062f7a5433b38428b5b655c7d3c01000dfc38eada78bf3233c",
+      "sha256": "316daa2e3cac5ec464cbe5ca33cb93424ecf961ee59cb7781fdfaed32084e5e8"
+    },
+    "console/view.html": {
+      "before": "a7a86165337023958d704e6f4186842cd46035c1d2693351d42aa29412772a8b",
+      "sha256": "816d525ad2f7161aa234f6ecccade6203466ad4985f044ddbd42d299a18cb9a9"
+    },
+    "console/view.js": {
+      "before": "37daa5e7b4e45fc7e5a6f6368a43a0733831dab4eec1b033de19425f8484874f",
+      "sha256": "99444a39592828b9ed28f2f51af0ed525aa3458e18dfd4445fe67eaf469b071b"
+    },
+    "includes/version.php": {
+      "before": "df418d12d714c0412bf79346837d4ef027a8195233de9e8aa4214488fcadd336",
+      "sha256": "95981371e640cb4aaa22ca9c0a4e73414b3076e1806dbffc13273c630ee4ddef"
+    },
+    "js/guest-password.js": {
+      "before": "6825f5cdea480fc366a15a83474da5dd408943d59ee549ef868e73e303dd0a35",
+      "sha256": "f537f1a9f139966e744051ec3668ac501beae26df1955efc7b7eb5a5d9fb63da"
+    },
+    "templates/vm_settings.php": {
+      "before": "56680b62faf94b32fdfa8ab784f03805165b9885ed5748046a5bc25390b44ecd",
+      "sha256": "0163e6cf3d59c59f7aef637bd41364258d04d7f24007a1091268c02f1577baf0"
+    }
+  }
+}
