@@ -1904,7 +1904,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     const data = await response.json();
                     if (requestId !== zoneRequest) return;
                     for (const [key, select] of Object.entries(fields)) {
-                        for (const value of data[key]) select.add(new Option(value, value));
+                        for (const value of data[key]) select.add(typeof value === 'string' ? new Option(value, value) : new Option(value.label, value.id));
                     }
                     fields.network.disabled = false;
                     updateNodeProgress(100, 'Ресурсы зоны загружены');

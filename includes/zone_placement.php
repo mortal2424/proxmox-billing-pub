@@ -11,10 +11,10 @@ function placementNodes(PDO $pdo, int $zone): array
 
 function placementPoolEntries(PDO $pdo, int $zone): array
 {
-    $query = $pdo->prepare('SELECT p.node_id,p.kind,p.pool_name,p.resource
+    $query = $pdo->prepare('SELECT p.node_id,p.kind,p.pool_name,p.resource,p.display_name
         FROM node_placement_pools p JOIN proxmox_nodes n ON n.id=p.node_id
         WHERE n.cluster_id=? AND n.is_active=1 AND n.available_for_users=1
-        ORDER BY p.pool_name,p.resource');
+        ORDER BY p.pool_name,p.node_id,p.resource,p.display_name');
     $query->execute([$zone]);
     return $query->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -29,7 +29,7 @@ function appliedPlacementSdn(ProxmoxAPI $api, array $interfaces): array
 {
     $live = [];
     foreach ($interfaces as $interface) {
-        if (!empty($interface['active']) && !empty($interface['iface'])) $live[$interface['iface']] = true;
+        if ((!empty($interface['active']) || ($interface['type'] ?? '') === 'vnet') && !empty($interface['iface'])) $live[$interface['iface']] = true;
     }
     return array_values(array_filter($api->getSDNNetworks(), static fn(array $entry): bool =>
         isset($live[$entry['vnet'] ?? ''])
@@ -61,7 +61,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             $freeRam = (int)($status['memory']['free'] ?? 0);
             if ($freeRam < $ram * 1048576 || (int)($status['cpuinfo']['cpus'] ?? 0) < $cpu) continue;
             $network = '';
-            $interfaces = $api->request('GET', $base . '/network');
+            $interfaces = $api->request('GET', $base . '/network', ['type'=>'any_bridge']);
             if ($sdn !== '') {
                 $listed = array_column(appliedPlacementSdn($api, $interfaces), 'name');
                 if (!in_array($sdn, $listed, true)) continue;

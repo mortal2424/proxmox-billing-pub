@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/db.php';
     kind ENUM('network','storage') NOT NULL,
     pool_name VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     resource VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    display_name VARCHAR(100) NULL,
     PRIMARY KEY(node_id,kind,pool_name,resource),
     FOREIGN KEY (node_id) REFERENCES proxmox_nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB");

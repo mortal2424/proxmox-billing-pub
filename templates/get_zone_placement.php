@@ -15,12 +15,16 @@ try {
     $nodes = placementNodes($pdo, $zone);
     $result = ['network'=>[], 'storage'=>[], 'sdn'=>[], 'media'=>[]];
     foreach (placementPoolEntries($pdo, $zone) as $entry) {
-        $result[$entry['kind']][$entry['pool_name']] = $entry['pool_name'];
+        $key = $entry['pool_name'];
+        $label = $entry['display_name'] ?: $key;
+        if (!isset($result[$entry['kind']][$key]) || $result[$entry['kind']][$key]['label'] === $key) {
+            $result[$entry['kind']][$key] = ['id'=>$key, 'label'=>$label];
+        }
     }
     foreach ($nodes as $node) {
         try {
             $api = placementClient($node, $pdo);
-            $interfaces = $api->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/network');
+            $interfaces = $api->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/network', ['type'=>'any_bridge']);
             foreach (appliedPlacementSdn($api, $interfaces) as $entry) $result['sdn'][$entry['name']] = $entry['name'];
             $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
             foreach ($images as $entry) $result['media'][$entry['volid']] = $entry['volid'];
