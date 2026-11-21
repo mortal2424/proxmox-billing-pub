@@ -25,6 +25,17 @@ function placementClient(array $node, PDO $pdo): ProxmoxAPI
         $node['node_name'], $node['id'], $pdo);
 }
 
+function appliedPlacementSdn(ProxmoxAPI $api, array $interfaces): array
+{
+    $live = [];
+    foreach ($interfaces as $interface) {
+        if (!empty($interface['active']) && !empty($interface['iface'])) $live[$interface['iface']] = true;
+    }
+    return array_values(array_filter($api->getSDNNetworks(), static fn(array $entry): bool =>
+        isset($live[$entry['vnet'] ?? ''])
+    ));
+}
+
 function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool, string $storagePool,
     string $sdn, string $media, int $cpu, int $ram, int $disk, bool $windows = false): array
 {
@@ -50,16 +61,13 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             $freeRam = (int)($status['memory']['free'] ?? 0);
             if ($freeRam < $ram * 1048576 || (int)($status['cpuinfo']['cpus'] ?? 0) < $cpu) continue;
             $network = '';
+            $interfaces = $api->request('GET', $base . '/network');
             if ($sdn !== '') {
-                $listed = array_column($api->getSDNNetworks(), 'name');
+                $listed = array_column(appliedPlacementSdn($api, $interfaces), 'name');
                 if (!in_array($sdn, $listed, true)) continue;
-                $bridge = basename($sdn);
-                // Applied VNets appear on the target node. A configured but unapplied VNet is not usable.
-                $live = $api->request('GET', $base . '/network');
-                if (!in_array($bridge, array_column($live, 'iface'), true)) continue;
-                $network = $bridge;
+                $network = basename($sdn);
             } else {
-                foreach ($api->request('GET', $base . '/network') as $interface) {
+                foreach ($interfaces as $interface) {
                     if (in_array($interface['type'] ?? '', ['bridge','OVSBridge'], true) &&
                         !empty($interface['active']) && in_array($interface['iface'] ?? '', $bridges, true)) {
                         $network = $interface['iface'];

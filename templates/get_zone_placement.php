@@ -20,7 +20,8 @@ try {
     foreach ($nodes as $node) {
         try {
             $api = placementClient($node, $pdo);
-            foreach ($api->getSDNNetworks() as $entry) $result['sdn'][$entry['name']] = $entry['name'];
+            $interfaces = $api->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/network');
+            foreach (appliedPlacementSdn($api, $interfaces) as $entry) $result['sdn'][$entry['name']] = $entry['name'];
             $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
             foreach ($images as $entry) $result['media'][$entry['volid']] = $entry['volid'];
         } catch (Throwable $error) {
