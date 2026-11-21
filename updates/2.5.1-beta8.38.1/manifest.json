@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.38.1",
+  "from": "2.5.1-beta8.38",
+  "source_commit": "adfa16e0187716b6f62464dbf44142d6db1ac4d3",
+  "changelog": "Исправлено чтение каталога, сохранённого фоновой проверкой.\n",
+  "files": {
+    "includes/update_catalog.php": {
+      "before": "152eb96c973d1009105476dea8b41ac896406a7ba54d885d0747f06c5959c9b7",
+      "sha256": "de6dc771d96949c4a8f342c04bc92a25979ad54881a51274b7fa314a8d44c7cb"
+    },
+    "includes/version.php": {
+      "before": "3339b0c9b6bf89f05998c8f4f73e618f7fabb52187e90a932f60904a37ed034f",
+      "sha256": "c56c7987eb9de9812532b606ed8c8c58f0777a28865ab7c413d6b9760e4828d7"
+    }
+  }
+}
