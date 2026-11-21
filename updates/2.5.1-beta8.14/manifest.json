@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.14",
+  "from": "2.5.1-beta8.13",
+  "source_commit": "1c3a39ea4a341eeca3aab8b97196ff45ff50d216",
+  "changelog": "Исправлена загрузка страницы пулов: подключены функции общей шапки админки.\n",
+  "files": {
+    "admin/node_placement_pools.php": {
+      "before": "f99ec2651fab1254b840b24b2c0fc61bf00f6dcf0321a3d6ca95929594e135db",
+      "sha256": "cc04c97453a153a31958a3071a9964ef469cad5825ae7d92f72d57e44a2a9478"
+    },
+    "includes/version.php": {
+      "before": "d86b1d1d588eecafb0c7c0ba3888f3ad428458792b226a0d1bc97b5da3981d71",
+      "sha256": "77b84d19fd077d4a6e9adb4b7fb12eaba92b1b68a08060f6cbf19f2a7422ad83"
+    }
+  }
+}
