@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.12",
+  "from": "2.5.1-beta8.11",
+  "source_commit": "91b3454660f05141f08ba113fb91c1bb94a8a7f2",
+  "changelog": "Выбор зоны и автоматическое размещение ВМ/LXC. Пулы внешних сетей и хранилищ, пользовательские названия пулов и выбор активной SDN.\n",
+  "files": {
+    "admin/node_placement_pools.php": {
+      "before": null,
+      "sha256": "3bceb9b7aa0b46b3703a54790d6467e7068b189392d5e7c52f0cc052ce67ce6f"
+    },
+    "admin/nodes.php": {
+      "before": "d2c2b8a45b8b232b8393360d9470ff7c9043430688f22fe8b3a77b4ae087302c",
+      "sha256": "1a9ffaa02c403724e26616296d2e1b06a6590ce1e17335b469bdd68ad322009f"
+    },
+    "cronjobs/create_node_placement_pools.php": {
+      "before": null,
+      "sha256": "c2d43d8cc0f80c63e87be8171139131dff5ceeabc819cdc830d698f736b6079c"
+    },
+    "includes/guest_operation_lock.php": {
+      "before": "84dd369054106ee5abbf6ffa761ebe441762eb3dccccc586b54e5f764558b67e",
+      "sha256": "2a3aaf1d7b4a915e9895737873bee14c1cfa4d64ba757b7945726dd1dd4af3ce"
+    },
+    "includes/version.php": {
+      "before": "77a2154ea8ae6c509026fbc864b48ed48b625b0a88b76e6b1448c4d8c6fbf941",
+      "sha256": "f9bfc05b184df2da3eed728473c21566bbf8f979e1732f2b393d5402cfb130d1"
+    },
+    "includes/zone_placement.php": {
+      "before": null,
+      "sha256": "dc394257f58d7e64f024c8b66caa6cc47f28ef503cf53ed0d46b8a1ba9cbad19"
+    },
+    "templates/get_zone_placement.php": {
+      "before": null,
+      "sha256": "af0fab3a91ed8fd58607545cf8e3a76514ab9a273ee87ffe19933a324ac3fac4"
+    },
+    "templates/order_vm.php": {
+      "before": "b1e54cdba0ab4e111caa781a13cd5e2616af580f5b8ee81854d8758a6fae0569",
+      "sha256": "3a5809154fa481e67b6d511f2057334f3bde36255ecb62e11440f851388a9ecf"
+    }
+  }
+}
