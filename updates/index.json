@@ -174,6 +174,12 @@
       "commit": "f9c411a05f631cb06ded9d5f68b25f4ecdfc6752",
       "sha256": "9081052451555ab293f50c0b4006466885d0f1310be5fc7d6c0b1fbb748d264a",
       "summary": "IP в карточке, подготовка автоустановки QEMU Guest Agent для Linux и Enter после вставки в консоли."
+    },
+    {
+      "version": "2.5.1-beta8.30",
+      "commit": "b19c4f197f8b5a1d2bb85b97980f47b2dc314725",
+      "sha256": "b015f991cbc8a2472b1cd770c4f6a5e2e16d1c4702877614a4f9c3b8be2fc267",
+      "summary": "Исправлен ввод заглавных букв и знака восклицания в пароле через VNC."
     }
   ]
 }
