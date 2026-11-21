@@ -40,6 +40,9 @@ struct CloudNode: Decodable, Identifiable {
     let status: String
     let cpu: Double?
     let memory: Double?
+    let networkRx: Double?
+    let networkTx: Double?
+    let guestInternet: String?
 }
 
 enum CloudError: LocalizedError {

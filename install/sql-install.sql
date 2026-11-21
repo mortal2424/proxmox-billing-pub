@@ -1932,3 +1932,11 @@ CREATE TABLE IF NOT EXISTS cloud_image_settings (
     PRIMARY KEY (node_id, image_key),
     FOREIGN KEY (node_id) REFERENCES proxmox_nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `mobile_device_tokens` (
+  `token_hash` binary(32) NOT NULL PRIMARY KEY,
+  `user_id` int NOT NULL,
+  `password_fingerprint` binary(32) NOT NULL,
+  `expires_at` bigint NOT NULL,
+  KEY `mobile_device_expiry` (`expires_at`)
+) ENGINE=InnoDB;

@@ -60,5 +60,6 @@ else
 fi
 
 php /var/www/html/cronjobs/create_cloud_image_settings.php
+php /var/www/html/cronjobs/create_mobile_device_tokens.php
 
 echo "✅ Init script finished."
