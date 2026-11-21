@@ -17,6 +17,8 @@ requireNodeAdministrator($pdo);
 
 $clusters = $pdo->query("SELECT id, name FROM proxmox_clusters WHERE is_active = 1 ORDER BY name")->fetchAll();
 
+$selectedZone = (int)($_POST['cluster_id'] ?? $_GET['cluster_id'] ?? 0);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset($_POST['node_form']))) {
     try {
         $cluster_id = intval($_POST['cluster_id']);
@@ -797,7 +799,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
                 <div class="form-section">
                     <div class="form-section-header"><h2><i class="fas fa-cog"></i> Основные параметры</h2></div>
                     <div class="form-section-body">
-                        <div class="form-group"><label class="form-label required">Зона доступности</label><select name="cluster_id" class="form-input" id="clusterSelect" required><option value="">Выберите зону доступности</option><?php foreach ($clusters as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
+                        <div class="form-group"><label class="form-label required">Зона доступности</label><select name="cluster_id" class="form-input" id="clusterSelect" required><option value="">Выберите зону доступности</option><?php foreach ($clusters as $c): ?><option value="<?= $c['id'] ?>" <?= (int)$c['id'] === $selectedZone ? 'selected' : '' ?>><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
                         <div class="form-group"><label class="form-label required">Имя ноды</label><input type="text" name="node_name" class="form-input" id="nodeName" maxlength="50" required><span class="form-hint">Уникальное имя в зоне доступности</span></div>
                         <div class="form-group"><label class="form-label required">Адрес сервера</label><input type="text" name="hostname" class="form-input" id="hostname" required><span class="form-hint">IP-адрес или домен</span></div>
                         <div class="form-group"><label class="form-label">Описание</label><textarea name="description" class="form-input" rows="3" id="description"></textarea></div>

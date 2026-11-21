@@ -68,7 +68,7 @@ if ($usage['total_disk'] > $quota['max_disk']) {
 }
 
 // Получаем список нод и тарифов
-$zones = $pdo->query("SELECT z.id,z.name FROM proxmox_clusters z WHERE z.is_active=1
+$zones = $pdo->query("SELECT z.id,z.name FROM proxmox_clusters z WHERE z.is_active=1 AND COALESCE(z.maintenance_mode,0)=0
     AND EXISTS (SELECT 1 FROM proxmox_nodes n WHERE n.cluster_id=z.id AND n.is_active=1 AND n.available_for_users=1)
     ORDER BY z.name")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1427,7 +1427,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
                     <div class="creation-status-wrapper">
                         <?php if (!empty($guestDetailsUrl)): ?>
-                            <p><a href="<?= htmlspecialchars($guestDetailsUrl, ENT_QUOTES) ?>">Открыть карточку и пароль</a></p>
+                            <p><a id="created-guest-link" href="<?= htmlspecialchars($guestDetailsUrl, ENT_QUOTES) ?>">Открыть карточку и пароль</a></p>
+                            <p id="created-guest-redirect" hidden>Карточка откроется через 10 секунд.</p>
                         <?php endif; ?>
                         <?php if (!empty($vncUrl)): ?>
                             <div class="vnc-section">
@@ -1457,7 +1458,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             <?php endif; ?>
 
             <!-- Прогресс создания -->
-            <div id="creation-progress" class="notification" style="display: none; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);">
+            <div id="creation-progress" class="notification" style="display: none; scroll-margin-top: 90px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2);">
                 <i class="fas fa-cog fa-spin"></i>
                 <strong>Идет создание...</strong>
                 <div style="margin-top: 15px; text-align: center;">
@@ -1813,6 +1814,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        const createdGuestLink = document.getElementById('created-guest-link');
+        if (createdGuestLink) {
+            document.getElementById('created-guest-redirect').hidden = false;
+            window.setTimeout(() => window.location.replace(createdGuestLink.href), 10000);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Скрипт загружен'); // Для отладки
 
@@ -2197,6 +2204,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
                     if (progressElement) {
                         progressElement.style.display = 'block';
+                        progressElement.scrollIntoView({ block: 'start', behavior: 'instant' });
                     }
 
                     const startTime = new Date().getTime();

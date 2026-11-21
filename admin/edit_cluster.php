@@ -11,6 +11,10 @@ if (!isAdmin()) {
 
 $db = new Database();
 $pdo = $db->getConnection();
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/../includes/node_health.php';
+require_once __DIR__ . '/../includes/guest_operation_lock.php';
+requireNodeAdministrator($pdo);
 
 // Получаем данные зоны доступности
 $cluster = null;
@@ -54,29 +58,9 @@ $cluster_nodes = $pdo->prepare("
 $cluster_nodes->execute([$cluster['id']]);
 $cluster_nodes = $cluster_nodes->fetchAll(PDO::FETCH_ASSOC);
 
-// Получаем историю изменений зоны доступности
-$cluster_history = $pdo->prepare("
-    SELECT
-        'created' as type,
-        created_at as date,
-        CONCAT('Зона доступности создана') as description
-    FROM proxmox_clusters
-    WHERE id = ?
-
-    UNION ALL
-
-    SELECT
-        'updated' as type,
-        NOW() as date,
-        CONCAT('Зона доступности обновлен') as description
-    FROM proxmox_clusters
-    WHERE id = ?
-
-    ORDER BY date DESC
-    LIMIT 10
-");
-$cluster_history->execute([$cluster['id'], $cluster['id']]);
-$cluster_history = $cluster_history->fetchAll(PDO::FETCH_ASSOC);
+$zoneLogs = $pdo->prepare('SELECT action, details, created_at FROM cluster_logs WHERE cluster_id=? ORDER BY id DESC LIMIT 20');
+$zoneLogs->execute([$cluster['id']]);
+$zoneLogs = $zoneLogs->fetchAll(PDO::FETCH_ASSOC);
 
 // Обработка POST запроса
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -86,8 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name']);
             $description = trim($_POST['description'] ?? '');
             $is_active = isset($_POST['is_active']) ? 1 : 0;
-            $enable_auto_healing = isset($_POST['enable_auto_healing']) ? 1 : 0;
-            $enable_vm_migration = isset($_POST['enable_vm_migration']) ? 1 : 0;
             $max_vms_per_node = intval($_POST['max_vms_per_node'] ?? 50);
             $load_balancing_threshold = intval($_POST['load_balancing_threshold'] ?? 80);
             $maintenance_mode = isset($_POST['maintenance_mode']) ? 1 : 0;
@@ -140,88 +122,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Подготавливаем SQL запрос с проверкой наличия полей
-            $sql = "UPDATE proxmox_clusters SET 
-                    name = ?, 
-                    description = ?, 
-                    is_active = ?,
-                    updated_at = NOW()";
-            
-            $params = [$name, $description, $is_active];
-            
-            // Добавляем дополнительные поля, если они существуют в базе
-            $additional_fields = [
-                'enable_auto_healing',
-                'enable_vm_migration', 
-                'max_vms_per_node',
-                'load_balancing_threshold',
-                'maintenance_mode'
-            ];
-            
-            foreach ($additional_fields as $field) {
-                if (isset($$field)) {
-                    $sql .= ", $field = ?";
-                    $params[] = $$field;
-                }
-            }
-            
-            $sql .= " WHERE id = ?";
-            $params[] = $cluster['id'];
-            
-            $stmt = $pdo->prepare($sql);
-            
-            if (!$stmt) {
-                throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
-            }
-            
-            // Выполнение запроса
-            $result = $stmt->execute($params);
-            
-            if (!$result) {
-                $errorInfo = $stmt->errorInfo();
-                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
-            }
-            
-            // Логируем успешное обновление
-            error_log("Зона доступности обновлен: ID = {$cluster['id']}, Name = $name");
+            withGuestOperationLocks(['placement-zone:' . (int)$cluster['id']], static function () use (
+                $pdo, $cluster, $name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode
+            ): void {
+                $stmt = $pdo->prepare('UPDATE proxmox_clusters SET name=?, description=?, is_active=?,
+                    max_vms_per_node=?, load_balancing_threshold=?, maintenance_mode=?, updated_at=NOW() WHERE id=?');
+                $stmt->execute([$name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode, $cluster['id']]);
+            });
 
-            // Если зона доступности переведен в режим обслуживания, останавливаем все ноды
-            if ($maintenance_mode && !($cluster['maintenance_mode'] ?? 0)) {
-                $stmt = $pdo->prepare("UPDATE proxmox_nodes SET is_active = 0 WHERE cluster_id = ?");
-                $stmt->execute([$cluster['id']]);
-
-                // Записываем в историю
-                try {
-                    $log_stmt = $pdo->prepare("
-                        INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                        VALUES (?, 'maintenance_mode', 'Зона доступности переведен в режим обслуживания', NOW())
-                    ");
-                    $log_stmt->execute([$cluster['id']]);
-                } catch (Exception $e) {
-                    // Игнорируем ошибку лога, если таблица не существует
-                    error_log("Не удалось записать лог: " . $e->getMessage());
-                }
-            }
-
-            // Если режим обслуживания снят, активируем доступные ноды
-            if (!$maintenance_mode && ($cluster['maintenance_mode'] ?? 0)) {
-                $stmt = $pdo->prepare("
-                    UPDATE proxmox_nodes
-                    SET is_active = 1
-                    WHERE cluster_id = ? AND status = 'online'
-                ");
-                $stmt->execute([$cluster['id']]);
-
-                try {
-                    $log_stmt = $pdo->prepare("
-                        INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                        VALUES (?, 'maintenance_mode', 'Режим обслуживания снят', NOW())
-                    ");
-                    $log_stmt->execute([$cluster['id']]);
-                } catch (Exception $e) {
-                    // Игнорируем ошибку лога
-                    error_log("Не удалось записать лог: " . $e->getMessage());
-                }
+            try {
+                $log = $pdo->prepare('INSERT INTO cluster_logs (cluster_id,action,details) VALUES (?,?,?)');
+                $log->execute([$cluster['id'], 'settings', sprintf('Лимит гостей: %d. Порог нагрузки: %d%%. Обслуживание: %s.',
+                    $max_vms_per_node, $load_balancing_threshold, $maintenance_mode ? 'включено' : 'выключено')]);
+            } catch (PDOException $error) {
+                error_log('Could not record availability zone settings');
             }
 
             $_SESSION['success'] = "Зона доступности '{$name}' успешно обновлена";
@@ -238,26 +152,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Обработка принудительной проверки всех нод зоны доступности
     if (isset($_POST['check_all_nodes'])) {
         try {
-            // Обновляем время последней проверки для всех нод
-            $stmt = $pdo->prepare("
-                UPDATE proxmox_nodes
-                SET last_check = NOW()
-                WHERE cluster_id = ?
-            ");
-            $stmt->execute([$cluster['id']]);
-
-            // Добавляем запись в логи зоны доступности
-            try {
-                $log_stmt = $pdo->prepare("
-                    INSERT INTO cluster_logs (cluster_id, action, details, created_at)
-                    VALUES (?, 'check_nodes', 'Запущена проверка всех нод зоны доступности', NOW())
-                ");
-                $log_stmt->execute([$cluster['id']]);
-            } catch (Exception $e) {
-                // Игнорируем ошибку лога
+            $update = $pdo->prepare('UPDATE proxmox_nodes SET status=?, last_check=NOW() WHERE id=? AND cluster_id=?');
+            $online = 0;
+            foreach ($cluster_nodes as $node) {
+                $state = probeNodeHealth($node);
+                $update->execute([$state, $node['id'], $cluster['id']]);
+                $online += (int)($state === 'online');
             }
-
-            $_SESSION['success'] = "Запущена проверка всех нод зоны доступности. Результаты будут доступны через несколько минут.";
+            $_SESSION['success'] = sprintf('Проверено нод: %d. Доступно: %d.', count($cluster_nodes), $online);
             header("Location: edit_cluster.php?id=" . $cluster['id']);
             exit;
 
@@ -1200,6 +1102,7 @@ require 'admin_header.php';
                     </div>
                     <div class="cluster-card-body">
                         <form method="POST" class="cluster-form" id="clusterForm">
+                            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
                             <!-- Добавляем скрытое поле для идентификации формы -->
                             <input type="hidden" name="cluster_form" value="1">
                             
@@ -1250,7 +1153,7 @@ require 'admin_header.php';
                                            value="<?= $cluster['max_vms_per_node'] ?? 50 ?>"
                                            class="slider"
                                            id="maxVmsSlider">
-                                    <span class="form-hint">Максимальное количество виртуальных машин на одной ноде</span>
+                                    <span class="form-hint">Лимит ВМ и LXC на ноде для новых заказов. Учитываются и остановленные гости.</span>
                                 </div>
                             </div>
 
@@ -1270,7 +1173,7 @@ require 'admin_header.php';
                                            value="<?= $cluster['load_balancing_threshold'] ?? 80 ?>"
                                            class="slider"
                                            id="loadThresholdSlider">
-                                    <span class="form-hint">При достижении этого порога загрузки ноды, ВМ будут мигрировать на другие ноды</span>
+                                    <span class="form-hint">Ноды, достигшие порога по CPU или памяти, исключаются из новых заказов.</span>
                                 </div>
                             </div>
 
@@ -1289,25 +1192,21 @@ require 'admin_header.php';
 
                                 <label class="checkbox-container">
                                     <input type="checkbox"
-                                           name="enable_auto_healing"
-                                           <?= ($cluster['enable_auto_healing'] ?? 0) ? 'checked' : '' ?>
-                                           id="enableAutoHealing">
+                                           disabled>
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
                                         <i class="fas fa-heartbeat"></i> Автовосстановление
-                                        <span class="checkbox-hint">Автоматический перезапуск упавших ВМ</span>
+                                        <span class="checkbox-hint">Автоматическое восстановление пока недоступно.</span>
                                     </span>
                                 </label>
 
                                 <label class="checkbox-container">
                                     <input type="checkbox"
-                                           name="enable_vm_migration"
-                                           <?= ($cluster['enable_vm_migration'] ?? 1) ? 'checked' : '' ?>
-                                           id="enableVmMigration">
+                                           disabled>
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
                                         <i class="fas fa-exchange-alt"></i> Миграция ВМ
-                                        <span class="checkbox-hint">Разрешить автоматическую миграцию ВМ между нодами</span>
+                                        <span class="checkbox-hint">Автоматическая миграция внутри зоны пока недоступна.</span>
                                     </span>
                                 </label>
 
@@ -1319,7 +1218,7 @@ require 'admin_header.php';
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
                                         <i class="fas fa-tools"></i> Режим обслуживания
-                                        <span class="checkbox-hint">Временно отключает зона доступности для технических работ</span>
+                                        <span class="checkbox-hint">Приостанавливает новые заказы в зоне. Работающие гости и настройки нод сохраняются.</span>
                                     </span>
                                 </label>
                             </div>
@@ -1399,6 +1298,7 @@ require 'admin_header.php';
 
                         <div class="action-buttons" style="margin-top: 16px;">
                             <form method="POST" style="width: 100%;">
+                            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
                                 <input type="hidden" name="check_all_nodes" value="1">
                                 <button type="submit" class="cluster-btn cluster-btn-success" style="width: 100%;">
                                     <i class="fas fa-sync-alt"></i> Проверить все ноды
@@ -1478,7 +1378,7 @@ require 'admin_header.php';
                             </div>
 
                             <div style="text-align: center; margin-top: 16px;">
-                                <a href="nodes.php?cluster=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="padding: 8px 16px; font-size: 12px;">
+                                <a href="nodes.php" class="cluster-btn cluster-btn-secondary" style="padding: 8px 16px; font-size: 12px;">
                                     <i class="fas fa-list"></i> Все ноды зоны доступности
                                 </a>
                             </div>
@@ -1505,20 +1405,34 @@ require 'admin_header.php';
                             <a href="add_node.php?cluster_id=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
                                 <i class="fas fa-plus"></i> Добавить ноду
                             </a>
-                            <a href="cluster_monitor.php?id=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
+                            <a href="monitoring.php" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
                                 <i class="fas fa-chart-line"></i> Мониторинг
                             </a>
                         </div>
                         <div class="action-buttons" style="margin-top: 10px;">
-                            <a href="cluster_backup.php?id=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
+                            <a href="backup.php" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
                                 <i class="fas fa-database"></i> Бэкап
                             </a>
-                            <a href="cluster_logs.php?id=<?= $cluster['id'] ?>" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
+                            <a href="#zone-logs" class="cluster-btn cluster-btn-secondary" style="flex: 1;">
                                 <i class="fas fa-clipboard-list"></i> Логи
                             </a>
                         </div>
                     </div>
                 </div>
+                <section class="cluster-card" id="zone-logs" style="margin-top: 24px;">
+                    <div class="cluster-card-header">
+                        <h2><i class="fas fa-clipboard-list"></i> Журнал зоны</h2>
+                    </div>
+                    <div class="cluster-card-body">
+                        <?php if (!$zoneLogs): ?>
+                            <p>Записей пока нет.</p>
+                        <?php endif; ?>
+                        <?php foreach ($zoneLogs as $entry): ?>
+                            <p><time><?= htmlspecialchars($entry['created_at'] ?? '') ?></time> ·
+                                <?= htmlspecialchars($entry['details'] ?? $entry['action']) ?></p>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
@@ -1541,7 +1455,6 @@ require 'admin_header.php';
         const loadThresholdSlider = document.getElementById('loadThresholdSlider');
         const loadThresholdValue = document.getElementById('loadThresholdValue');
         const submitBtn = document.getElementById('submitBtn');
-        const maintenanceMode = document.getElementById('maintenanceMode');
         const isActive = document.getElementById('isActive');
         const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -1566,27 +1479,6 @@ require 'admin_header.php';
 
         loadThresholdSlider.addEventListener('input', function() {
             loadThresholdValue.textContent = this.value + '%';
-        });
-
-        // Взаимодействие чекбоксов
-        maintenanceMode.addEventListener('change', function() {
-            if (this.checked) {
-                // При включении режима обслуживания показываем предупреждение
-                if (!confirm('Режим обслуживания отключит все ноды зоны доступности. Продолжить?')) {
-                    this.checked = false;
-                    return;
-                }
-                // Автоматически отключаем активность зоны доступности
-                isActive.checked = false;
-            }
-        });
-
-        isActive.addEventListener('change', function() {
-            if (this.checked && maintenanceMode.checked) {
-                // Нельзя активировать зона доступности в режиме обслуживания
-                alert('Нельзя активировать зона доступности в режиме обслуживания');
-                this.checked = false;
-            }
         });
 
         // Валидация формы
@@ -1743,59 +1635,6 @@ require 'admin_header.php';
             observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
         }
 
-        // Сохранение данных формы при случайном обновлении
-        function saveFormData() {
-            sessionStorage.setItem('clusterEditFormData', JSON.stringify({
-                name: clusterName.value,
-                description: clusterDescription.value,
-                max_vms_per_node: maxVmsSlider.value,
-                load_balancing_threshold: loadThresholdSlider.value,
-                is_active: isActive.checked,
-                enable_auto_healing: document.getElementById('enableAutoHealing').checked,
-                enable_vm_migration: document.getElementById('enableVmMigration').checked,
-                maintenance_mode: maintenanceMode.checked
-            }));
-        }
-
-        // Восстанавливаем данные из sessionStorage
-        function restoreFormData() {
-            const savedData = sessionStorage.getItem('clusterEditFormData');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                clusterName.value = data.name || '';
-                clusterDescription.value = data.description || '';
-                maxVmsSlider.value = data.max_vms_per_node || 50;
-                maxVmsValue.textContent = maxVmsSlider.value;
-                loadThresholdSlider.value = data.load_balancing_threshold || 80;
-                loadThresholdValue.textContent = loadThresholdSlider.value + '%';
-                isActive.checked = data.is_active !== false;
-                document.getElementById('enableAutoHealing').checked = data.enable_auto_healing || false;
-                document.getElementById('enableVmMigration').checked = data.enable_vm_migration !== false;
-                maintenanceMode.checked = data.maintenance_mode || false;
-
-                // Обновляем счетчики
-                updateCharCounter(clusterName, nameCounter, 50);
-                updateCharCounter(clusterDescription, descCounter, 500);
-            }
-        }
-
-        // Очищаем сохраненные данные при успешной отправке
-        clusterForm.addEventListener('submit', function() {
-            sessionStorage.removeItem('clusterEditFormData');
-        });
-
-        // Сохраняем данные при изменении
-        clusterName.addEventListener('input', saveFormData);
-        clusterDescription.addEventListener('input', saveFormData);
-        maxVmsSlider.addEventListener('input', saveFormData);
-        loadThresholdSlider.addEventListener('input', saveFormData);
-        isActive.addEventListener('change', saveFormData);
-        document.getElementById('enableAutoHealing').addEventListener('change', saveFormData);
-        document.getElementById('enableVmMigration').addEventListener('change', saveFormData);
-        maintenanceMode.addEventListener('change', saveFormData);
-
-        // Восстанавливаем данные при загрузке
-        restoreFormData();
     });
     </script>
 <?php require 'admin_footer.php'; ?>
