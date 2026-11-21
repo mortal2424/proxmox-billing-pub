@@ -13,7 +13,7 @@ if (!$zone || !in_array($type,['qemu','lxc'],true)) { http_response_code(400); e
 try {
     $pdo = (new Database())->getConnection();
     $nodes = placementNodes($pdo, $zone);
-    $result = ['network'=>[], 'storage'=>[], 'sdn'=>[], 'media'=>[]];
+    $result = ['network'=>[], 'storage'=>[], 'sdn'=>[], 'media'=>[], 'cloud'=>[]];
     $permitted = [];
     foreach (placementPoolEntries($pdo, $zone) as $entry) {
         $key = $entry['pool_name'];
@@ -29,6 +29,16 @@ try {
             $interfaces = $api->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/network', ['type'=>'any_bridge']);
             foreach (appliedPlacementSdn($api, $interfaces) as $entry) {
                 if (isset($permitted[$node['id']][$entry['name']])) $result['sdn'][$entry['name']] = $entry['name'];
+            }
+            if ($type === 'qemu') {
+                foreach (cloudImportVolumes([$api, 'request'], $node['node_name']) as $key => $versions) {
+                    $minimum = min(array_column($versions, 'minimum_disk'));
+                    if (isset($result['cloud'][$key]) && $result['cloud'][$key]['minimum_disk'] <= $minimum) continue;
+                    $result['cloud'][$key] = [
+                        'id' => $key, 'label' => $versions[0]['label'], 'user' => $versions[0]['user'],
+                        'minimum_disk' => $minimum,
+                    ];
+                }
             }
             $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
             foreach ($images as $entry) $result['media'][$entry['volid']] = $entry['volid'];

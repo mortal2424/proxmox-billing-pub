@@ -78,6 +78,7 @@ $vmType = in_array($requestedVmType, ['qemu', 'lxc'], true) ? $requestedVmType :
 $regular_tariffs = $pdo->query("SELECT * FROM tariffs WHERE is_active = 1 AND is_custom = 0 AND vm_type = '$vmType' ORDER BY price")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $custom_tariffs = $pdo->query("SELECT t.* FROM tariffs t JOIN vms v ON t.id = v.tariff_id WHERE t.is_active = 1 AND t.is_custom = 1 AND t.vm_type = '$vmType' AND v.user_id = $user_id ORDER BY t.created_at DESC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
+$installMethod = $_SERVER['REQUEST_METHOD'] === 'POST' ? ($_POST['install_method'] ?? 'iso') : 'cloud';
 $errors = [];
 $success = false;
 $vncUrl = '';
@@ -106,8 +107,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         $sdn = $_POST['sdn'] ?? '';
         $storagePool = (string)($_POST['storage_pool'] ?? '');
         $template = $_POST['template'] ?? '';
-        $osType = $_POST['os_type'] ?? 'linux';
-        $osVersion = $vmType === 'qemu' ? ($_POST['os_version'] ?? '') : 'linux';
+        if ($vmType === 'qemu' && !in_array($installMethod, ['cloud', 'iso'], true)) {
+            throw new InvalidArgumentException('Неизвестный способ установки');
+        }
+        $fromCloud = $vmType === 'qemu' && $installMethod === 'cloud';
+        $cloudKey = $fromCloud ? ($_POST['cloud_image'] ?? '') : '';
+        if ($fromCloud && (!is_string($cloudKey) || !isset(cloudImageCatalog()[$cloudKey]))) {
+            throw new InvalidArgumentException('Выберите cloud-образ');
+        }
+        $osType = $fromCloud ? 'linux' : ($_POST['os_type'] ?? 'linux');
+        $osVersion = $fromCloud ? cloudImageCatalog()[$cloudKey]['label'] : ($vmType === 'qemu' ? ($_POST['os_version'] ?? '') : 'linux');
 
         $custom_cpu = (int)($_POST['custom_cpu'] ?? 0);
         $custom_ram = (int)($_POST['custom_ram'] ?? 0);
@@ -139,6 +148,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             $stmt->execute([$tariffId, $vmType]);
             $tariff = $stmt->fetch();
             if (!$tariff) throw new Exception('Выбранный тарифный план не найден');
+            if ($vmType === 'qemu' && ($tariff['os_type'] ?? '') === 'windows') {
+                if ($fromCloud) throw new InvalidArgumentException('Для тарифа Windows выберите установку из ISO');
+                $osType = 'windows';
+            }
 
             $total_cpu = $tariff['cpu'];
             $total_ram = $tariff['ram'];
@@ -214,13 +227,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             throw new Exception($quota_message);
         }
 
-        $media = $vmType === 'qemu' ? (string)($_POST['iso'] ?? '') : (string)$template;
+        $media = $vmType === 'qemu' ? ($fromCloud ? '' : (string)($_POST['iso'] ?? '')) : (string)$template;
         [$creationResult, $node] = withGuestOperationLocks(['placement-zone:' . $zoneId], function () use (
             $pdo, $zoneId, $vmType, $networkPool, $storagePool, $sdn, $media, $total_cpu, $total_ram, $total_disk,
-            $osType, $hostname, $password, $template, $osVersion, $user_id, $tariffId, $is_custom
+            $osType, $hostname, $password, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey
         ) {
             $placement = choosePlacement($pdo, $zoneId, $vmType, $networkPool, $storagePool,
-                (string)$sdn, $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows');
+                (string)$sdn, $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows', $cloudKey);
             $node = $placement['node'];
             $proxmoxApi = placementClient($node, $pdo);
             $network = $placement['network'];
@@ -244,6 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             ];
 
             if ($vmType === 'qemu') {
+                $vmParams['cloud_image'] = $placement['cloud_image'];
                 $vmParams['iso'] = $media;
                 $vmParams['cdroms'] = $media !== '' ? [$media] : [];
                 return [$proxmoxApi->createVM($vmParams), $node];
@@ -1708,6 +1722,22 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 <!-- 5. Установка ОС / Шаблон -->
                 <div class="form-section" id="os-section">
                     <h3><i class="fas fa-compact-disc"></i> 5. Установка ОС</h3>
+                    <?php if ($vmType === 'qemu'): ?>
+                    <div class="form-group">
+                        <label class="form-label" for="install-method">Способ установки</label>
+                        <select class="form-control" name="install_method" id="install-method">
+                            <option value="cloud" <?= $installMethod !== 'iso' ? 'selected' : '' ?>>Cloud-образ · автоматическая установка</option>
+                            <option value="iso" <?= $installMethod === 'iso' ? 'selected' : '' ?>>ISO · ручная установка</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="cloud-image-container" <?= $installMethod === 'iso' ? 'hidden' : '' ?>>
+                        <label class="form-label" for="cloud-image-select">Cloud-образ</label>
+                        <select class="form-control" id="cloud-image-select" name="cloud_image" data-selected="<?= htmlspecialchars(is_string($_POST['cloud_image'] ?? null) ? $_POST['cloud_image'] : '') ?>">
+                            <option value="">Выберите зону и образ</option>
+                        </select>
+                        <small class="text-muted" id="cloud-image-description" aria-live="polite">Панель настроит учётную запись и сеть через cloud-init. Сеть должна выдавать адрес по DHCP.</small>
+                    </div>
+                    <?php endif; ?>
                     <div class="form-group" id="iso-container" style="<?= $vmType === 'lxc' ? 'display: none;' : '' ?>">
                         <label class="form-label">ISO образ:</label>
                         <select name="iso" class="form-control" id="iso-select">
@@ -1770,7 +1800,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Пароль администратора (root):</label>
+                        <label class="form-label" id="guest-password-label">Пароль администратора:</label>
                         <input type="password" name="password" class="form-control" required minlength="8">
                         <small class="text-muted">Минимум 8 символов</small>
                     </div>
@@ -1891,9 +1921,11 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     sdn: document.getElementById('sdn-select'),
                     media: document.getElementById(vmType === 'qemu' ? 'iso-select' : 'template-select')
                 };
-                const placeholders = {network:'Выберите пул', storage:'Выберите пул', sdn:'Без SDN',
+                if (vmType === 'qemu') fields.cloud = document.getElementById('cloud-image-select');
+                const placeholders = {cloud:'Выберите cloud-образ', network:'Выберите пул', storage:'Выберите пул', sdn:'Без SDN',
                     media: vmType === 'qemu' ? 'Без ISO' : 'Выберите шаблон'};
                 for (const [key, select] of Object.entries(fields)) select.replaceChildren(new Option(placeholders[key], ''));
+                if (fields.cloud) updateInstallMethod();
                 if (!zoneId) return;
                 const query = new URLSearchParams({zone_id: zoneId, vm_type: vmType});
                 if (nodeLoadingContainer) nodeLoadingContainer.style.display = 'block';
@@ -1904,7 +1936,22 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     const data = await response.json();
                     if (requestId !== zoneRequest) return;
                     for (const [key, select] of Object.entries(fields)) {
-                        for (const value of data[key]) select.add(typeof value === 'string' ? new Option(value, value) : new Option(value.label, value.id));
+                        for (const value of data[key] ?? []) {
+                            const option = typeof value === 'string' ? new Option(value, value) : new Option(value.label, value.id);
+                            if (key === 'cloud') {
+                                option.dataset.user = value.user;
+                                option.dataset.minimum = value.minimum_disk;
+                            }
+                            select.add(option);
+                        }
+                    }
+                    if (fields.cloud) {
+                        if (fields.cloud.dataset.selected) {
+                            fields.cloud.value = fields.cloud.dataset.selected;
+                            if (fields.cloud.selectedIndex === -1) fields.cloud.selectedIndex = 0;
+                            fields.cloud.dataset.selected = '';
+                        }
+                        updateInstallMethod();
                     }
                     fields.network.disabled = false;
                     updateNodeProgress(100, 'Ресурсы зоны загружены');
@@ -2121,9 +2168,9 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     const osTypeSelect = document.getElementById('os-type-select');
                     if (osType && osTypeSelect) {
                         osTypeSelect.value = osType;
-                        osTypeSelect.disabled = true;
-                    } else if (osTypeSelect) {
-                        osTypeSelect.disabled = false;
+                        osTypeSelect.dispatchEvent(new Event('change'));
+                        if (osType === 'windows' && installMethodSelect) installMethodSelect.value = 'iso';
+                        updateInstallMethod();
                     }
                 }
             });
@@ -2151,11 +2198,12 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     const network = document.getElementById('network-select').value || document.getElementById('sdn-select').value;
                     const storage = document.querySelector('select[name="storage_pool"]')?.value;
                     const tariffId = !isCustom ? document.querySelector('input[name="tariff_id"]:checked')?.value : null;
+                    const cloud = vmType === 'qemu' && installMethodSelect?.value === 'cloud';
                     const osVersion = vmType === 'qemu' ? document.querySelector('select[name="os_version"]')?.value : null;
                     const template = vmType === 'lxc' ? document.querySelector('select[name="template"]')?.value : null;
 
                     if (!zoneId || !network || (!isCustom && !tariffId) || !storage ||
-                        (vmType === 'qemu' && !osVersion) ||
+                        (vmType === 'qemu' && (cloud ? !cloudImageSelect?.value : !osVersion)) ||
                         (vmType === 'lxc' && !template)) {
                         e.preventDefault();
                         Swal.fire({
@@ -2206,28 +2254,44 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 });
             }
 
-            // Обработчик изменения ноды
+            const installMethodSelect = document.getElementById('install-method');
+            const cloudImageSelect = document.getElementById('cloud-image-select');
+            function updateInstallMethod() {
+                if (!installMethodSelect) return;
+                const tariffOs = document.querySelector('input[name="tariff_id"]:checked')?.dataset.osType;
+                const windowsTariff = tariffOs === 'windows' && document.getElementById('is-custom').value !== '1';
+                installMethodSelect.options[0].disabled = windowsTariff;
+                if (windowsTariff) installMethodSelect.value = 'iso';
+                const cloud = installMethodSelect.value === 'cloud';
+                document.getElementById('cloud-image-container').hidden = !cloud;
+                cloudImageSelect.disabled = !cloud;
+                cloudImageSelect.required = cloud;
+                for (const id of ['iso', 'os-type', 'os-version']) {
+                    const container = document.getElementById(id + '-container');
+                    const field = document.getElementById(id + '-select');
+                    container.style.display = cloud ? 'none' : '';
+                    field.disabled = cloud;
+                    field.required = !cloud && id !== 'iso';
+                }
+                const user = cloudImageSelect.selectedOptions[0]?.dataset.user;
+                const minimum = cloudImageSelect.selectedOptions[0]?.dataset.minimum;
+                document.getElementById('guest-password-label').textContent = cloud && user ? 'Пароль пользователя ' + user + ':' : 'Пароль администратора:';
+                document.getElementById('cloud-image-description').textContent = user
+                    ? 'Пользователь ' + user + ' · диск от ' + minimum + ' ГБ · сеть по DHCP.'
+                    : 'После выбора зоны появятся доступные cloud-образы. Сеть настраивается по DHCP.';
+            }
+
+            if (installMethodSelect) {
+                installMethodSelect.addEventListener('change', updateInstallMethod);
+                cloudImageSelect.addEventListener('change', updateInstallMethod);
+                document.querySelectorAll('.tariff-type-btn').forEach(button => button.addEventListener('click', updateInstallMethod));
+                updateInstallMethod();
+            }
             const nodeSelect = document.querySelector('select[name="zone_id"]');
             if (nodeSelect) {
-                nodeSelect.addEventListener('change', function() {
-                    const nodeId = this.value;
-                    const vmType = document.getElementById('vm-type').value;
-
-                    if (!nodeId) {
-                        const nodeResources = document.getElementById('node-resources');
-                        const storageSelect = document.getElementById('storage-select');
-                        const isoSelect = document.getElementById('iso-select');
-                        const templateSelect = document.getElementById('template-select');
-
-                        if (nodeResources) nodeResources.style.display = 'none';
-                        if (storageSelect) storageSelect.innerHTML = '<option value="">-- Выберите хранилище --</option>';
-                        if (isoSelect) isoSelect.innerHTML = '<option value="">-- Не подключать --</option>';
-                        if (templateSelect) templateSelect.innerHTML = '<option value="">-- Выберите шаблон --</option>';
-                        return;
-                    }
-
-                    loadNodeResources(nodeId, vmType);
-                });
+                const refresh = () => loadNodeResources(nodeSelect.value, document.getElementById('vm-type').value);
+                nodeSelect.addEventListener('change', refresh);
+                if (nodeSelect.value) refresh();
             }
 
             // Обновление списка версий ОС при изменении типа ОС

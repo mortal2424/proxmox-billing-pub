@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/proxmox_functions.php';
+require_once __DIR__ . '/cloud_images.php';
 
 function placementNodes(PDO $pdo, int $zone): array
 {
@@ -37,7 +38,7 @@ function appliedPlacementSdn(ProxmoxAPI $api, array $interfaces): array
 }
 
 function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool, string $storagePool,
-    string $sdn, string $media, int $cpu, int $ram, int $disk, bool $windows = false): array
+    string $sdn, string $media, int $cpu, int $ram, int $disk, bool $windows = false, string $cloudImage = ''): array
 {
     if (!in_array($type, ['qemu', 'lxc'], true) || min($cpu,$ram,$disk) < 1 || $storagePool === '' ||
         ($networkPool === '' && $sdn === '') || ($networkPool !== '' && $sdn !== '')) {
@@ -94,7 +95,18 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                 if ($media !== '' && !in_array($media, $volumes, true)) continue;
                 if ($windows && !in_array('local:iso/virtio-win.iso', $volumes, true)) continue;
             }
-            foreach ($api->request('GET', $base . '/storage') as $storage) {
+            $stores = $api->request('GET', $base . '/storage');
+            $image = null;
+            if ($cloudImage !== '') {
+                foreach (cloudImportVolumes([$api, 'request'], $node['node_name'], $stores)[$cloudImage] ?? [] as $version) {
+                    if ($version['minimum_disk'] <= $disk) {
+                        $image = $version;
+                        break;
+                    }
+                }
+                if ($image === null) continue;
+            }
+            foreach ($stores as $storage) {
                 $content = explode(',', $storage['content'] ?? '');
                 if (empty($storage['active']) || empty($storage['enabled']) ||
                     !in_array($storage['storage'], $storagePoolMembers, true) ||
@@ -102,6 +114,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                     (float)($storage['avail'] ?? 0) < $disk * 1073741824 + ($type === 'qemu' ? 67108864 : 0)) continue;
                 $candidates[] = [
                     'node' => $node, 'network' => $network, 'sdn' => $selectedSdn, 'storage' => $storage['storage'],
+                    'cloud_image' => $image,
                     'score' => [(float)($status['cpu'] ?? 1), -$freeRam, -(float)$storage['avail'], (int)$node['id'], $storage['storage']],
                 ];
             }

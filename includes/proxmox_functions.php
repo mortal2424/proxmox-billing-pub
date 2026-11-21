@@ -187,108 +187,131 @@ class ProxmoxAPI {
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
 
-        // 5. Настройка дисков
-        $diskSize = (string)($params['disk'] ?? '10');
-        $diskCmd = "qm set {$vmid} --scsi0 " . escapeshellarg("{$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback");
-        error_log("[VM Creation] Setting main disk: {$diskCmd}");
-        $this->execSSHCommand($diskCmd);
-
-        // EFI диск
-        $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:0,efitype=4m,pre-enrolled-keys=0");
-        error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
-        $this->execSSHCommand($efiCmd);
-
-        // 6. Настройка CD-ROM (исправленная версия)
-        $cdroms = $params['cdroms'] ?? [];
-
-        // Для Windows VM добавляем обязательный virtio-win.iso
-        if ($isWindows) {
-            $virtioIso = "{$storageForIso}:iso/virtio-win.iso";
-            if (!in_array($virtioIso, $cdroms)) {
-                array_unshift($cdroms, $virtioIso);
+        if (!empty($params['cloud_image'])) {
+            $image = $params['cloud_image'];
+            if ($isWindows || $hasIso || !in_array($image['user'] ?? '', ['ubuntu', 'debian', 'cloud-user'], true) ||
+                !preg_match('#^[A-Za-z0-9_.-]{1,64}:import/homevlad-[a-z0-9.-]+\.qcow2$#D', $image['volid'] ?? '') ||
+                (int)$diskSize < (int)($image['minimum_disk'] ?? PHP_INT_MAX)) {
+                throw new InvalidArgumentException('Некорректный cloud-образ или недостаточный размер диска');
             }
+            $guestPath = $this->guestApi()->base($vmid, 'qemu');
+            $this->apiClient->requestAndWait('POST', $guestPath . '/config', [
+                'scsi0' => "$storage:0,import-from=" . $image['volid'],
+                'efidisk0' => "$storage:0,efitype=4m,pre-enrolled-keys=0",
+                'ide2' => "$storage:cloudinit",
+                'boot' => 'order=scsi0',
+                'net0' => "virtio,bridge=$networkValue",
+                'ipconfig0' => 'ip=dhcp',
+                'ciuser' => $image['user'],
+                'cipassword' => $params['password'],
+                'serial0' => 'socket',
+            ], 600);
+            $this->guestApi()->resize($vmid, 'qemu', 'scsi0', (int)$diskSize, $storage);
+        } else {
+            // 5. Настройка дисков
+            $diskSize = (string)($params['disk'] ?? '10');
+            $diskCmd = "qm set {$vmid} --scsi0 " . escapeshellarg("{$storage}:{$diskSize},format=raw,ssd=1,discard=on,cache=writeback");
+            error_log("[VM Creation] Setting main disk: {$diskCmd}");
+            $this->execSSHCommand($diskCmd);
 
-            // Проверяем существование virtio-win.iso
-            $checkVolume = $virtioIso;
-            try {
-                $this->requireIsoVolume($checkVolume);
-            } catch (Exception $e) {
-                throw new Exception("Обязательный файл virtio-win.iso не найден в /var/lib/vz/template/iso/");
-            }
-        }
+            // EFI диск
+            $efiCmd = "qm set {$vmid} --efidisk0 " . escapeshellarg("{$storage}:0,efitype=4m,pre-enrolled-keys=0");
+            error_log("[VM Creation] Setting EFI disk: {$efiCmd}");
+            $this->execSSHCommand($efiCmd);
 
-        // Монтируем все CD-ROM из списка
-        $cdromIndex = 0;
-        $cdromDevices = ['ide2','ide3','sata0','sata1'];
-        $mountedCdroms = [];
-        foreach ($cdroms as $cdrom) {
-            // Форматируем путь к ISO правильно
-            if (!preg_match('/^[a-z0-9_.-]+:iso\//i', $cdrom)) {
-                $isoName = preg_replace('#^iso/#', '', ltrim($cdrom, '/'));
-                $cdrom = "{$storageForIso}:iso/" . $isoName;
-            }
+            // 6. Настройка CD-ROM (исправленная версия)
+            $cdroms = $params['cdroms'] ?? [];
 
-            // Извлекаем имя файла для проверки
-            $isoFile = preg_replace('/^[^:]+:iso\//', '', $cdrom);
-
-            // Проверяем существование ISO
-            $checkVolume = $cdrom;
-            try {
-                $this->requireIsoVolume($checkVolume);
-            } catch (Exception $e) {
-                if (strpos($cdrom, 'virtio-win.iso') !== false) {
-                    throw new Exception("Файл ISO не найден: {$isoFile}");
+            // Для Windows VM добавляем обязательный virtio-win.iso
+            if ($isWindows) {
+                $virtioIso = "{$storageForIso}:iso/virtio-win.iso";
+                if (!in_array($virtioIso, $cdroms)) {
+                    array_unshift($cdroms, $virtioIso);
                 }
-                error_log("[VM Creation] Warning: ISO file not found - {$isoFile}");
-                continue;
+
+                // Проверяем существование virtio-win.iso
+                $checkVolume = $virtioIso;
+                try {
+                    $this->requireIsoVolume($checkVolume);
+                } catch (Exception $e) {
+                    throw new Exception("Обязательный файл virtio-win.iso не найден в /var/lib/vz/template/iso/");
+                }
             }
 
-            // Монтируем ISO
-            $device = $cdromDevices[$cdromIndex];
-            $isoCmd = "qm set {$vmid} --{$device} " . escapeshellarg($cdrom . ",media=cdrom");
-            error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
-
-            try {
-                $this->execSSHCommand($isoCmd);
-                $mountedCdroms[] = $device;
-                $cdromIndex++;
-
-                if ($cdromIndex >= count($cdromDevices)) { // Максимум 4 CD-ROM (ide2-ide5)
-                    error_log("[VM Creation] Warning: Maximum CD-ROM devices reached");
-                    break;
+            // Монтируем все CD-ROM из списка
+            $cdromIndex = 0;
+            $cdromDevices = ['ide2','ide3','sata0','sata1'];
+            $mountedCdroms = [];
+            foreach ($cdroms as $cdrom) {
+                // Форматируем путь к ISO правильно
+                if (!preg_match('/^[a-z0-9_.-]+:iso\//i', $cdrom)) {
+                    $isoName = preg_replace('#^iso/#', '', ltrim($cdrom, '/'));
+                    $cdrom = "{$storageForIso}:iso/" . $isoName;
                 }
-            } catch (Exception $e) {
-                if (strpos($cdrom, 'virtio-win.iso') !== false) {
-                    throw new Exception("Не удалось монтировать virtio-win.iso: " . $e->getMessage());
+
+                // Извлекаем имя файла для проверки
+                $isoFile = preg_replace('/^[^:]+:iso\//', '', $cdrom);
+
+                // Проверяем существование ISO
+                $checkVolume = $cdrom;
+                try {
+                    $this->requireIsoVolume($checkVolume);
+                } catch (Exception $e) {
+                    if (strpos($cdrom, 'virtio-win.iso') !== false) {
+                        throw new Exception("Файл ISO не найден: {$isoFile}");
+                    }
+                    error_log("[VM Creation] Warning: ISO file not found - {$isoFile}");
+                    continue;
                 }
-                error_log("[VM Creation] Warning: Failed to mount CD-ROM: " . $e->getMessage());
+
+                // Монтируем ISO
+                $device = $cdromDevices[$cdromIndex];
+                $isoCmd = "qm set {$vmid} --{$device} " . escapeshellarg($cdrom . ",media=cdrom");
+                error_log("[VM Creation] Setting CD-ROM {$cdromIndex}: {$isoCmd}");
+
+                try {
+                    $this->execSSHCommand($isoCmd);
+                    $mountedCdroms[] = $device;
+                    $cdromIndex++;
+
+                    if ($cdromIndex >= count($cdromDevices)) { // Максимум 4 CD-ROM (ide2-ide5)
+                        error_log("[VM Creation] Warning: Maximum CD-ROM devices reached");
+                        break;
+                    }
+                } catch (Exception $e) {
+                    if (strpos($cdrom, 'virtio-win.iso') !== false) {
+                        throw new Exception("Не удалось монтировать virtio-win.iso: " . $e->getMessage());
+                    }
+                    error_log("[VM Creation] Warning: Failed to mount CD-ROM: " . $e->getMessage());
+                }
             }
-        }
 
-        // 7. Настройка порядка загрузки
-        $bootOrder = $hasIso ? "order='ide2;scsi0'" : "order='scsi0'";
-        $bootCmd = "qm set {$vmid} --boot {$bootOrder}";
-        error_log("[VM Creation] Setting boot order: {$bootCmd}");
-        $this->execSSHCommand($bootCmd);
+            // 7. Настройка порядка загрузки
+            $bootOrder = $hasIso ? "order='ide2;scsi0'" : "order='scsi0'";
+            $bootCmd = "qm set {$vmid} --boot {$bootOrder}";
+            error_log("[VM Creation] Setting boot order: {$bootCmd}");
+            $this->execSSHCommand($bootCmd);
 
-        // 8. Настройка сети
-        $netCmd = "qm set {$vmid} --net0 " . escapeshellarg("virtio,bridge={$networkValue}");
-        error_log("[VM Creation] Setting network: {$netCmd}");
-        $this->execSSHCommand($netCmd);
+            // 8. Настройка сети
+            $netCmd = "qm set {$vmid} --net0 " . escapeshellarg("virtio,bridge={$networkValue}");
+            error_log("[VM Creation] Setting network: {$netCmd}");
+            $this->execSSHCommand($netCmd);
 
-        // 9. Дополнительные параметры для Windows
-        /*if ($isWindows) {
-            $winCmd1 = "qm set {$vmid} --cpu kvm64,flags=+aes";
-            $winCmd2 = "qm set {$vmid} --tablet usb-tablet";
-            error_log("[VM Creation] Setting Windows params: {$winCmd1} && {$winCmd2}");
-            $this->execSSHCommand($winCmd1);
-            $this->execSSHCommand($winCmd2);
-        }*/
+            // 9. Дополнительные параметры для Windows
+            /*if ($isWindows) {
+                $winCmd1 = "qm set {$vmid} --cpu kvm64,flags=+aes";
+                $winCmd2 = "qm set {$vmid} --tablet usb-tablet";
+                error_log("[VM Creation] Setting Windows params: {$winCmd1} && {$winCmd2}");
+                $this->execSSHCommand($winCmd1);
+                $this->execSSHCommand($winCmd2);
+            }*/
 
-        // 10. Cloud-init для Linux
-        if (!$isWindows && !empty($params['password'])) {
-            $ciCmd = "qm set {$vmid} --cipassword " . escapeshellarg($params['password']) . " --ciuser root";
-            $this->execSSHCommand($ciCmd);
+            // 10. Cloud-init для Linux
+            if (!$isWindows && !empty($params['password'])) {
+                $ciCmd = "qm set {$vmid} --cipassword " . escapeshellarg($params['password']) . " --ciuser root";
+                $this->execSSHCommand($ciCmd);
+            }
+
         }
 
         // 11. Сохранение в базу данных

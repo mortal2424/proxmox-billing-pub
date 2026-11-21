@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/proxmox_functions.php';
 require_once __DIR__ . '/admin_functions.php';
 require_once __DIR__ . '/../includes/node_admin_guard.php';
 require_once __DIR__ . '/../includes/node_api_credentials.php';
+require_once __DIR__ . '/../includes/cloud_images.php';
 header('Cache-Control: no-store');
 
 checkAuth();
@@ -50,7 +51,7 @@ try {
 // Устанавливаем текущую ноду и тип образа
 $current_node_id = filter_var($_GET['node_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: null;
 $image_type = $_GET['type'] ?? 'iso';
-if (!in_array($image_type, ['iso','lxc','templates'], true)) $image_type='iso'; // 'iso', 'lxc' или 'templates'
+if (!in_array($image_type, ['cloud','iso','lxc','templates'], true)) $image_type='iso'; // 'iso', 'lxc' или 'templates'
 
 // Определяем, находимся ли мы в разделе шаблонов из репозитория
 $is_templates_section = ($image_type === 'templates');
@@ -166,6 +167,8 @@ $current_node = null;
 $storages = [];
 $images = [];
 $available_templates = [];
+$cloudVolumes = [];
+$cloudStores = [];
 $image_delete_permissions = [];
 
 if ($current_node_id) {
@@ -190,42 +193,56 @@ if ($current_node_id) {
                 $pdo
             );
 
-            $permissions = $proxmoxApi->request('GET','/access/permissions');
-            foreach ($permissions as $path => $grants) {
-                if (str_starts_with($path,'/storage/') && !empty($grants['Datastore.Allocate'])) {
-                    $image_delete_permissions[substr($path,9)] = true;
-                }
-            }
-            if (!empty($permissions['/storage']['Datastore.Allocate']) || !empty($permissions['/']['Datastore.Allocate'])) {
-                $image_delete_permissions['*'] = true;
-            }
-
-            // Получаем все хранилища
-            $all_storages = $proxmoxApi->getNodeStorages(null);
-
-            // Фильтруем хранилища по типу контента
-            foreach ($all_storages as $storage) {
-                if ($is_templates_section || $image_type === 'lxc') {
-                    if (isset($storage['content']) && strpos($storage['content'], 'vztmpl') !== false) {
-                        $storages[] = $storage;
-                    }
-                } elseif ($image_type === 'iso') {
-                    if (isset($storage['content']) && strpos($storage['content'], 'iso') !== false) {
-                        $storages[] = $storage;
+            if ($image_type === 'cloud') {
+                $nodePath = '/nodes/' . rawurlencode($current_node['node_name']);
+                $storage = $proxmoxApi->request('GET', $nodePath . '/storage');
+                foreach ($storage as $store) {
+                    if (!empty($store['active']) && !empty($store['enabled']) &&
+                        in_array('import', explode(',', $store['content'] ?? ''), true) &&
+                        preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $store['storage'])) {
+                        $cloudStores[] = $store['storage'];
                     }
                 }
-            }
+                $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage);
+            } else {
+                $permissions = $proxmoxApi->request('GET','/access/permissions');
+                foreach ($permissions as $path => $grants) {
+                    if (str_starts_with($path,'/storage/') && !empty($grants['Datastore.Allocate'])) {
+                        $image_delete_permissions[substr($path,9)] = true;
+                    }
+                }
+                if (!empty($permissions['/storage']['Datastore.Allocate']) || !empty($permissions['/']['Datastore.Allocate'])) {
+                    $image_delete_permissions['*'] = true;
+                }
 
-            // Получаем существующие образы
-            if ($image_type === 'iso') {
-                $images = $proxmoxApi->getISOImages();
-            } elseif ($image_type === 'lxc') {
-                $images = $proxmoxApi->getLXCTemplates();
-            }
+                // Получаем все хранилища
+                $all_storages = $proxmoxApi->getNodeStorages(null);
 
-            // Получаем доступные шаблоны из репозитория
-            if ($is_templates_section) {
-                $available_templates = $proxmoxApi->getAvailableTemplates();
+                // Фильтруем хранилища по типу контента
+                foreach ($all_storages as $storage) {
+                    if ($is_templates_section || $image_type === 'lxc') {
+                        if (isset($storage['content']) && strpos($storage['content'], 'vztmpl') !== false) {
+                            $storages[] = $storage;
+                        }
+                    } elseif ($image_type === 'iso') {
+                        if (isset($storage['content']) && strpos($storage['content'], 'iso') !== false) {
+                            $storages[] = $storage;
+                        }
+                    }
+                }
+
+                // Получаем существующие образы
+                if ($image_type === 'iso') {
+                    $images = $proxmoxApi->getISOImages();
+                } elseif ($image_type === 'lxc') {
+                    $images = $proxmoxApi->getLXCTemplates();
+                }
+
+                // Получаем доступные шаблоны из репозитория
+                if ($is_templates_section) {
+                    $available_templates = $proxmoxApi->getAvailableTemplates();
+                }
+
             }
 
         } catch (Exception $e) {
@@ -1035,6 +1052,9 @@ $title = "Управление образами | HomeVlad Cloud";
 
             <!-- Выбор типа образа -->
             <div class="image-type-selector">
+                <button type="button" class="image-type-btn <?= $image_type === 'cloud' ? 'active' : '' ?>" data-type="cloud">
+                    <i class="fas fa-cloud"></i> Cloud-образы
+                </button>
                 <button type="button" class="image-type-btn <?= $image_type === 'iso' ? 'active' : '' ?>"
                         data-type="iso">
                     <i class="fas fa-compact-disc"></i> ISO образы
@@ -1059,6 +1079,30 @@ $title = "Управление образами | HomeVlad Cloud";
                     <i class="fas fa-exclamation-triangle"></i>
                     Выберите ноду для управления образами.
                 </div>
+            <?php elseif ($image_type === 'cloud'): ?>
+                <section class="card">
+                    <h3><i class="fas fa-cloud"></i> Cloud-образы QEMU</h3>
+                    <p>Панель показывает в заказе образы, загруженные в хранилища с типом содержимого Import. Команду импорта выполните от пользователя сайта. Она скачает образ у издателя, сверит контрольную сумму и загрузит его по API.</p>
+                    <?php if (!$cloudStores): ?>
+                        <p class="notification notification-warning">На ноде нет активного хранилища с типом Import.</p>
+                    <?php endif ?>
+                    <?php foreach (cloudImageCatalog() as $key => $cloud): ?>
+                        <details style="margin-block: .8rem">
+                            <summary>
+                                <strong><?= htmlspecialchars($cloud['label']) ?></strong>
+                                · <?= !empty($cloudVolumes[$key]) ? 'Доступен для заказов' : 'Требуется импорт' ?>
+                            </summary>
+                            <p>Пользователь cloud-init — <code><?= htmlspecialchars($cloud['user']) ?></code>.</p>
+                            <?php foreach ($cloudVolumes[$key] ?? [] as $volume): ?>
+                                <p><code><?= htmlspecialchars($volume['volid']) ?></code> · диск от <?= $volume['minimum_disk'] ?> ГБ</p>
+                            <?php endforeach ?>
+                            <p><a href="<?= htmlspecialchars($cloud['base']) ?>" target="_blank" rel="noopener noreferrer">Каталог издателя</a></p>
+                            <?php foreach ($cloudStores as $store): ?>
+                                <p><code style="overflow-wrap: anywhere">php cronjobs/import_cloud_image.php <?= (int)$current_node_id ?> <?= htmlspecialchars($store) ?> <?= htmlspecialchars($key) ?></code></p>
+                            <?php endforeach ?>
+                        </details>
+                    <?php endforeach ?>
+                </section>
             <?php elseif ($is_templates_section): ?>
                 <!-- Секция шаблонов из репозитория -->
                 <div class="card" style="grid-column: span 2;">
