@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.16",
+  "from": "2.5.1-beta8.15",
+  "source_commit": "9b956dbdbe8361d57e18f1f27b48546104c29da4",
+  "changelog": "В заказе ВМ и LXC доступны зоны размещения, сетевые пулы с SDN и пулы хранилищ. Панель подбирает подходящую ноду по доступным ресурсам и параметрам заказа. Проверено создание QEMU и LXC на node2 с пулом VLAN10 и HDD.\n",
+  "files": {
+    "includes/version.php": {
+      "before": "c4d6131ee0b9da40032d5281c391a58cdf048deec15ac7beff047b7793785948",
+      "sha256": "368282d8cd7f011a2755693f93b440dd11b92a6a9d2b1829d03ea79b8a88cb56"
+    },
+    "includes/zone_placement.php": {
+      "before": "dc394257f58d7e64f024c8b66caa6cc47f28ef503cf53ed0d46b8a1ba9cbad19",
+      "sha256": "85100ea24c06975812528df5f0094d2375c1e0e1cbeceff4ab0a5d713de5448c"
+    },
+    "templates/get_zone_placement.php": {
+      "before": null,
+      "sha256": "cc1f8e54eb6357fd5401391557217f2fe6e3519b4507edaf94fba0e0a96d1356"
+    },
+    "templates/order_vm.php": {
+      "before": "b1e54cdba0ab4e111caa781a13cd5e2616af580f5b8ee81854d8758a6fae0569",
+      "sha256": "8db24f65fb31fd0f945d1d8458720342645f60644960bb82ceb55ece7141c308"
+    }
+  }
+}
