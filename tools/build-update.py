@@ -24,9 +24,15 @@ def git(*values):
 base = git("rev-parse", "--verify", args.base + "^{commit}").decode().strip()
 target = git("rev-parse", "--verify", args.target + "^{commit}").decode().strip()
 files = {}
+build_files = {".dockerignore", "Dockerfile", "docker-compose.yml", "docker-compose.yaml"}
 for row in git("diff", "--name-status", "--no-renames", base, target).decode().splitlines():
     status, path = row.split("\t", 1)
-    if path == "install/sql-install.sql" or path.startswith(("updates/", "tools/", ".github/", "mobile/")) or path in ("README.md", ".DS_Store"):
+    if (
+        path in build_files
+        or path.startswith(("Dockerfile.", "docker-compose.", "docker/"))
+        or path.startswith(("updates/", "tools/", ".github/", "mobile/"))
+        or path in ("README.md", ".DS_Store", "install/sql-install.sql")
+    ):
         continue
     if status == "D":
         parser.error("Deletion needs a separately reviewed migration: " + path)

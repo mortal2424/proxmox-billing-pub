@@ -3,7 +3,6 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 base_ref=674b85f
-base_version=2.5.1-beta8.40
 test_version=2.5.1-beta8.41
 qa=$(mktemp -d)
 export COMPOSE_PROJECT_NAME=homevlad-docker-smoke
@@ -50,6 +49,8 @@ ready() {
     return 1
 }
 ready
+image_version=$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')
+echo "Built Docker image for $image_version"
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T apache apache2ctl -t
 if [[ ${1:-} == backup ]]; then
@@ -117,4 +118,5 @@ verify='require "includes/db.php"; $d=(new Database())->getConnection();
 ready
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
 "${compose[@]}" exec -T --user www-data apache php -l includes/mobile_admin_directory.php
-echo 'Update and database survived recreation from the current release image'
+test "$image_version" = "$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')"
+echo "Recreated the $image_version image and verified the existing database"

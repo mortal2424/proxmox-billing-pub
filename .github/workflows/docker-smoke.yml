@@ -2,7 +2,7 @@ name: Docker smoke
 on:
   workflow_dispatch:
   push:
-    branches: [codex/docker-console-updater, codex/docker-backup-recovery]
+    branches: [main, codex/docker-console-updater, codex/docker-backup-recovery, 'codex/release-beta*']
   pull_request:
     paths:
       - '.github/workflows/docker-smoke.yml'
