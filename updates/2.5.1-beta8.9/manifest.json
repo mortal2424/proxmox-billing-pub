@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.9",
+  "from": "2.5.1-beta8.8",
+  "source_commit": "e853d02660c7f208d651fe450cf43efeb2b8143f",
+  "changelog": "Кнопки управления VNC в цветах HomeVlad с адаптацией для узких экранов.\n",
+  "files": {
+    "console/view.html": {
+      "before": "01d6d1881f7a6c4a90fef0449f3b44fa9fab8b604f3291cd349912b76671062b",
+      "sha256": "1a7aaf33243b14f7f65a340b25d6b17f61701be01a592832c304a20a6ff9b7b2"
+    },
+    "includes/version.php": {
+      "before": "95eb0880c91effe3bcb16f9c1a15eb9a307c4e21bbd77044a1a050d1489bcfe1",
+      "sha256": "dfffeb28069e1e380f295906e40d20ae6483f719ef55144df40d7423128dfa17"
+    }
+  }
+}
