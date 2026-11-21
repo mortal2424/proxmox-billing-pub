@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.33",
+  "from": "2.5.1-beta8.32",
+  "source_commit": "4bba345c1cb4b407d1d1faf85fff21ab34932c2e",
+  "changelog": "Устранена краткая вспышка крупного аватара при загрузке «Моих ВМ» и других страниц кабинета.\n",
+  "files": {
+    "includes/version.php": {
+      "before": "4569128093c8a8e346d11d5d64df14d77b1430db3a214aeca4720c237ffbabd0",
+      "sha256": "f48d1a3dac3ff26e3af74d8d744cf1e576eac7daa959b222482080e9a0aa9118"
+    },
+    "templates/headers/user_header.php": {
+      "before": "e6c3433ea8efaeee2be6fb7e1cf7f1285b0b5b5ccf26fcbe4acd18a033246eac",
+      "sha256": "fdf06f0f30ed87704e82935464af61eaae1742bc8acd2bb9d845cae46364485b"
+    },
+    "templates/headers/user_sidebar.php": {
+      "before": "e2c6891c81ef6ab85c57979ba2ccca3f403ef6ab9fd7a4b83c3b081830c35701",
+      "sha256": "b44b95d69bc04258fb595455e8349b9aef389c7d3dde69adb6a6323c501d6e2e"
+    }
+  }
+}
