@@ -2,11 +2,12 @@ import SwiftUI
 
 struct Cabinet: View {
     @ObservedObject var session: CloudSession
+    @State private var selectedTab = "overview"
 
     var body: some View {
         Group {
             if let snapshot = session.snapshot {
-                TabView {
+                TabView(selection: $selectedTab) {
                     NavigationStack {
                         List {
                             Section("Личный кабинет") {
@@ -30,11 +31,30 @@ struct Cabinet: View {
                                     }
                                 }
                             }
-                            Section { Button("Выйти", role: .destructive) { Task { await session.logout() } } }
+                            Section("Безопасность") {
+                                if session.biometricEnabled {
+                                    Button("Отключить биометрический вход") { Task { await session.disableBiometrics() } }
+                                } else if let label = session.biometricLabel, session.canEnrollBiometrics {
+                                    Button("Включить вход по " + label) { Task { await session.enrollBiometrics() } }
+                                }
+                                Button("Выйти", role: .destructive) {
+                                    Task { await session.logout(); selectedTab = "overview" }
+                                }
+                                if let error = session.error { Text(error).foregroundStyle(.secondary) }
+                            }
                         }
                         .navigationTitle("HomeVlad")
+                        .toolbar {
+                            if snapshot.isAdmin {
+                                ToolbarItem(placement: .topBarTrailing) {
+                                    Button { selectedTab = "admin" } label: {
+                                        Label("Админка", systemImage: "person.badge.shield.checkmark")
+                                    }
+                                }
+                            }
+                        }
                         .refreshable { await session.refresh() }
-                    }.tabItem { Label("Обзор", systemImage: "cloud") }
+                    }.tabItem { Label("Обзор", systemImage: "cloud") }.tag("overview")
                     NavigationStack {
                         List {
                             ForEach(snapshot.nodes) { node in
@@ -48,34 +68,38 @@ struct Cabinet: View {
                                     } else {
                                         Text("Нет свежих замеров").foregroundStyle(.secondary)
                                     }
+                                    if let rx = node.networkRx, let tx = node.networkTx {
+                                        LabeledContent("Сеть RX / TX", value: String(format: "%.2f / %.2f Мбит/с", rx, tx))
+                                    }
+                                    if let internet = node.guestInternet {
+                                        LabeledContent("Интернет из гостя", value: internet)
+                                    }
                                 }
                             }
                             if snapshot.nodes.isEmpty { Text("Доступных узлов пока нет") }
                         }
                         .navigationTitle("Мониторинг")
                         .refreshable { await session.refresh() }
-                    }.tabItem { Label("Мониторинг", systemImage: "chart.bar") }
+                    }.tabItem { Label("Мониторинг", systemImage: "chart.bar") }.tag("monitor")
                     NavigationStack {
                         NativeTickets(session: session, admin: false)
-                    }.tabItem { Label("Поддержка", systemImage: "bubble.left.and.bubble.right") }
+                    }.tabItem { Label("Поддержка", systemImage: "bubble.left.and.bubble.right") }.tag("tickets")
                     NavigationStack {
                         NativePayments(session: session, admin: false)
-                    }.tabItem { Label("Финансы", systemImage: "creditcard") }
+                    }.tabItem { Label("Финансы", systemImage: "creditcard") }.tag("payments")
                     if snapshot.isAdmin {
                         NavigationStack {
-                            List {
-                                Section("Администрирование") {
-                                    NavigationLink("Платежи пользователей") { NativePayments(session: session, admin: true) }
-                                    NavigationLink("Все обращения") { NativeTickets(session: session, admin: true) }
-                                }
-                            }.navigationTitle("Администратор")
-                        }.tabItem { Label("Админ", systemImage: "person.badge.shield.checkmark") }
+                            NativeAdminHome(session: session)
+                        }.tabItem { Label("Админ", systemImage: "person.badge.shield.checkmark") }.tag("admin")
                     }
                 }
             } else {
                 NativeLogin(session: session)
             }
         }.task { await session.start() }
+         .onChange(of: session.snapshot?.isAdmin) { _, isAdmin in
+             if isAdmin != true && selectedTab == "admin" { selectedTab = "overview" }
+         }
     }
 }
 
@@ -109,6 +133,11 @@ struct NativeLogin: View {
                             answer = ""
                         }
                     }.disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty || answer.isEmpty)
+                    if session.biometricEnabled, let label = session.biometricLabel {
+                        Button { Task { await session.biometricLogin() } } label: {
+                            Label("Войти по " + label, systemImage: label == "Face ID" ? "faceid" : "touchid")
+                        }.disabled(session.loading || session.challenge == nil)
+                    }
                     if session.loading { ProgressView() }
                 }
                 if let error = session.error { Section { Text(error).foregroundStyle(.red) } }

@@ -1,7 +1,7 @@
 package ru.homevlad.cloud
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -38,6 +38,8 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private const val origin = "https://" + BuildConfig.HOST
+private const val authApi = "/api/mobile_auth.php"
+private class CloudHttpException(val status: Int, message: String) : IllegalStateException(message)
 private const val api = "/api/mobile_resources.php"
 private fun money(amount: Double) = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("ru-RU")).format(amount)
 private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
@@ -51,6 +53,10 @@ class CloudModel : ViewModel() {
     var challenge by mutableStateOf<JSONObject?>(null)
         private set
     var error by mutableStateOf<String?>(null)
+        private set
+    var biometricEnabled by mutableStateOf(false)
+        private set
+    var canEnrollBiometrics by mutableStateOf(false)
         private set
     var loading by mutableStateOf(false)
         private set
@@ -99,7 +105,7 @@ class CloudModel : ViewModel() {
                 snapshot = null
                 prepareLogin()
             }
-            throw IllegalStateException(result.optString("error", "Не удалось выполнить запрос"))
+            throw CloudHttpException(status, result.optString("error", "Не удалось выполнить запрос"))
         }
         return result
     }
@@ -120,7 +126,9 @@ class CloudModel : ViewModel() {
         }
     }
 
-    fun start() {
+    internal fun start(vault: DeviceTokenVault) {
+        biometricEnabled = vault.hasToken
+        if (loading || snapshot != null) return
         viewModelScope.launch {
             loading = true
             try { snapshot = request("/api/mobile_dashboard.php") }
@@ -131,14 +139,78 @@ class CloudModel : ViewModel() {
         }
     }
 
-    fun login(email: String, password: String, answer: String) {
+    internal fun login(email: String, password: String, answer: String, vault: DeviceTokenVault) {
         if (loading) return
         viewModelScope.launch {
             loading = true
             try {
                 request("/api/mobile_auth.php", JSONObject().put("email", email).put("password", password).put("captcha", answer))
+                if (biometricEnabled) {
+                    vault.forget()
+                    biometricEnabled = false
+                }
                 snapshot = request("/api/mobile_dashboard.php")
+                canEnrollBiometrics = true
                 challenge = null
+                error = null
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                error = exception.message
+            } finally { loading = false }
+        }
+    }
+
+    internal fun enroll(vault: DeviceTokenVault) {
+        if (loading || !canEnrollBiometrics || !vault.available) return
+        loading = true
+        viewModelScope.launch {
+            try {
+                val result = request(authApi, JSONObject().put("action", "device_enable"))
+                try { vault.save(result.getString("token")) }
+                catch (exception: Exception) {
+                    runCatching { request(authApi, JSONObject().put("action", "device_disable")) }
+                    throw exception
+                }
+                biometricEnabled = true
+                error = null
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                error = exception.message
+            } finally { loading = false }
+        }
+    }
+
+    internal fun loginBiometrically(vault: DeviceTokenVault) {
+        if (loading || !biometricEnabled || challenge == null) return
+        loading = true
+        viewModelScope.launch {
+            try {
+                val token = vault.read()
+                request(authApi, JSONObject().put("action", "device_login").put("token", token))
+                snapshot = request("/api/mobile_dashboard.php")
+                canEnrollBiometrics = false
+                challenge = null
+                error = null
+            } catch (exception: Exception) {
+                if (exception is CancellationException) throw exception
+                if (exception is CloudHttpException && exception.status == 401 ||
+                    exception is android.security.keystore.KeyPermanentlyInvalidatedException) {
+                    runCatching { vault.forget() }
+                    biometricEnabled = false
+                }
+                error = exception.message ?: "Войдите с паролем и заново включите биометрию"
+            } finally { loading = false }
+        }
+    }
+
+    internal fun disable(vault: DeviceTokenVault) {
+        if (loading) return
+        loading = true
+        viewModelScope.launch {
+            try {
+                request(authApi, JSONObject().put("action", "device_disable"))
+                vault.forget()
+                biometricEnabled = false
                 error = null
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
@@ -162,11 +234,15 @@ class CloudModel : ViewModel() {
         }
     }
 
-    fun logout() {
+    internal fun logout(vault: DeviceTokenVault) {
+        if (loading) return
         generation++
         viewModelScope.launch {
             loading = true
             runCatching { request("/api/mobile_auth.php", JSONObject().put("action", "logout")) }
+            runCatching { vault.forget() }
+            biometricEnabled = false
+            canEnrollBiometrics = false
             synchronized(cookies) { cookies.cookieStore.removeAll() }
             snapshot = null
             challenge = null
@@ -177,12 +253,13 @@ class CloudModel : ViewModel() {
     }
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val vault = DeviceTokenVault(this)
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFF287963))) {
-                Cabinet()
+                Cabinet(vault)
             }
         }
     }
@@ -190,19 +267,29 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Cabinet(model: CloudModel = viewModel()) {
+private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
     var page by remember { mutableStateOf("overview") }
     var selectedGuest by remember { mutableStateOf<JSONObject?>(null) }
     var selectedTicket by remember { mutableStateOf(0) }
     var adminContext by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { model.start() }
+    LaunchedEffect(Unit) { model.start(vault) }
+    val isAdmin = model.snapshot?.optBoolean("isAdmin") == true
+    LaunchedEffect(isAdmin) {
+        if (!isAdmin && (page.startsWith("admin") || adminContext)) {
+            adminContext = false
+            page = "overview"
+        }
+    }
     BackHandler(enabled = page !in listOf("overview", "monitor", "tickets", "payments", "admin")) {
         page = if (page == "ticket") { if (adminContext) "admin_tickets" else "tickets" }
             else if (page.startsWith("admin_")) "admin" else "overview"
     }
     Scaffold(topBar = {
         TopAppBar(title = { Text("HomeVlad") }, actions = {
+            if (isAdmin) IconButton(onClick = { page = "admin" }) {
+                Icon(Icons.Default.Settings, contentDescription = "Админка")
+            }
             if (model.snapshot != null) TextButton(onClick = { model.refresh(); revision++ }) { Text("Обновить") }
         })
     }, bottomBar = {
@@ -227,7 +314,7 @@ private fun Cabinet(model: CloudModel = viewModel()) {
             if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             val snapshot = model.snapshot
             if (snapshot == null) {
-                NativeLogin(model)
+                NativeLogin(model, vault)
             } else when (page) {
                 "overview" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
@@ -246,7 +333,16 @@ private fun Cabinet(model: CloudModel = viewModel()) {
                             }
                         }
                     }
-                    item { TextButton(onClick = { model.logout(); page = "overview" }) { Text("Выйти") } }
+                    item {
+                        if (model.biometricEnabled) TextButton(onClick = { model.disable(vault) }, enabled = !model.loading) {
+                            Text("Отключить вход по отпечатку")
+                        } else if (model.canEnrollBiometrics && vault.available) {
+                            TextButton(onClick = { model.enroll(vault) }, enabled = !model.loading) {
+                                Text("Включить вход по отпечатку")
+                            }
+                        }
+                        TextButton(onClick = { model.logout(vault); page = "overview" }, enabled = !model.loading) { Text("Выйти") }
+                    }
                 }
                 "monitor" -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(objects(snapshot.getJSONArray("nodes"))) { node ->
@@ -261,6 +357,11 @@ private fun Cabinet(model: CloudModel = viewModel()) {
                                     Text("Память ${node.getDouble("memory")}%")
                                     LinearProgressIndicator(progress = { (node.getDouble("memory") / 100).toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                                 }
+                                if (!node.isNull("networkRx") && !node.isNull("networkTx")) {
+                                    val rates = String.format(Locale.getDefault(), "%.2f / %.2f", node.getDouble("networkRx"), node.getDouble("networkTx"))
+                                    Text("Сеть RX / TX: $rates Мбит/с")
+                                }
+                                if (!node.isNull("guestInternet")) Text("Интернет из гостя: " + node.getString("guestInternet"))
                             }
                         }
                     }
@@ -271,18 +372,15 @@ private fun Cabinet(model: CloudModel = viewModel()) {
                     selectedTicket = id; adminContext = admin; page = "ticket"
                 }
                 "ticket" -> NativeTicket(model, selectedTicket, adminContext, revision)
-                "admin" -> if (snapshot.getBoolean("isAdmin")) Column(Modifier.padding(20.dp)) {
-                    Text("Администрирование", style = MaterialTheme.typography.headlineSmall)
-                    TextButton(onClick = { page = "admin_payments" }) { Text("Платежи пользователей") }
-                    TextButton(onClick = { page = "admin_tickets" }) { Text("Все обращения") }
-                }
+                "admin" -> if (isAdmin) NativeAdminOverview(model, revision) { page = it }
+                "admin_users" -> if (isAdmin) NativeAdminUsers(model, revision)
             }
         }
     }
 }
 
 @Composable
-private fun NativeLogin(model: CloudModel) {
+private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var answer by remember { mutableStateOf("") }
@@ -299,9 +397,14 @@ private fun NativeLogin(model: CloudModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
         }
         TextButton(onClick = { answer = ""; model.prepareLogin() }, enabled = !model.loading) { Text("Обновить CAPTCHA") }
-        Button(onClick = { model.login(email, password, answer); password = ""; answer = "" },
+        Button(onClick = { model.login(email, password, answer, vault); password = ""; answer = "" },
             enabled = !model.loading && model.challenge != null && email.isNotBlank() && password.isNotEmpty() && answer.isNotEmpty()) {
             Text("Войти")
+        }
+        if (model.biometricEnabled && vault.available) {
+            OutlinedButton(onClick = { model.loginBiometrically(vault) }, enabled = !model.loading && model.challenge != null) {
+                Text("Войти по отпечатку")
+            }
         }
         model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
@@ -519,4 +622,78 @@ private fun status(value: String): String = when (value) {
     "answered" -> "Есть ответ"
     "closed" -> "Закрыто"
     else -> "Неизвестно"
+}
+
+@Composable
+private fun NativeAdminOverview(model: CloudModel, revision: Int, navigate: (String) -> Unit) {
+    var summary by remember { mutableStateOf<JSONObject?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(revision) {
+        try {
+            summary = model.request("$api?resource=admin_overview")
+            error = null
+        } catch (exception: Exception) {
+            if (exception is CancellationException) throw exception
+            error = exception.message
+        }
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Администрирование", style = MaterialTheme.typography.headlineSmall)
+        summary?.let {
+            Text("${it.getInt("active_users")} активных пользователей из ${it.getInt("users")}")
+            Text("Зоны доступности: ${it.getInt("zones")}")
+            Text("Активные ноды: ${it.getInt("nodes")}")
+            Text("Платежи к проверке: ${it.getInt("pending_payments")}")
+            Text("Открытые обращения: ${it.getInt("open_tickets")}")
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        TextButton(onClick = { navigate("admin_users") }) { Text("Пользователи") }
+        TextButton(onClick = { navigate("admin_payments") }) { Text("Платежи пользователей") }
+        TextButton(onClick = { navigate("admin_tickets") }) { Text("Все обращения") }
+    }
+}
+
+@Composable
+private fun NativeAdminUsers(model: CloudModel, revision: Int) {
+    val scope = rememberCoroutineScope()
+    var users by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var next by remember { mutableStateOf<Int?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    suspend fun load(before: Int? = null) {
+        if (busy) return
+        busy = true
+        try {
+            val suffix = before?.let { "&before=$it" }.orEmpty()
+            val result = model.request("$api?resource=admin_users$suffix")
+            val page = objects(result.getJSONArray("items"))
+            users = if (before == null) page else users + page
+            next = if (result.isNull("next")) null else result.getInt("next")
+            error = null
+        } catch (exception: Exception) {
+            if (exception is CancellationException) throw exception
+            error = exception.message
+        } finally { busy = false }
+    }
+    LaunchedEffect(revision) { load() }
+    LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Text("Пользователи", style = MaterialTheme.typography.headlineSmall) }
+        items(users, key = { it.getInt("id") }) { user ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(user.getString("name"), style = MaterialTheme.typography.titleMedium)
+                    Text(user.getString("email"))
+                    val role = if (user.getBoolean("isAdmin")) "Администратор" else "Пользователь"
+                    val activity = if (user.getBoolean("isActive")) "Активен" else "Неактивен"
+                    Text("$role · $activity", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        if (busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        next?.let { cursor -> item {
+            TextButton(onClick = { scope.launch { load(cursor) } }, enabled = !busy) { Text("Загрузить ещё") }
+        } }
+        error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+    }
 }

@@ -1941,3 +1941,11 @@ CREATE TABLE IF NOT EXISTS `guest_initial_passwords` (
   `expires_at` bigint NOT NULL,
   KEY `guest_initial_password_expiry` (`expires_at`)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS `mobile_device_tokens` (
+  `token_hash` binary(32) NOT NULL PRIMARY KEY,
+  `user_id` int NOT NULL,
+  `password_fingerprint` binary(32) NOT NULL,
+  `expires_at` bigint NOT NULL,
+  KEY `mobile_device_expiry` (`expires_at`)
+) ENGINE=InnoDB;

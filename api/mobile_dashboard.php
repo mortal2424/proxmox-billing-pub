@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/guest_network_probe.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 if (!isLoggedIn()) {
@@ -36,7 +37,7 @@ try {
     }
     $nodes = $pdo->query("SELECT n.id, n.node_name, c.name AS zone,
         CASE WHEN n.last_check >= NOW() - INTERVAL 15 MINUTE THEN n.status ELSE 'unknown' END AS status,
-        s.cpu_usage, s.ram_usage, TIMESTAMPDIFF(SECOND, s.created_at, NOW()) AS age
+        s.cpu_usage, s.ram_usage, s.network_rx_mbits, s.network_tx_mbits, TIMESTAMPDIFF(SECOND, s.created_at, NOW()) AS age
         FROM proxmox_nodes n JOIN proxmox_clusters c ON c.id = n.cluster_id
         LEFT JOIN node_stats s ON s.id = (
             SELECT r.id FROM node_stats r WHERE r.node_id = n.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
@@ -51,6 +52,9 @@ try {
             'status' => $node['status'],
             'cpu' => $fresh ? (float) $node['cpu_usage'] : null,
             'memory' => $fresh ? (float) $node['ram_usage'] : null,
+            'networkRx' => $fresh && $node['network_rx_mbits'] !== null ? (float) $node['network_rx_mbits'] : null,
+            'networkTx' => $fresh && $node['network_tx_mbits'] !== null ? (float) $node['network_tx_mbits'] : null,
+            'guestInternet' => guestNetworkProbeStatus((int) $node['id'], time())['label'],
         ];
     }
     echo json_encode([

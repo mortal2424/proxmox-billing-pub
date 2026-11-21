@@ -1,4 +1,6 @@
 import Foundation
+import LocalAuthentication
+import Security
 
 private final class SameHostRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask,
@@ -16,11 +18,56 @@ struct CloudAcknowledgement: Decodable {
     let success: Bool
     let csrf: String?
     let id: Int?
+    let token: String?
 }
 private struct CloudServerError: Decodable { let error: String }
 struct CloudRequestError: LocalizedError {
     let message: String
+    var status: Int? = nil
     var errorDescription: String? { message }
+}
+
+private enum BiometricTokenVault {
+    static let service = "ru.homevlad.cloud.device." + CloudEnvironment.host
+    static var key: [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+         kSecAttrAccount as String: "device-login"]
+    }
+
+    static func save(_ token: String) throws {
+        guard let access = SecAccessControlCreateWithFlags(nil,
+            kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, nil) else {
+            throw CloudError.unavailable
+        }
+        remove()
+        var attributes = key
+        attributes[kSecAttrAccessControl as String] = access
+        attributes[kSecValueData as String] = Data(token.utf8)
+        guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else {
+            throw CloudRequestError(message: "Не удалось сохранить ключ входа")
+        }
+    }
+
+    static func read() throws -> String {
+        let context = LAContext()
+        context.localizedReason = "Вход в HomeVlad"
+        context.localizedFallbackTitle = ""
+        var query = key
+        query[kSecUseAuthenticationContext as String] = context
+        query[kSecReturnData as String] = true
+        var item: CFTypeRef?
+        let result = SecItemCopyMatching(query as CFDictionary, &item)
+        if result == errSecUserCanceled { throw CancellationError() }
+        guard result == errSecSuccess, let data = item as? Data,
+              let token = String(data: data, encoding: .utf8) else {
+            throw CloudRequestError(message: "Войдите с паролем и проверьте настройки биометрии")
+        }
+        return token
+    }
+
+    static func remove() {
+        SecItemDelete(key as CFDictionary)
+    }
 }
 
 @MainActor final class CloudSession: ObservableObject {
@@ -28,6 +75,17 @@ struct CloudRequestError: LocalizedError {
     @Published var error: String?
     @Published var loading = false
     @Published var challenge: CloudChallenge?
+    @Published private(set) var biometricEnabled = UserDefaults.standard.bool(forKey: BiometricTokenVault.service)
+    @Published private(set) var canEnrollBiometrics = false
+    var biometricLabel: String? {
+        let context = LAContext()
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else { return nil }
+        return context.biometryType == .faceID ? "Face ID" : "Touch ID"
+    }
+    private func setBiometricEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: BiometricTokenVault.service)
+        biometricEnabled = enabled
+    }
     private var csrf = ""
     private var generation = 0
     private let client: URLSession
@@ -75,7 +133,7 @@ struct CloudRequestError: LocalizedError {
                 if wasSignedIn { Task { await prepareLogin() } }
             }
             let message = (try? JSONDecoder().decode(CloudServerError.self, from: data))?.error
-            throw CloudRequestError(message: message ?? "Сервис временно недоступен")
+            throw CloudRequestError(message: message ?? "Сервис временно недоступен", status: response.statusCode)
         }
         return try JSONDecoder().decode(T.self, from: data)
     }
@@ -107,15 +165,77 @@ struct CloudRequestError: LocalizedError {
             let result = try await post("/api/mobile_auth.php",
                 ["email": email, "password": password, "captcha": answer])
             guard result.success else { throw CloudError.signIn }
+            if biometricEnabled {
+                BiometricTokenVault.remove()
+                setBiometricEnabled(false)
+            }
             csrf = result.csrf ?? csrf
             let next: CloudSnapshot = try await get("/api/mobile_dashboard.php")
             snapshot = next
             csrf = next.csrf
             challenge = nil
+            canEnrollBiometrics = true
             error = nil
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    func enrollBiometrics() async {
+        guard !loading, canEnrollBiometrics, let label = biometricLabel else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            let context = LAContext()
+            context.localizedFallbackTitle = ""
+            guard try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: "Включить вход в HomeVlad по " + label) else { return }
+            let response = try await post("/api/mobile_auth.php", ["action": "device_enable"])
+            guard let token = response.token else { throw CloudError.unavailable }
+            do { try BiometricTokenVault.save(token) }
+            catch {
+                _ = try? await post("/api/mobile_auth.php", ["action": "device_disable"])
+                throw error
+            }
+            setBiometricEnabled(true)
+            error = nil
+        } catch let failure as LAError where failure.code == .userCancel || failure.code == .systemCancel {
+        } catch { self.error = error.localizedDescription }
+    }
+
+    func biometricLogin() async {
+        guard !loading, biometricEnabled, challenge != nil else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            let token = try await Task.detached { try BiometricTokenVault.read() }.value
+            _ = try await post("/api/mobile_auth.php", ["action": "device_login", "token": token])
+            let next: CloudSnapshot = try await get("/api/mobile_dashboard.php")
+            snapshot = next
+            csrf = next.csrf
+            challenge = nil
+            canEnrollBiometrics = false
+            error = nil
+        } catch is CancellationError {
+        } catch {
+            if (error as? CloudRequestError)?.status == 401 {
+                BiometricTokenVault.remove()
+                setBiometricEnabled(false)
+            }
+            self.error = error.localizedDescription
+        }
+    }
+
+    func disableBiometrics() async {
+        guard !loading else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            _ = try await post("/api/mobile_auth.php", ["action": "device_disable"])
+            BiometricTokenVault.remove()
+            setBiometricEnabled(false)
+            error = nil
+        } catch { self.error = error.localizedDescription }
     }
 
     func refresh() async {
@@ -136,12 +256,16 @@ struct CloudRequestError: LocalizedError {
     }
 
     func logout() async {
+        guard !loading else { return }
         generation += 1
         loading = true
         _ = try? await post("/api/mobile_auth.php", ["action": "logout"])
         client.configuration.httpCookieStorage?.cookies?.forEach {
             client.configuration.httpCookieStorage?.deleteCookie($0)
         }
+        BiometricTokenVault.remove()
+        setBiometricEnabled(false)
+        canEnrollBiometrics = false
         snapshot = nil
         csrf = ""
         challenge = nil

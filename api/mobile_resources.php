@@ -113,6 +113,33 @@ try {
     $resource = $_GET['resource'] ?? '';
     $adminScope = ($_GET['admin'] ?? '') === '1';
     if ($adminScope && !$isAdmin) mobileRespond(['error' => 'Доступ запрещён'], 403);
+    if ($resource === 'admin_overview') {
+        if (!$isAdmin) mobileRespond(['error' => 'Доступ запрещён'], 403);
+        $summary = $pdo->query("SELECT
+            (SELECT COUNT(*) FROM users) AS users,
+            (SELECT COUNT(*) FROM users WHERE is_active = 1) AS active_users,
+            (SELECT COUNT(*) FROM proxmox_clusters WHERE is_active = 1) AS zones,
+            (SELECT COUNT(*) FROM proxmox_nodes WHERE is_active = 1) AS nodes,
+            (SELECT COUNT(*) FROM payments WHERE status = 'pending') AS pending_payments,
+            (SELECT COUNT(*) FROM tickets WHERE status <> 'closed') AS open_tickets")->fetch(PDO::FETCH_ASSOC);
+        mobileRespond(array_map('intval', $summary));
+    }
+    if ($resource === 'admin_users') {
+        if (!$isAdmin) mobileRespond(['error' => 'Доступ запрещён'], 403);
+        $before = filter_var($_GET['before'] ?? PHP_INT_MAX, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($before === false) mobileRespond(['error' => 'Некорректная страница'], 400);
+        $query = $pdo->prepare('SELECT id, full_name, email, is_admin, is_active FROM users WHERE id < ? ORDER BY id DESC LIMIT 51');
+        $query->execute([$before]);
+        $users = $query->fetchAll(PDO::FETCH_ASSOC);
+        $items = [];
+        foreach (array_slice($users, 0, 50) as $row) {
+            $items[] = [
+                'id' => (int) $row['id'], 'name' => $row['full_name'] ?: $row['email'],
+                'email' => $row['email'], 'isAdmin' => (bool) $row['is_admin'], 'isActive' => (bool) $row['is_active'],
+            ];
+        }
+        mobileRespond(['items' => $items, 'next' => count($users) > 50 ? $items[49]['id'] : null]);
+    }
     if ($resource === 'guest') {
         $query = $pdo->prepare('SELECT v.vm_id,v.vm_type,n.* FROM vms v JOIN proxmox_nodes n ON n.id=v.node_id
             WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1');
