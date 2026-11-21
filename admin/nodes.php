@@ -998,6 +998,7 @@ require 'admin_header.php';
                                         <button onclick="showNodeCharts(<?= $node['id'] ?>, '<?= addslashes($node['cluster_name']) ?>', '<?= addslashes($node['node_name']) ?>')" class="btn-icon btn-chart" title="Графики">
                                             <i class="fas fa-chart-line"></i>
                                         </button>
+                                        <a href="node_placement_pools.php?id=<?= (int)$node['id'] ?>" class="btn-icon btn-edit" title="Пулы внешних сетей и хранилищ" aria-label="Пулы внешних сетей и хранилищ"><i class="fas fa-layer-group"></i></a>
                                         <a href="edit_node.php?id=<?= $node['id'] ?>" class="btn-icon btn-edit" title="Редактировать">
                                             <i class="fas fa-edit"></i>
                                         </a>

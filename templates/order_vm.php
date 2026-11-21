@@ -4,7 +4,7 @@ ini_set('display_errors', 0);
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/proxmox_functions.php';
+require_once __DIR__ . '/../includes/zone_placement.php';
 
 session_start();
 checkAuth();
@@ -67,13 +67,9 @@ if ($usage['total_disk'] > $quota['max_disk']) {
 }
 
 // Получаем список нод и тарифов
-$nodes = $pdo->query("
-    SELECT n.*, c.name as cluster_name
-    FROM proxmox_nodes n
-    JOIN proxmox_clusters c ON c.id = n.cluster_id
-    WHERE n.is_active = 1 AND n.available_for_users = 1
-    ORDER BY c.name, n.node_name
-")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$zones = $pdo->query("SELECT z.id,z.name FROM proxmox_clusters z WHERE z.is_active=1
+    AND EXISTS (SELECT 1 FROM proxmox_nodes n WHERE n.cluster_id=z.id AND n.is_active=1 AND n.available_for_users=1)
+    ORDER BY z.name")->fetchAll(PDO::FETCH_ASSOC);
 
 $requestedVmType = $_POST['vm_type'] ?? $_GET['vm_type'] ?? 'qemu';
 $vmType = in_array($requestedVmType, ['qemu', 'lxc'], true) ? $requestedVmType : 'qemu';
@@ -102,13 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         if (!in_array($requestedVmType, ['qemu', 'lxc'], true)) {
             throw new InvalidArgumentException('Неизвестный тип машины');
         }
-        $nodeId = (int)($_POST['node_id'] ?? 0);
+        $zoneId = (int)($_POST['zone_id'] ?? 0);
         $hostname = trim($_POST['hostname'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
-        $network = $_POST['network'] ?? 'vmbr0';
+        $networkPool = (string)($_POST['network_pool'] ?? '');
         $sdn = $_POST['sdn'] ?? '';
-        $storage = $_POST['storage'] ?? '';
+        $storagePool = (string)($_POST['storage_pool'] ?? '');
         $template = $_POST['template'] ?? '';
         $osType = $_POST['os_type'] ?? 'linux';
         $osVersion = $vmType === 'qemu' ? ($_POST['os_version'] ?? '') : 'linux';
@@ -118,21 +114,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         $custom_disk = (int)($_POST['custom_disk'] ?? 0);
         $is_custom = isset($_POST['is_custom']) && $_POST['is_custom'] === '1';
 
-        if (!$nodeId) throw new Exception('Не выбрана нода для размещения');
+        if (!$zoneId) throw new Exception('Не выбрана зона доступности');
         if (empty($hostname)) throw new Exception('Укажите имя хоста');
         if (empty($password)) throw new Exception('Необходимо задать пароль администратора');
         if ($password !== $confirmPassword) throw new Exception('Пароли не совпадают');
-        if (empty($storage)) throw new Exception('Не выбрано хранилище');
+        if ($storagePool === '') throw new Exception('Не выбран пул хранилищ');
         if ($vmType === 'qemu' && empty($osVersion)) throw new Exception('Необходимо указать версию ОС');
         if ($vmType === 'lxc' && empty($template)) throw new Exception('Необходимо выбрать шаблон LXC');
         if (!preg_match('/^[a-z0-9\-]+$/', $hostname)) {
             throw new Exception('Имя хоста может содержать только латинские буквы (a-z), цифры (0-9) и дефисы');
         }
-
-        $stmt = $pdo->prepare("SELECT n.* FROM proxmox_nodes n JOIN proxmox_clusters c ON c.id = n.cluster_id WHERE n.id = ? AND n.is_active = 1 AND n.available_for_users = 1 AND c.is_active = 1");
-        $stmt->execute([$nodeId]);
-        $node = $stmt->fetch();
-        if (!$node) throw new Exception('Выбранная нода не найдена');
 
         $user = $pdo->query("SELECT * FROM users WHERE id = $user_id")->fetch();
         if (!$user) throw new Exception('Ошибка получения данных пользователя');
@@ -223,57 +214,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             throw new Exception($quota_message);
         }
 
-        $proxmoxApi = new ProxmoxAPI(
-            $node['hostname'],
-            $node['username'],
-            $node['password'],
-            $node['ssh_port'] ?? 22,
-            $node['node_name'],
-            $node['id'],
-            $pdo
-        );
+        $media = $vmType === 'qemu' ? (string)($_POST['iso'] ?? '') : (string)$template;
+        [$creationResult, $node] = withGuestOperationLocks(['placement-zone:' . $zoneId], function () use (
+            $pdo, $zoneId, $vmType, $networkPool, $storagePool, $sdn, $media, $total_cpu, $total_ram, $total_disk,
+            $osType, $hostname, $password, $template, $osVersion, $user_id, $tariffId, $is_custom
+        ) {
+            $placement = choosePlacement($pdo, $zoneId, $vmType, $networkPool, $storagePool,
+                (string)$sdn, $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows');
+            $node = $placement['node'];
+            $proxmoxApi = placementClient($node, $pdo);
+            $network = $placement['network'];
+            $storage = $placement['storage'];
+            $vmParams = [
+                'vm_type' => $vmType,
+                'hostname' => $hostname,
+                'password' => $password,
+                'cpu' => $total_cpu,
+                'ram' => $total_ram,
+                'disk' => $total_disk,
+                'network' => $network,
+                'sdn' => $sdn,
+                'storage' => $storage,
+                'template' => $template,
+                'os_type' => $osType,
+                'os_version' => $osVersion,
+                'user_id' => $user_id,
+                'tariff_id' => $tariffId,
+                'is_custom' => $is_custom ? 1 : 0
+            ];
 
-        $vmParams = [
-            'vm_type' => $vmType,
-            'hostname' => $hostname,
-            'password' => $password,
-            'cpu' => $is_custom ? $custom_cpu : $tariff['cpu'],
-            'ram' => $is_custom ? $custom_ram : $tariff['ram'],
-            'disk' => $is_custom ? $custom_disk : $tariff['disk'],
-            'network' => $network,
-            'sdn' => $sdn,
-            'storage' => $storage,
-            'template' => $template,
-            'os_type' => $osType,
-            'os_version' => $osVersion,
-            'user_id' => $user_id,
-            'tariff_id' => $tariffId,
-            'is_custom' => $is_custom ? 1 : 0
-        ];
-
-        if ($vmType === 'qemu') {
-            $iso = $_POST['iso'] ?? '';
-            $vmParams['iso'] = $iso;
-
-            // Добавляем virtio-win.iso для Windows VM
-            $cdroms = [];
-            if (!empty($iso)) {
-                $cdroms[] = $iso;
+            if ($vmType === 'qemu') {
+                $vmParams['iso'] = $media;
+                $vmParams['cdroms'] = $media !== '' ? [$media] : [];
+                return [$proxmoxApi->createVM($vmParams), $node];
             }
-            if ($osType === 'windows') {
-                array_unshift($cdroms, 'virtio-win.iso');
-            }
-            $vmParams['cdroms'] = $cdroms;
-
-            $creationResult = $proxmoxApi->createVM($vmParams);
-            $vncUrl = "https://{$node['hostname']}:8006/?console=kvm&novnc=1&vmid={$creationResult['vmid']}&vmname=" .
-                     urlencode($hostname) . "&node={$node['node_name']}&resize=scale&cmd=";
-        } else {
-            $creationResult = $proxmoxApi->createLXC($vmParams);
-            // Добавляем VNC консоль и для LXC
-            $vncUrl = "https://{$node['hostname']}:8006/?console=lxc&novnc=1&vmid={$creationResult['vmid']}&vmname=" .
-                     urlencode($hostname) . "&node={$node['node_name']}&resize=scale&cmd=";
-        }
+            return [$proxmoxApi->createLXC($vmParams), $node];
+        });
+        $vncUrl = '/templates/vnc_console.php?' . http_build_query([
+            'node_id'=>$node['id'], 'vm_id'=>$creationResult['vmid'], 'redirect'=>1,
+        ]);
 
         $vmId = $creationResult['vmid'];
 
@@ -1672,21 +1651,18 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
 
                 <!-- 2. Выбор ноды -->
                 <div class="form-section">
-                    <h3><i class="fas fa-server"></i> 2. Выберите ноду размещения</h3>
+                    <h3><i class="fas fa-server"></i> 2. Выберите зону доступности</h3>
                     <div class="form-group">
-                        <label class="form-label">Сервер размещения:</label>
-                        <select name="node_id" class="form-control" required id="node-select">
-                            <option value="">-- Выберите ноду --</option>
-                            <?php foreach ($nodes as $node): ?>
-                                <option value="<?= $node['id'] ?>"
-                                    <?= ($node['id'] == ($_POST['node_id'] ?? 0)) ? 'selected' : '' ?>
-                                    data-hostname="<?= htmlspecialchars($node['hostname']) ?>">
-                                    <?= htmlspecialchars($node['node_name']) ?>
-                                    (<?= htmlspecialchars($node['cluster_name']) ?>)
+                        <label class="form-label" for="node-select">Зона доступности</label>
+                        <select name="zone_id" class="form-control" required id="node-select">
+                            <option value="">Выберите зону</option>
+                            <?php foreach ($zones as $zone): ?>
+                                <option value="<?= (int)$zone['id'] ?>" <?= $zone['id'] == ($_POST['zone_id'] ?? 0) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($zone['name'], ENT_QUOTES) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <small class="text-muted">Доступные ресурсы ноды отобразятся после выбора</small>
+                        <small class="text-muted">Панель подберёт хост после проверки ресурсов и выбранных пулов.</small>
                     </div>
 
                     <!-- Прогресс-бар загрузки данных ноды -->
@@ -1702,14 +1678,14 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 <div class="form-section">
                     <h3><i class="fas fa-network-wired"></i> 3. Настройка сети</h3>
                     <div class="form-group">
-                        <label class="form-label">Основной сетевой интерфейс:</label>
-                        <select name="network" class="form-control" required id="network-select">
-                            <option value="vmbr0">vmbr0</option>
+                        <label class="form-label">Пул внешних сетей:</label>
+                        <select name="network_pool" class="form-control" id="network-select">
+                            <option value="">Выберите пул</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Дополнительная SDN сеть:</label>
+                        <label class="form-label">SDN вместо внешней сети:</label>
                         <select name="sdn" class="form-control" id="sdn-select">
                             <option value="">-- Не использовать SDN --</option>
                         </select>
@@ -1722,7 +1698,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     <h3><i class="fas fa-database"></i> 4. Настройка диска</h3>
                     <div class="form-group">
                         <label class="form-label">Хранилище:</label>
-                        <select name="storage" class="form-control" required id="storage-select">
+                        <select name="storage_pool" class="form-control" required id="storage-select">
                             <option value="">-- Выберите хранилище --</option>
                         </select>
                         <small class="text-muted" id="storage-info"></small>
@@ -1906,228 +1882,34 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             }
 
             // Загрузка данных ноды
-            async function loadNodeResources(nodeId, vmType) {
-                if (!nodeId) return;
-
-                // Показываем контейнер загрузки
-                if (nodeLoadingContainer) {
-                    nodeLoadingContainer.style.display = 'block';
-                }
-                updateNodeProgress(10, 'Загрузка данных ноды...');
-
+            let zoneRequest = 0;
+            async function loadNodeResources(zoneId, vmType) {
+                const requestId = ++zoneRequest;
+                const fields = {
+                    network: document.getElementById('network-select'),
+                    storage: document.getElementById('storage-select'),
+                    sdn: document.getElementById('sdn-select'),
+                    media: document.getElementById(vmType === 'qemu' ? 'iso-select' : 'template-select')
+                };
+                const placeholders = {network:'Выберите пул', storage:'Выберите пул', sdn:'Без SDN',
+                    media: vmType === 'qemu' ? 'Без ISO' : 'Выберите шаблон'};
+                for (const [key, select] of Object.entries(fields)) select.replaceChildren(new Option(placeholders[key], ''));
+                if (!zoneId) return;
+                const query = new URLSearchParams({zone_id: zoneId, vm_type: vmType});
+                if (nodeLoadingContainer) nodeLoadingContainer.style.display = 'block';
+                updateNodeProgress(30, 'Загрузка ресурсов зоны…');
                 try {
-                    const response = await fetch(`get_node_networks.php?node_id=${nodeId}&vm_type=${vmType}`);
-                    if (!response.ok) throw new Error('Ошибка сервера');
-
+                    const response = await fetch('get_zone_placement.php?' + query);
+                    if (!response.ok) throw new Error('Ресурсы зоны недоступны');
                     const data = await response.json();
-                    if (!data.success) throw new Error(data.error || 'Ошибка загрузки данных');
-
-                    updateNodeProgress(30, 'Загрузка сетевых интерфейсов...');
-
-                    // Обновляем список сетей
-                    const networkSelect = document.getElementById('network-select');
-                    if (networkSelect) {
-                        networkSelect.innerHTML = data.networks.map(net =>
-                            `<option value="${net}">${net}</option>`
-                        ).join('');
+                    if (requestId !== zoneRequest) return;
+                    for (const [key, select] of Object.entries(fields)) {
+                        for (const value of data[key]) select.add(new Option(value, value));
                     }
-
-                    // Обновляем список SDN сетей
-                    const sdnSelect = document.getElementById('sdn-select');
-                    if (sdnSelect) {
-                        sdnSelect.innerHTML = '<option value="">-- Не использовать SDN --</option>' +
-                            (data.sdnNetworks?.map(sdn =>
-                                `<option value="${sdn.name}">${sdn.name}${sdn.alias ? ' (' + sdn.alias + ')' : ''}</option>`
-                            ).join('') || '');
-                    }
-
-                    updateNodeProgress(50, 'Загрузка информации о ресурсах...');
-
-                    // Обновляем информацию о ресурсах ноды (плитки CPU, RAM и кликабельные хранилища)
-const nodeResources = document.getElementById('node-resources');
-if (nodeResources) {
-    const storages = data.resources?.storages || [];
-    const hasStorages = storages.length > 0;
-
-    const resourcesHtml = `
-        <div class="form-group">
-            <label class="form-label">Доступные ресурсы:</label>
-            <div class="resources-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <!-- Плитка CPU -->
-                <div class="stat-card" style="background: rgba(59,130,246,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(59,130,246,0.2);">
-                    <i class="fas fa-microchip" style="font-size: 24px; color: #3b82f6;"></i>
-                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${data.resources?.cpu_usage || 0}%</div>
-                    <div style="font-size: 14px; color: var(--node-text-secondary);">Загрузка CPU</div>
-                </div>
-                <!-- Плитка RAM -->
-                <div class="stat-card" style="background: rgba(16,185,129,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(16,185,129,0.2);">
-                    <i class="fas fa-memory" style="font-size: 24px; color: #10b981;"></i>
-                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${data.resources?.free_memory || 0} GB</div>
-                    <div style="font-size: 14px; color: var(--node-text-secondary);">Свободная память</div>
-                </div>
-                <!-- Плитка Хранилищ (кликабельная) -->
-                <div id="storage-stats-card" class="stat-card" style="background: rgba(139,92,246,0.1); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid rgba(139,92,246,0.2);">
-                    <i class="fas fa-database" style="font-size: 24px; color: #8b5cf6;"></i>
-                    <div style="font-size: 24px; font-weight: 700; margin-top: 8px;">${storages.length}</div>
-                    <div style="font-size: 14px; color: var(--node-text-secondary);">Доступных хранилищ</div>
-                </div>
-            </div>
-            <!-- Блок для отображения списка хранилищ (изначально скрыт) -->
-            <div id="storages-list" style="display: none;">
-                ${hasStorages ? `
-                    <label class="form-label" style="margin-top: 15px;">Детальная информация о хранилищах:</label>
-                    <div class="storages-grid">
-                        ${storages.map(storage => `
-                            <div class="storage-item">
-                                <div class="storage-header">
-                                    <i class="fas fa-hdd"></i>
-                                    <div class="storage-name">${storage.name}</div>
-                                    <div class="storage-type">${storage.type}</div>
-                                </div>
-                                <div class="storage-details">
-                                    📀 Свободно: <strong>${storage.available} GB</strong>${storage.total > 0 ? ` из ${storage.total} GB` : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : '<p class="text-muted" style="margin-top: 15px;">Нет доступных хранилищ</p>'}
-            </div>
-        </div>
-    `;
-    nodeResources.innerHTML = resourcesHtml;
-    nodeResources.style.display = 'block';
-
-    // Добавляем обработчик клика на карточку хранилищ
-    const storageCard = document.getElementById('storage-stats-card');
-    const storagesListDiv = document.getElementById('storages-list');
-    if (storageCard && storagesListDiv) {
-        storageCard.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const isVisible = storagesListDiv.style.display === 'block';
-            storagesListDiv.style.display = isVisible ? 'none' : 'block';
-            this.classList.toggle('active');
-        });
-    }
-}
-
-                    updateNodeProgress(70, 'Загрузка хранилищ...');
-
-                    // Обновляем список хранилищ
-                    const storageSelect = document.getElementById('storage-select');
-                    if (storageSelect) {
-                        storageSelect.innerHTML = '<option value="">-- Выберите хранилище --</option>' +
-                            (data.storages?.map(storage =>
-                                `<option value="${storage.name}">${storage.name} (${storage.type}${storage.type === 'lvmthin' ? ', LVM-Thin' : ''}, ${storage.available || 0}GB свободно)</option>`
-                            ).join('') || '<option value="" disabled>Нет доступных хранилищ</option>');
-                    }
-
-                    updateNodeProgress(90, vmType === 'qemu' ? 'Загрузка ISO образов...' : 'Загрузка шаблонов LXC...');
-
-                    if (vmType === 'qemu') {
-                        // Обновляем список ISO образов
-                        const isoSelect = document.getElementById('iso-select');
-                        if (isoSelect) {
-                            isoSelect.innerHTML = '<option value="">-- Не подключать --</option>' +
-                                (data.isos?.map(iso =>
-                                    `<option value="${iso.volid}">${iso.name} (${iso.storage})</option>`
-                                ).join('') || '<option value="" disabled>Нет доступных ISO образов</option>');
-                        }
-
-                        // Показываем секцию ISO, скрываем шаблоны
-                        const isoContainer = document.getElementById('iso-container');
-                        const templateContainer = document.getElementById('template-container');
-                        const osTypeContainer = document.getElementById('os-type-container');
-                        const osVersionContainer = document.getElementById('os-version-container');
-
-                        if (isoContainer) isoContainer.style.display = 'block';
-                        if (templateContainer) templateContainer.style.display = 'none';
-                        if (osTypeContainer) osTypeContainer.style.display = 'block';
-                        if (osVersionContainer) osVersionContainer.style.display = 'block';
-
-                        // Устанавливаем required для полей QEMU
-                        const osTypeSelect = document.getElementById('os-type-select');
-                        const osVersionSelect = document.getElementById('os-version-select');
-                        const templateSelect = document.getElementById('template-select');
-
-                        if (osTypeSelect) osTypeSelect.required = true;
-                        if (osVersionSelect) osVersionSelect.required = true;
-                        if (templateSelect) templateSelect.required = false;
-                    } else {
-                        // Обновляем список шаблонов LXC
-                        const templateSelect = document.getElementById('template-select');
-                        if (templateSelect) {
-                            templateSelect.innerHTML = '<option value="">-- Выберите шаблон --</option>' +
-                                (data.templates?.map(tpl =>
-                                    `<option value="${tpl.volid}">${tpl.name} (${tpl.storage})</option>`
-                                ).join('') || '<option value="" disabled>Нет доступных шаблонов</option>');
-                        }
-
-                        // Показываем секцию шаблонов, скрываем ISO
-                        const isoContainer = document.getElementById('iso-container');
-                        const templateContainer = document.getElementById('template-container');
-                        const osTypeContainer = document.getElementById('os-type-container');
-                        const osVersionContainer = document.getElementById('os-version-container');
-
-                        if (isoContainer) isoContainer.style.display = 'none';
-                        if (templateContainer) templateContainer.style.display = 'block';
-                        if (osTypeContainer) osTypeContainer.style.display = 'none';
-                        if (osVersionContainer) osVersionContainer.style.display = 'none';
-
-                        // Устанавливаем required для полей LXC
-                        const osTypeSelect = document.getElementById('os-type-select');
-                        const osVersionSelect = document.getElementById('os-version-select');
-                        /*const templateSelect = document.getElementById('template-select');*/
-
-                        if (osTypeSelect) osTypeSelect.required = false;
-                        if (osVersionSelect) osVersionSelect.required = false;
-                        if (templateSelect) templateSelect.required = true;
-                    }
-
-                    updateNodeProgress(100, 'Загрузка завершена');
-
-                    // Через 1 секунду скрываем прогресс-бар
-                    setTimeout(() => {
-                        if (nodeLoadingContainer) {
-                            nodeLoadingContainer.style.opacity = '0';
-                            setTimeout(() => {
-                                nodeLoadingContainer.style.display = 'none';
-                                nodeLoadingContainer.style.opacity = '1';
-                            }, 500);
-                        }
-                    }, 1000);
-
+                    fields.network.disabled = false;
+                    updateNodeProgress(100, 'Ресурсы зоны загружены');
                 } catch (error) {
-                    console.error('Ошибка загрузки ресурсов ноды:', error);
-                    updateNodeProgress(100, 'Ошибка загрузки данных');
-
-                    const nodeResources = document.getElementById('node-resources');
-                    if (nodeResources) {
-                        nodeResources.innerHTML = `
-                            <div class="notification notification-danger">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                ${error.message}
-                            </div>
-                        `;
-                        nodeResources.style.display = 'block';
-                    }
-
-                    const storageSelect = document.getElementById('storage-select');
-                    const isoSelect = document.getElementById('iso-select');
-                    const templateSelect = document.getElementById('template-select');
-
-                    if (storageSelect) storageSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-                    if (isoSelect) isoSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-                    if (templateSelect) templateSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
-
-                    setTimeout(() => {
-                        if (nodeLoadingContainer) {
-                            nodeLoadingContainer.style.opacity = '0';
-                            setTimeout(() => {
-                                nodeLoadingContainer.style.display = 'none';
-                                nodeLoadingContainer.style.opacity = '1';
-                            }, 500);
-                        }
-                    }, 2000);
+                    if (requestId === zoneRequest) updateNodeProgress(100, 'Не удалось загрузить ресурсы зоны');
                 }
             }
 
@@ -2365,13 +2147,14 @@ if (nodeResources) {
                 form.addEventListener('submit', function(e) {
                     const isCustom = document.getElementById('is-custom').value === '1';
                     const vmType = document.getElementById('vm-type').value;
-                    const nodeId = document.querySelector('select[name="node_id"]')?.value;
-                    const storage = document.querySelector('select[name="storage"]')?.value;
+                    const zoneId = document.querySelector('select[name="zone_id"]')?.value;
+                    const network = document.getElementById('network-select').value || document.getElementById('sdn-select').value;
+                    const storage = document.querySelector('select[name="storage_pool"]')?.value;
                     const tariffId = !isCustom ? document.querySelector('input[name="tariff_id"]:checked')?.value : null;
                     const osVersion = vmType === 'qemu' ? document.querySelector('select[name="os_version"]')?.value : null;
                     const template = vmType === 'lxc' ? document.querySelector('select[name="template"]')?.value : null;
 
-                    if (!nodeId || (!isCustom && !tariffId) || !storage ||
+                    if (!zoneId || !network || (!isCustom && !tariffId) || !storage ||
                         (vmType === 'qemu' && !osVersion) ||
                         (vmType === 'lxc' && !template)) {
                         e.preventDefault();
@@ -2424,7 +2207,7 @@ if (nodeResources) {
             }
 
             // Обработчик изменения ноды
-            const nodeSelect = document.querySelector('select[name="node_id"]');
+            const nodeSelect = document.querySelector('select[name="zone_id"]');
             if (nodeSelect) {
                 nodeSelect.addEventListener('change', function() {
                     const nodeId = this.value;
@@ -2479,7 +2262,7 @@ if (nodeResources) {
                     if (networkSelect) {
                         if (this.value) {
                             networkSelect.disabled = true;
-                            networkSelect.value = 'vmbr0';
+                            networkSelect.value = '';
                         } else {
                             networkSelect.disabled = false;
                         }
@@ -2488,7 +2271,7 @@ if (nodeResources) {
             }
 
             // Загружаем ресурсы ноды, если она уже выбрана
-            const selectedNode = document.querySelector('select[name="node_id"]')?.value;
+            const selectedNode = document.querySelector('select[name="zone_id"]')?.value;
             if (selectedNode) {
                 loadNodeResources(selectedNode, vmTypeInput.value);
             }
