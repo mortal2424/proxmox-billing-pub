@@ -89,6 +89,7 @@ struct CloudTicketThread: Decodable {
 struct CloudItems<T: Decodable>: Decodable { let items: [T] }
 struct CloudGuestLive: Decodable {
     let status: String
+    let ipAddress: String?
     let cpu: Double?
     let memory: Double?
     let uptime: Int

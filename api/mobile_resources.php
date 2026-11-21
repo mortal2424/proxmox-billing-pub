@@ -141,7 +141,7 @@ try {
         mobileRespond(['items' => $items, 'next' => count($users) > 50 ? $items[49]['id'] : null]);
     }
     if (in_array($resource, ['guest','guest_metrics'], true)) {
-        $query = $pdo->prepare('SELECT v.vm_id,v.vm_type,n.* FROM vms v JOIN proxmox_nodes n ON n.id=v.node_id
+        $query = $pdo->prepare('SELECT v.vm_id,v.vm_type,v.ip_address AS guest_ip_address,n.* FROM vms v JOIN proxmox_nodes n ON n.id=v.node_id
             WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1 AND v.status<>\'deleted\'');
         $query->execute([(int) ($_GET['id'] ?? 0), $userId, (int) $isAdmin]);
         $node = $query->fetch(PDO::FETCH_ASSOC);
@@ -171,6 +171,7 @@ try {
         }
         $state = $api->request('GET', $path . '/status/current');
         mobileRespond(['status' => $state['status'] ?? 'unknown',
+            'ipAddress' => $node['guest_ip_address'],
             'cpu' => isset($state['cpu']) ? (float) $state['cpu'] * 100 : null,
             'memory' => ($state['maxmem'] ?? 0) > 0 ? (float) $state['mem'] / $state['maxmem'] * 100 : null,
             'uptime' => (int) ($state['uptime'] ?? 0)]);
