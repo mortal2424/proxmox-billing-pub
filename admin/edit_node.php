@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Валидация
             if (empty($cluster_id)) {
-                throw new Exception("Кластер должен быть выбран");
+                throw new Exception("Выберите зону доступности");
             }
 
             if (empty($node_name)) {
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                      WHERE cluster_id = ? AND is_cluster_master = 1 AND id != ?");
                 $stmt->execute([$cluster_id, $node['id']]);
                 if ($stmt->fetchColumn() > 0) {
-                    throw new Exception("В этом кластере уже есть главная нода");
+                    throw new Exception("В этой зоне уже есть главная нода");
                 }
             }
 
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   WHERE cluster_id = ? AND node_name = ? AND id != ?");
             $stmt->execute([$cluster_id, $node_name, $node['id']]);
             if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Нода с таким именем уже существует в этом кластере");
+                throw new Exception("Нода с таким именем уже существует в этой зоне");
             }
 
             // Проверка уникальности хоста и порта (кроме текущей)
@@ -960,7 +960,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
     <!-- Подключаем сайдбар -->
-    <?php require 'admin_sidebar.php'; ?>
+    <?php require __DIR__ . '/admin_header.php'; ?>
+    <?php require __DIR__ . '/admin_sidebar.php'; ?>
 
     <!-- Основной контент -->
     <div class="edit-wrapper">
@@ -1014,7 +1015,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label required">
-                                        <i class="fas fa-network-wired"></i> Кластер
+                                        <i class="fas fa-network-wired"></i> Зона доступности
                                     </label>
                                     <select name="cluster_id" class="form-input" required id="clusterSelect">
                                         <?php foreach ($clusters as $cluster): ?>
@@ -1037,7 +1038,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                            required
                                            maxlength="50"
                                            id="nodeName">
-                                    <span class="form-hint">Уникальное имя ноды в рамках кластера</span>
+                                    <span class="form-hint">Уникальное имя ноды в зоне доступности</span>
                                 </div>
 
                                 <div class="form-group">
@@ -1124,8 +1125,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                            id="isClusterMaster">
                                     <span class="checkmark"></span>
                                     <span class="checkbox-label">
-                                        <i class="fas fa-crown"></i> Главная нода кластера
-                                        <span class="checkbox-hint">Используется для VNC консоли всех нод кластера</span>
+                                        <i class="fas fa-crown"></i> Главная нода зоны
+                                        <span class="checkbox-hint">Назначает эту ноду главной в выбранной зоне</span>
                                     </span>
                                 </label>
 
