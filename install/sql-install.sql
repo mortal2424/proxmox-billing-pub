@@ -1029,6 +1029,7 @@ CREATE TABLE `vms_admin` (
 
 CREATE TABLE `vm_billing` (
   `id` int(11) NOT NULL,
+  `guest_id` int(11) NOT NULL,
   `vm_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `cpu` int(11) NOT NULL,
@@ -1901,7 +1902,7 @@ ALTER TABLE `user_services`
 -- Ограничения внешнего ключа таблицы `vm_billing`
 --
 ALTER TABLE `vm_billing`
-  ADD CONSTRAINT `vm_billing_ibfk_1` FOREIGN KEY (`vm_id`) REFERENCES `vms` (`vm_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `vm_billing_guest_fk` FOREIGN KEY (`guest_id`) REFERENCES `vms` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `vm_billing_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 COMMIT;
 

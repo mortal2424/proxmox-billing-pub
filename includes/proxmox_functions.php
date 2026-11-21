@@ -322,7 +322,7 @@ class ProxmoxAPI {
 
         // 12. Создаем запись о биллинге для кастомных тарифов
         if ($isCustom) {
-            $this->createBillingRecord($vmid, $params);
+            $this->createBillingRecord((int)$this->pdo->lastInsertId(), $vmid, $params);
         }
 
         $commitAttempted = true;
@@ -518,7 +518,7 @@ public function createLXC($params) {
         ]);
 
         if ($params['is_custom'] ?? 0) {
-            $this->createBillingRecord($vmid, $params);
+            $this->createBillingRecord((int)$this->pdo->lastInsertId(), $vmid, $params);
         }
 
         $commitAttempted = true;
@@ -762,7 +762,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
         }
     }
 
-    private function createBillingRecord($vmid, $params) {
+    private function createBillingRecord(int $guestId, $vmid, $params) {
         try {
             // Получаем цены за ресурсы из базы данных
             $stmt = $this->pdo->prepare("
@@ -791,12 +791,13 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             // Создаем запись о биллинге
             $stmt = $this->pdo->prepare("
                 INSERT INTO vm_billing
-                (vm_id, user_id, cpu, ram, disk, price_per_hour_cpu, price_per_hour_ram,
+                (guest_id, vm_id, user_id, cpu, ram, disk, price_per_hour_cpu, price_per_hour_ram,
                  price_per_hour_disk, total_per_hour, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
             ");
 
             $stmt->execute([
+                $guestId,
                 $vmid,
                 $params['user_id'] ?? $_SESSION['user']['id'],
                 $params['cpu'],

@@ -57,6 +57,7 @@ safeQuery($pdo, "CREATE TABLE IF NOT EXISTS promotions (
 
 safeQuery($pdo, "CREATE TABLE IF NOT EXISTS vm_billing (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    guest_id INT NOT NULL,
     vm_id INT NOT NULL,
     user_id INT NOT NULL,
     cpu INT NOT NULL,
@@ -68,7 +69,7 @@ safeQuery($pdo, "CREATE TABLE IF NOT EXISTS vm_billing (
     total_per_hour DECIMAL(10,6) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (vm_id) REFERENCES vms(vm_id) ON DELETE CASCADE,
+    CONSTRAINT vm_billing_guest_fk FOREIGN KEY (guest_id) REFERENCES vms(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )");
 

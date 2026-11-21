@@ -117,14 +117,28 @@ trait ProxmoxGuestMutations
     public function deleteVm($vmid,$type)
     {
         return $this->guestMutation($vmid,(string)$type,function($vm,$api)use($vmid,$type){
-            // The legacy vm_billing FK references vm_id rather than vms.id. Do not cascade into another node's records.
-            $query=$this->pdo->prepare('SELECT COUNT(*) FROM vms WHERE vm_id=? AND id<>?');$query->execute([$vmid,$vm['id']]);
-            if((int)$query->fetchColumn()>0)throw new RuntimeException('Этот VMID повторяется в БД. До миграции связей биллинга удаление через панель недоступно');
+            $links = $this->pdo->query("
+                SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vm_billing'
+                    AND REFERENCED_TABLE_NAME='vms'
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            $hasGuestLink = $links === [['COLUMN_NAME'=>'guest_id', 'REFERENCED_COLUMN_NAME'=>'id']];
+            if (!$hasGuestLink) {
+                $query = $this->pdo->prepare('SELECT COUNT(*) FROM vms WHERE vm_id=? AND id<>?');
+                $query->execute([$vmid, $vm['id']]);
+                if ((int)$query->fetchColumn() > 0) {
+                    throw new RuntimeException('Удаление повторяющегося VMID доступно после миграции биллинга');
+                }
+            }
             $api->destroy($vmid,$type);
             try{
                 $this->pdo->query('SELECT 1');
                 $this->pdo->beginTransaction();
-                $guard=$this->pdo->prepare('SELECT id,user_id,node_id,vm_type FROM vms WHERE vm_id=? FOR UPDATE');$guard->execute([$vmid]);
+                $guard = $this->pdo->prepare($hasGuestLink
+                    ? 'SELECT id,user_id,node_id,vm_type FROM vms WHERE id=? AND vm_id=? FOR UPDATE'
+                    : 'SELECT id,user_id,node_id,vm_type FROM vms WHERE vm_id=? FOR UPDATE');
+                $guard->execute($hasGuestLink ? [$vm['id'], $vmid] : [$vmid]);
                 $matching=$guard->fetchAll(PDO::FETCH_ASSOC);
                 if(count($matching)!==1||(int)$matching[0]['id']!==(int)$vm['id']||(int)$matching[0]['user_id']!==(int)$vm['user_id']||(int)$matching[0]['node_id']!==(int)$this->nodeId||$matching[0]['vm_type']!==$type)throw new RuntimeException('Изменились связи VMID в БД');
                 $query=$this->pdo->prepare('DELETE FROM vms WHERE id=? AND node_id=? AND vm_id=? AND vm_type=? AND user_id=?');
