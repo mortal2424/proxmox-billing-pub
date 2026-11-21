@@ -696,6 +696,44 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
             color: #edf4f7;
         }
 
+        .workspace-vm-tools {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .workspace-vm-tools .search-box {
+            margin-left: 0;
+        }
+
+        body:not(.workspace) .workspace-vm-tools select {
+            min-height: 36px;
+            max-width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            background: #fff;
+            color: #172438;
+            font: inherit;
+            font-size: 14px;
+            color-scheme: light;
+        }
+
+        body.dark-theme:not(.workspace) .workspace-vm-tools select {
+            background: #1e293b;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #edf4f7;
+            color-scheme: dark;
+        }
+
+        .workspace-vm-tools select:focus-visible {
+            outline: 2px solid #0d9488;
+            outline-offset: 2px;
+        }
+
         /* Пустое состояние */
         .empty-state {
             text-align: center;
