@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.37",
+  "from": "2.5.1-beta8.36",
+  "source_commit": "65c5d05ad8b35ed4d1e44b872d7a72889d63d7a1",
+  "changelog": "Карточка ВМ и LXC на iPhone получает последний сохранённый IP при открытии и обновлении.\n",
+  "files": {
+    "api/mobile_resources.php": {
+      "before": "c4cc28a93165a480c9bc8245549a85fe3bf3327193eb035444102334bbebce3e",
+      "sha256": "9e217f87d26eff975092afa3c272cb8fa9ba851f2a44063d9f9bc2384d630104"
+    },
+    "includes/version.php": {
+      "before": "ebeb24410384baef2364909160e8aeec644c95e05dad27cd9ee8096e03bede53",
+      "sha256": "a3b32c82e8ed1619c117684dd50a28080bc58d2c0bde32e2569bc1a30c74c251"
+    }
+  }
+}
