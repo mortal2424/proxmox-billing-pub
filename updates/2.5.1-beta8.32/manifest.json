@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.32",
+  "from": "2.5.1-beta8.31",
+  "source_commit": "db0c25c57556977d50c0645c1e5796eeb293834c",
+  "changelog": "«Потребление платформы» перенесено из биллинга в боковое меню кабинета.\n",
+  "files": {
+    "includes/version.php": {
+      "before": "3bd59b0eed5903163ff58fa10e7ce46a16333d43415b3c66b04a3d1a85722ae4",
+      "sha256": "4569128093c8a8e346d11d5d64df14d77b1430db3a214aeca4720c237ffbabd0"
+    },
+    "templates/billing.php": {
+      "before": "ec8c4c09245c724af584a0b86a539780136988528e7a9772dec3d44204b54ad3",
+      "sha256": "5134617f85b498d9083cd9b88466cc2c94bbb722f782339f188943ee5f6d9389"
+    },
+    "templates/headers/user_sidebar.php": {
+      "before": "edbe1f21742da67dca6106f072d7d4025724892cf220abd5b1ff542c96c2344f",
+      "sha256": "e2c6891c81ef6ab85c57979ba2ccca3f403ef6ab9fd7a4b83c3b081830c35701"
+    },
+    "templates/headers/workspace_nav.php": {
+      "before": "2983334d981f7a7bc537d17c08544d0289f988ae610e87532fe916d8640389eb",
+      "sha256": "2ff44c688b85cc546e9a4d08b67888bc863cb19d6c4a5a591e359d4d5dafdb94"
+    }
+  }
+}
