@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.41",
+  "from": "2.5.1-beta8.40",
+  "source_commit": "5b66017d9538c335903c4db923bac196a391e9ab",
+  "changelog": "Нативная админка HomeVlad 1.5: поиск, создание и редактирование пользователей, управление доступом и просмотр баланса.\nПоиск, фильтры и карточки платежей, создание ручного платежа, подтверждение с зачислением и отклонение.\nВ настройках зон на iPhone подписи полей остаются видимыми после заполнения.\n",
+  "files": {
+    "api/mobile_admin.php": {
+      "before": "d89215fbe35439a5db6367095b3052947bb86cd83eeb0eeab159d7cc0dcb2b70",
+      "sha256": "05c35611276f90d4dea4c4916b8e598095531fba04baf20bdabb6af23eaec3a7"
+    },
+    "includes/mobile_admin_directory.php": {
+      "before": null,
+      "sha256": "8ea51f919b1a1a1d8738228cad0b740865120bab00481cd294228241b82f78a3"
+    },
+    "includes/version.php": {
+      "before": "6601dee650adfe721dca1f68aefa970054e2573b98cc97dbb00ec3a7b63f1464",
+      "sha256": "37a3cdf93f16c0aa307c43d51d1183937431342d61ba05d94c8909182c90e5e8"
+    }
+  }
+}
