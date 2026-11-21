@@ -234,6 +234,12 @@
       "commit": "98b4d52591e310db53665eb2d3b574abc298fbbf",
       "sha256": "4b4a356cde7708e4177563ed0ca179c9de9b07407d39bf44a6554c58d8d0ae63",
       "summary": "Исправление чтения каталога после фоновой проверки."
+    },
+    {
+      "version": "2.5.1-beta8.39",
+      "commit": "ee9eb1e1412058081d3c71688e37256b6ed1eeeb",
+      "sha256": "93f5f96f56e4c178840b1c8f329edda8fcc5173c84ea9abfd506990bcb0882c8",
+      "summary": "Нативная VNC-консоль ВМ и LXC для iPhone."
     }
   ]
 }
