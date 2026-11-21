@@ -207,6 +207,7 @@ class ProxmoxAPI {
                 'serial0' => 'socket',
             ], 600);
             $this->guestApi()->resize($vmid, 'qemu', 'scsi0', (int)$diskSize, $storage);
+            $this->apiClient->requestAndWait('PUT', $guestPath . '/cloudinit');
         } else {
             // 5. Настройка дисков
             $diskSize = (string)($params['disk'] ?? '10');

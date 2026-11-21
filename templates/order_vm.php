@@ -126,6 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         if (!$zoneId) throw new Exception('Не выбрана зона доступности');
         if (empty($hostname)) throw new Exception('Укажите имя хоста');
         if (empty($password)) throw new Exception('Необходимо задать пароль администратора');
+        if ($fromCloud && (!is_string($password) || strlen($password) < 8)) {
+            throw new InvalidArgumentException('Пароль cloud-init должен содержать минимум 8 символов');
+        }
         if ($password !== $confirmPassword) throw new Exception('Пароли не совпадают');
         if ($storagePool === '') throw new Exception('Не выбран пул хранилищ');
         if ($vmType === 'qemu' && empty($osVersion)) throw new Exception('Необходимо указать версию ОС');
@@ -1946,6 +1949,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                         }
                     }
                     if (fields.cloud) {
+                        if (fields.cloud.options.length === 1) fields.cloud.options[0].text = 'В зоне нет cloud-образов';
                         if (fields.cloud.dataset.selected) {
                             fields.cloud.value = fields.cloud.dataset.selected;
                             if (fields.cloud.selectedIndex === -1) fields.cloud.selectedIndex = 0;
