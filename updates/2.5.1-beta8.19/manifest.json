@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.19",
+  "from": "2.5.1-beta8.18",
+  "source_commit": "95253ef4cca95b53523e5bd9cc411c13d20210b5",
+  "changelog": "Добавлено создание ВМ Windows Server 2022 и 2025 из подготовленных образов QCOW2 с Cloudbase-Init.\nУстановка из ISO доступна отдельным вариантом.\nДобавлены публикация образов Windows на выбранной ноде и проверка требований при заказе.\nУвеличено время выполнения PHP для импорта больших cloud-образов.\nREADME описывает подготовку и перенос образов в другую зону доступности.\nНа node2 проверены создание обеих версий из кабинета и вход с заданными паролями.\n",
+  "files": {
+    "admin/cloud_image_action.php": {
+      "before": "1d98e97d9e8a8a14323abaf8763443e4b8e459cc3210f3004b02b110349069a4",
+      "sha256": "0548c1f602b632c516d59e0380b80b3029cb530fb18ae5b9967138e89d8a9437"
+    },
+    "admin/image.php": {
+      "before": "6a003141ac27c62173f724f3f99038bf98828dccbb220eab24b9d161db1322c7",
+      "sha256": "51c5a189eca91df41387f2499bbd031f1af8fbb36cffea503bc6c186323aa9ac"
+    },
+    "includes/cloud_image_import.php": {
+      "before": "3c380e7169ecb6fa89bc009ee8736e6f1b15151e523e1f86da0319e9f110d321",
+      "sha256": "6c191edcb2c1d3e78c86521bf59c18ffe5b8d12d7f4264d91b63ad5014a7126c"
+    },
+    "includes/cloud_images.php": {
+      "before": "25624eb256dd380880fc6f68ea82e0d7e8fcfe48bbb0f5f33da7586a1010a54b",
+      "sha256": "d3561a8b11e6334aa2b450e26e9167d5a51ed7808836130f5b933920652f0313"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "3af9b144fb9414c5d6db18b828c401d9aa112441470da59acadb41bc03b2bee8",
+      "sha256": "878387537b0b94dda4b54be7236264d52a92a4e25ba9bf15e5fa1e49afb5a316"
+    },
+    "includes/version.php": {
+      "before": "9cb1cff87677e4c0e2d05dc016c1845ab9f28000fab51e4b9fbcb4ff597eac3c",
+      "sha256": "35ef24e2bf003a04d27fa3f68718d1c93ea7336f63d97b83fca7c053d21ecf48"
+    },
+    "includes/zone_placement.php": {
+      "before": "3addb218ff87410605161ab73976e4a4bee4d7a68eb6c9891c05c85df0260c49",
+      "sha256": "0625671488cc176da3a8e215a08e084f2267f599ad52a9b8ca259ded82edeb85"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "4ddc56b7dce2ab074073d2e58e0080583d4df054bf25f3aad3af2019bb6bc95c",
+      "sha256": "c7eec762f39ea65d55430ec830500bb0837bea0f7ea85316b9c4426a884be327"
+    },
+    "templates/order_vm.php": {
+      "before": "c375ccca4742060ba82d60c109f3c307376967d950cb3cd757f0d8b10b6e3552",
+      "sha256": "20d9f3666850c6747170113f22dff17e7666e09c0d2ab359fd43df23babb67e2"
+    }
+  }
+}
