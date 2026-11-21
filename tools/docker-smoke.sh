@@ -52,6 +52,10 @@ ready() {
 ready
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T apache apache2ctl -t
+if [[ ${1:-} == backup ]]; then
+    source tools/docker-backup-smoke.sh
+    exit
+fi
 "${compose[@]}" exec -T apache sh -c 'cat >/tmp/homevlad-docker-pve.key; chmod 0600 /tmp/homevlad-docker-pve.key' < "$qa/pve.key"
 "${compose[@]}" cp tools/docker-smoke.py apache:/tmp/docker-smoke.py
 "${compose[@]}" cp tools/docker-smoke.php apache:/tmp/docker-smoke.php

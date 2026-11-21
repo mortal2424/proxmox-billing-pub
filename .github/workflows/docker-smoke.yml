@@ -2,7 +2,7 @@ name: Docker smoke
 on:
   workflow_dispatch:
   push:
-    branches: [codex/docker-console-updater]
+    branches: [codex/docker-console-updater, codex/docker-backup-recovery]
   pull_request:
     paths:
       - '.github/workflows/docker-smoke.yml'
@@ -15,6 +15,10 @@ on:
       - 'admin/update.php'
       - 'admin/ajax_apply_update.php'
       - 'tools/docker-smoke*'
+      - 'tools/docker-backup-smoke*'
+      - 'includes/backup_*.php'
+      - 'admin/backup*.php'
+      - 'cronjobs/*backup*.php'
 permissions:
   contents: read
 jobs:
@@ -26,4 +30,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - run: bash tools/docker-smoke.sh
+      - if: github.ref_name != 'codex/docker-backup-recovery'
+        run: bash tools/docker-smoke.sh
+      - run: bash tools/docker-smoke.sh backup

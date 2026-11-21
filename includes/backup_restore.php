@@ -98,8 +98,18 @@ function rollbackBackupRestore(string $root, array $journal): void
     if ($journal['database']) backupDatabaseCommand('import', $work . '/database-before.sql');
     foreach (array_reverse($journal['files'], true) as $path => $info) {
         $target = restoreSafeTarget($root, $path);
-        if ($info['existed']) restoreAtomicCopy($work . '/before/' . $path, $target, $info['mode']);
-        elseif (is_file($target) && !unlink($target)) throw new RuntimeException('Не удалось откатить добавленный файл');
+        if ($info['existed']) {
+            $before = $work . '/before/' . $path;
+            clearstatcache(true, $target);
+            $originalHash = hash_file('sha256', $before);
+            if ($originalHash !== false && is_file($target) && (fileperms($target) & 0777) === $info['mode'] &&
+                hash_file('sha256', $target) === $originalHash) {
+                continue;
+            }
+            restoreAtomicCopy($before, $target, $info['mode']);
+        } elseif (is_file($target) && !unlink($target)) {
+            throw new RuntimeException('Не удалось откатить добавленный файл');
+        }
     }
 }
 
