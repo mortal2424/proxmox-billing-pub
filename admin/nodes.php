@@ -422,6 +422,18 @@ require 'admin_header.php';
             box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
         }
 
+        .btn-group .btn-pools {
+            background: #d4efeb;
+            color: #075b54;
+            border: 1px solid #8fcac1;
+            flex: 0 0 36px;
+        }
+
+        .btn-group .btn-pools:hover, .btn-group .btn-pools:focus-visible {
+            background: #08786e;
+            color: #fff;
+        }
+
         .btn-edit {
             background: rgba(245, 158, 11, 0.1);
             color: var(--nodes-warning);
@@ -998,7 +1010,7 @@ require 'admin_header.php';
                                         <button onclick="showNodeCharts(<?= $node['id'] ?>, '<?= addslashes($node['cluster_name']) ?>', '<?= addslashes($node['node_name']) ?>')" class="btn-icon btn-chart" title="Графики">
                                             <i class="fas fa-chart-line"></i>
                                         </button>
-                                        <a href="node_placement_pools.php?id=<?= (int)$node['id'] ?>" class="btn-icon btn-edit" title="Пулы внешних сетей и хранилищ" aria-label="Пулы внешних сетей и хранилищ"><i class="fas fa-layer-group"></i></a>
+                                        <a href="node_placement_pools.php?id=<?= (int)$node['id'] ?>" class="btn-icon btn-pools" title="Пулы внешних сетей и хранилищ" aria-label="Пулы внешних сетей и хранилищ"><i class="fas fa-layer-group"></i></a>
                                         <a href="edit_node.php?id=<?= $node['id'] ?>" class="btn-icon btn-edit" title="Редактировать">
                                             <i class="fas fa-edit"></i>
                                         </a>
