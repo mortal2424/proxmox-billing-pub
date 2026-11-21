@@ -2,13 +2,9 @@
   "format": 1,
   "version": "2.5.1-beta8.23",
   "from": "2.5.1-beta8.22",
-  "source_commit": "7c9f2e095dc3a2442f70a264d0281186c66687d7",
+  "source_commit": "72ea753f3ab8fea03f0db58410c0790ef6a018cc",
   "changelog": "В заказе ВМ и LXC выбирается сетевой пул, включая входящие в него SDN.\nРесурсы зоны загружаются в фоне. У LXC-шаблонов отображаются понятные названия.\nДобавлена генерация пароля и защищённый показ владельцу на 24 часа с копированием.\nВ пользовательской консоли добавлен ввод логина и доступного пароля без подтверждения входа.\nВыровнены иконки в свёрнутых сайдбарах кабинета и админки.\nНа node2 проверено создание Debian cloud-ВМ и LXC через SDN-пул.\n",
   "files": {
-    "admin/admin_sidebar.php": {
-      "before": "050df085d593194737827c509613efd3bc85f1d3b2094714467fe221fa55ca54",
-      "sha256": "5df51af543595cdbd8943c24a6df86b30105340555aa4dfa37ff145b591731b6"
-    },
     "console/credential.php": {
       "before": null,
       "sha256": "cee75d177fc909062f7a5433b38428b5b655c7d3c01000dfc38eada78bf3233c"
@@ -24,6 +20,14 @@
     "cronjobs/create_guest_initial_passwords.php": {
       "before": null,
       "sha256": "f56a906601ff5e187f5bfa980387046b312bea21a870966bb464509ee186e48e"
+    },
+    "css/mobile.css": {
+      "before": "c7cdf11fdc10265cf3c4ac172bb5b6fe7a2a3e138e123d79a2f3050fcbef8598",
+      "sha256": "427e6e1bda0d80323e83f0febeb1521a47202698e68d617af2790ba0fffe857f"
+    },
+    "includes/app_head.php": {
+      "before": "eab9aad0c7176686fe3a53d77f6445ed7b7d709f4ddb39024cc7c039483d4e35",
+      "sha256": "f25bb6bb23ed75750f112374ca49fa7c07f218987e53ac545863b106642ddb3e"
     },
     "includes/console_launch.php": {
       "before": "da7973cd5f814f7a464800a3304776bb6baa52c2ecae4d187a71a15b1b32c632",
@@ -56,10 +60,6 @@
     "templates/get_zone_placement.php": {
       "before": "c7eec762f39ea65d55430ec830500bb0837bea0f7ea85316b9c4426a884be327",
       "sha256": "700b0b79b9c7965e377cce7607a58b42ec9284dfb6fbc4e0f795ef44c4301800"
-    },
-    "templates/headers/user_sidebar.php": {
-      "before": "edbe1f21742da67dca6106f072d7d4025724892cf220abd5b1ff542c96c2344f",
-      "sha256": "55f3225a2880b9123e0833566c774274720475675718745a4f12c345253fde6e"
     },
     "templates/my_vms.php": {
       "before": "fd573302cab53db20017d8cd5bfd76579c77aa143ec593029ae58ab7e8363855",
