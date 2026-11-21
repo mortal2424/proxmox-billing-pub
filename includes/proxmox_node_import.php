@@ -24,12 +24,50 @@ function discoverProxmoxMembers(ProxmoxApiClient $client, string $entryNode): ar
     return $members;
 }
 
-function importProxmoxMembers(PDO $db, array $connection, array $members): int
+function proxmoxMemberEndpoint(array $connection, string $name): ?string
 {
+    $entry = $connection['node_name'];
+    if ($name === $entry) return $connection['hostname'];
+    $prefix = $entry . '.';
+    if (!str_starts_with(strtolower($connection['hostname']), strtolower($prefix)) ||
+        !preg_match('/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/iD', $name)) return null;
+
+    $candidate = $name . '.' . substr($connection['hostname'], strlen($prefix));
+    if (!filter_var($candidate, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) return null;
+    try {
+        $api = new ProxmoxApiClient(array_replace($connection, ['hostname' => $candidate]));
+        $rows = $api->request('GET', '/cluster/status');
+        $nodes = array_filter($rows, static fn(array $row): bool => ($row['type'] ?? '') === 'node');
+        $local = array_filter($nodes, static fn(array $row): bool => !empty($row['local']));
+        if (array_values(array_column($local, 'name')) === [$name] &&
+            in_array($entry, array_column($nodes, 'name'), true)) return $candidate;
+    } catch (Throwable $error) {
+        error_log('Cannot verify direct Proxmox endpoint for member ' . $name);
+    }
+    return null;
+}
+
+function importProxmoxMembers(PDO $db, array $connection, array $members): array
+{
+    $zone = (int)$connection['cluster_id'];
+    $known = $db->prepare('SELECT node_name FROM proxmox_nodes WHERE cluster_id=?');
+    $known->execute([$zone]);
+    $registered = array_map('strtolower', $known->fetchAll(PDO::FETCH_COLUMN));
+    $hosts = [];
+    $skipped = [];
+    foreach ($members as $name => $status) {
+        if (in_array(strtolower($name), $registered, true)) continue;
+        $hostname = proxmoxMemberEndpoint($connection, $name);
+        if ($hostname === null) {
+            $skipped[] = $name;
+            continue;
+        }
+        $hosts[$name] = $hostname;
+    }
+
     $db->beginTransaction();
     try {
         $zones = $db->query('SELECT id,is_active FROM proxmox_clusters ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_KEY_PAIR);
-        $zone = $connection['cluster_id'];
         if (empty($zones[$zone])) throw new RuntimeException('Выберите активную зону доступности');
         $refresh = isset($connection['id']);
         if ($refresh) {
@@ -48,18 +86,19 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): int
             (cluster_id,node_name,hostname,api_port,ssh_port,username,password,is_active,description,is_cluster_master,last_check,status,available_for_users)
             VALUES (?,?,?,?,22,?,?,?,?,?,NOW(),?,?)');
         $count = 0;
-        foreach ($members as $name => $status) {
+        foreach ($hosts as $name => $hostname) {
             foreach ($existing as $node) {
-                $sameEndpoint = strcasecmp($node['hostname'], $connection['hostname']) === 0 &&
-                    (int)$node['api_port'] === $connection['api_port'];
-                if ($sameEndpoint && (int)$node['cluster_id'] !== $zone) {
-                    throw new RuntimeException('Этот адрес API уже используется в другой зоне');
-                }
-                if ((int)$node['cluster_id'] === $zone && strcasecmp($node['node_name'], $name) === 0) {
-                    if (!$refresh && !$sameEndpoint) throw new RuntimeException('Имя участника уже занято другим подключением в этой зоне');
+                $sameEndpoint = strcasecmp($node['hostname'], $hostname) === 0 &&
+                    (int)$node['api_port'] === (int)$connection['api_port'];
+                $sameZone = (int)$node['cluster_id'] === $zone;
+                if ($sameZone && strcasecmp($node['node_name'], $name) === 0) continue 2;
+                if ($sameEndpoint) {
+                    if ($name === $connection['node_name']) throw new RuntimeException('Этот адрес API уже используется другой нодой');
+                    $skipped[] = $name;
                     continue 2;
                 }
             }
+            $status = $members[$name];
             $master = !$refresh && $connection['is_cluster_master'] && $name === $connection['node_name'];
             if ($master) {
                 foreach ($existing as $node) {
@@ -68,12 +107,12 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): int
                     }
                 }
             }
-            $insert->execute([$zone,$name,$connection['hostname'],$connection['api_port'],$connection['username'],
+            $insert->execute([$zone,$name,$hostname,$connection['api_port'],$connection['username'],
                 $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,$status,(int)!$refresh]);
             ++$count;
         }
         $db->commit();
-        return $count;
+        return ['added' => $count, 'skipped' => $skipped];
     } catch (Throwable $error) {
         if ($db->inTransaction()) $db->rollBack();
         throw $error;

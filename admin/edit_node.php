@@ -39,8 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['refresh_cluster_membe
         $members = discoverProxmoxMembers(new ProxmoxApiClient($node), $node['node_name']);
         $node['cluster_id'] = (int)$node['cluster_id'];
         $node['api_port'] = (int)$node['api_port'];
-        $count = importProxmoxMembers((new Database())->getConnection(), $node, $members);
-        $_SESSION['success'] = sprintf('Найдено нод: %d. Добавлено: %d.', count($members), $count);
+        $result = importProxmoxMembers((new Database())->getConnection(), $node, $members);
+        $_SESSION['success'] = sprintf('Найдено нод: %d. Добавлено: %d.', count($members), $result['added']);
+        if ($result['skipped']) {
+            $_SESSION['error'] = 'Проверьте отдельный адрес и доступ API для нод: ' . implode(', ', $result['skipped']);
+        }
     } catch (Throwable $error) {
         error_log('Cluster member refresh failed for node ' . (int)$node['id'] . ': ' . get_class($error));
         $_SESSION['error'] = $error instanceof PDOException ? 'Не удалось сохранить новых участников.' : $error->getMessage();

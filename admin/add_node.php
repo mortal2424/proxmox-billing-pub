@@ -38,8 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $connection = compact('cluster_id', 'node_name', 'hostname', 'api_port', 'username', 'password',
             'is_active', 'description', 'is_cluster_master');
         $members = discoverProxmoxMembers(new ProxmoxApiClient($connection), $node_name);
-        $count = importProxmoxMembers($pdo, $connection, $members);
-        $_SESSION['success'] = "Участников найдено: " . count($members) . ". Добавлено: $count.";
+        $result = importProxmoxMembers($pdo, $connection, $members);
+        $_SESSION['success'] = sprintf('Найдено нод: %d. Добавлено: %d.', count($members), $result['added']);
+        if ($result['skipped']) {
+            $_SESSION['error'] = 'Проверьте отдельный адрес и доступ API для нод: ' . implode(', ', $result['skipped']);
+        }
         header("Location: nodes.php");
         exit;
     } catch (Exception $e) {
