@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.21",
+  "from": "2.5.1-beta8.20",
+  "source_commit": "669e2705bad59b040a923ab1f8a326e6faf0868d",
+  "changelog": "Мониторинг показывает доступность интернета из выделенной ВМ на каждой настроенной ноде.\nАгент проверяет DNS и HTTPS к двум внешним сайтам и отправляет подписанный отчёт.\nОтчёты с неверной подписью и повторные отчёты отклоняются.\nПроверено из гостевых ВМ на node2 и server0.\nREADME уточняет настройку контрольной ВМ и копирование эталонного QCOW2 между гипервизорами.\n",
+  "files": {
+    "api/network_probe_report.php": {
+      "before": null,
+      "sha256": "ee143d308eebb01f797e07076c75d469f2d086088520aadd6edcd9b1d2adbc05"
+    },
+    "cronjobs/register_network_probe.php": {
+      "before": null,
+      "sha256": "bc4b3f2a6192dad6223a503187989b45f94918e399f9b3839178840efc2217fc"
+    },
+    "includes/guest_network_probe.php": {
+      "before": null,
+      "sha256": "b062ebe328fc89b272a2a7498b9ff236201ea2ac988b90aa5a57e3103755637f"
+    },
+    "includes/infrastructure_status.php": {
+      "before": "60800eae10bdb56b26b0373db81abbf35d29d1857865a2c61938e4909d82f042",
+      "sha256": "05df778eea7de9aa4afe0742e847d2eaff4b3f24fa6d0c5860ff46678adac931"
+    },
+    "includes/version.php": {
+      "before": "de189477a1db79d78b3742dbedb50f920beab9dbe0f12b2c12c7e74b3a9f4ce1",
+      "sha256": "b340e7ad548f811d8fcaa75a7a4b42701fafa147eed9c5363865c3cac588b8e3"
+    }
+  }
+}
