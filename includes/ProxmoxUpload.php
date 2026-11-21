@@ -4,10 +4,11 @@ final class ProxmoxUpload
 {
     public static function send(string $url, array $tls, array $headers, string $file, string $filename, string $content): mixed
     {
-        if (!in_array($content,['iso','vztmpl'],true) ||
+        if (!in_array($content,['iso','vztmpl','import'],true) ||
             !preg_match('/^[A-Za-z0-9][A-Za-z0-9_.+-]{0,254}$/D',$filename) ||
             ($content==='iso'&&!preg_match('/\.iso$/iD',$filename)) ||
-            ($content==='vztmpl'&&!preg_match('/\.tar\.(?:gz|xz|zst)$/iD',$filename))) {
+            ($content==='vztmpl'&&!preg_match('/\.tar\.(?:gz|xz|zst)$/iD',$filename)) ||
+            ($content==='import'&&!preg_match('/\.qcow2$/iD',$filename))) {
             throw new InvalidArgumentException('Некорректное имя или тип образа');
         }
         $parts=parse_url($url);
