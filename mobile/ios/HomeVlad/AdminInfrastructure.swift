@@ -183,14 +183,32 @@ private struct AdminZoneEditor: View {
     var body: some View {
         Form {
             Section("Доступность") {
-                TextField("Название", text: $zone.name)
-                TextField("Описание", text: $zone.description, axis: .vertical)
+                LabeledContent("Название") {
+                    TextField("Введите название", text: $zone.name)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityLabel("Название")
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Описание").foregroundStyle(.secondary)
+                    TextField("Добавьте описание", text: $zone.description, axis: .vertical)
+                        .accessibilityLabel("Описание")
+                }
                 Toggle("Активна", isOn: $zone.active)
                 Toggle("Режим обслуживания", isOn: $zone.maintenance)
             }
             Section("Размещение") {
-                TextField("Лимит гостей на ноду", value: $zone.limit, format: .number.grouping(.never)).keyboardType(.numberPad)
-                TextField("Порог нагрузки, %", value: $zone.threshold, format: .number.grouping(.never)).keyboardType(.numberPad)
+                LabeledContent("Лимит ВМ и LXC на ноду") {
+                    TextField("Лимит", value: $zone.limit, format: .number.grouping(.never))
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityLabel("Лимит ВМ и LXC на ноду")
+                }
+                LabeledContent("Порог нагрузки, %") {
+                    TextField("Порог", value: $zone.threshold, format: .number.grouping(.never))
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityLabel("Порог нагрузки, в процентах")
+                }
             }
             if let error { Text(error).foregroundStyle(.red) }
             if busy { ProgressView() }

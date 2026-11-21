@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/mobile_api.php';
 require_once __DIR__ . '/../includes/mobile_infrastructure.php';
+require_once __DIR__ . '/../includes/mobile_admin_directory.php';
 
 try {
     $pdo = (new Database())->getConnection();
@@ -10,6 +11,16 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         session_write_close();
         switch ($_GET['resource'] ?? '') {
+            case 'accounts':
+                mobileRespond(mobileAdminAccounts($pdo, $_GET));
+            case 'account':
+                $account = mobileAdminAccount($pdo, $_GET, (int)$user['id']);
+                mobileRespond($account ?? ['error'=>'Пользователь не найден'], $account ? 200 : 404);
+            case 'payments':
+                mobileRespond(mobileAdminPayments($pdo, $_GET));
+            case 'payment':
+                $payment = mobileAdminPayment($pdo, $_GET);
+                mobileRespond($payment ?? ['error'=>'Платёж не найден'], $payment ? 200 : 404);
             case 'guests':
                 $before = mobileAdminNumber($_GET['before'] ?? PHP_INT_MAX, 1, PHP_INT_MAX);
                 $search = mobileAdminText($_GET, 'q', 100);
@@ -46,6 +57,23 @@ try {
     $input = mobileInput();
     session_write_close();
     switch ($input['action'] ?? '') {
+        case 'account_save':
+            $id = mobileAdminSaveAccount($pdo, $input, (int)$user['id']);
+            mobileRespond(['success'=>true,'id'=>$id,'notice'=>'Пользователь сохранён']);
+        case 'payment_add':
+            $id = mobileAdminAddPayment($pdo, $input);
+            mobileRespond(['success'=>true,'id'=>$id,'notice'=>'Платёж добавлен и ожидает проверки']);
+        case 'payment_approve':
+        case 'payment_reject':
+            $id = mobileAdminNumber($input['id'] ?? null, 1, PHP_INT_MAX);
+            $approve = $input['action'] === 'payment_approve';
+            try {
+                processPendingPayment($pdo, $id, $approve ? 'approve' : 'reject');
+            } catch (RuntimeException $error) {
+                if ($error instanceof PDOException) throw $error;
+                throw new DomainException($error->getMessage(), 0, $error);
+            }
+            mobileRespond(['success'=>true,'notice'=>$approve ? 'Платёж подтверждён' : 'Платёж отклонён']);
         case 'zone_save':
             mobileAdminSaveZone($pdo, $input);
             mobileRespond(['success'=>true]);

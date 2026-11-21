@@ -308,19 +308,6 @@ private struct AdminOverview: Decodable {
     let open_tickets: Int
 }
 
-private struct AdminAccount: Decodable, Identifiable {
-    let id: Int
-    let name: String
-    let email: String
-    let isAdmin: Bool
-    let isActive: Bool
-}
-
-private struct AdminAccountPage: Decodable {
-    let items: [AdminAccount]
-    let next: Int?
-}
-
 struct NativeAdminHome: View {
     @ObservedObject var session: CloudSession
     @State private var overview: AdminOverview?
@@ -341,7 +328,7 @@ struct NativeAdminHome: View {
             } else { ProgressView() }
             Section("Управление") {
                 NavigationLink("Пользователи") { NativeAdminAccounts(session: session) }
-                NavigationLink("Платежи пользователей") { NativePayments(session: session, admin: true) }
+                NavigationLink("Платежи пользователей") { NativeAdminPayments(session: session) }
                 NavigationLink("Все обращения") { NativeTickets(session: session, admin: true) }
             }
         }
@@ -353,46 +340,6 @@ struct NativeAdminHome: View {
     private func refresh() async {
         do {
             overview = try await session.get("/api/mobile_resources.php?resource=admin_overview")
-            error = nil
-        } catch { self.error = error.localizedDescription }
-    }
-}
-
-private struct NativeAdminAccounts: View {
-    @ObservedObject var session: CloudSession
-    @State private var users: [AdminAccount] = []
-    @State private var next: Int?
-    @State private var error: String?
-    @State private var busy = false
-
-    var body: some View {
-        List {
-            ForEach(users) { user in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(user.name).font(.headline)
-                    Text(user.email)
-                    Text((user.isAdmin ? "Администратор" : "Пользователь") + (user.isActive ? " · Активен" : " · Неактивен"))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            if busy { ProgressView() }
-            if let next { Button("Загрузить ещё") { Task { await load(before: next) } }.disabled(busy) }
-            if let error { Text(error).foregroundStyle(.secondary) }
-        }
-        .navigationTitle("Пользователи")
-        .task { await load() }
-        .refreshable { await load() }
-    }
-
-    private func load(before: Int? = nil) async {
-        guard !busy else { return }
-        busy = true
-        defer { busy = false }
-        do {
-            let suffix = before.map { "&before=\($0)" } ?? ""
-            let page: AdminAccountPage = try await session.get("/api/mobile_resources.php?resource=admin_users" + suffix)
-            users = before == nil ? page.items : users + page.items
-            next = page.next
             error = nil
         } catch { self.error = error.localizedDescription }
     }
