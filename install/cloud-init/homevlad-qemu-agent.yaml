@@ -1,6 +1,15 @@
 #cloud-config
+bootcmd:
+  - |
+    cloud-init-per instance homevlad-qga-apt sh -s <<'HOMEVLAD_APT'
+    . /etc/os-release
+    if [ "$ID" = debian ]; then
+      printf '%s\n' 'Acquire::Languages "none";' 'Acquire::IndexTargets::deb-src::Sources::DefaultEnabled "false";' > /etc/apt/apt.conf.d/99homevlad-qga
+    fi
+    HOMEVLAD_APT
 packages:
   - qemu-guest-agent
 runcmd:
+  - [rm, -f, /etc/apt/apt.conf.d/99homevlad-qga]
   - [systemctl, add-wants, multi-user.target, qemu-guest-agent.service]
   - [systemctl, start, qemu-guest-agent.service]
