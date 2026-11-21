@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/guest_network_probe.php';
 $infrastructureAdmin = $infrastructureAdmin ?? false;
 $infrastructureNodes = $pdo->query("SELECT n.id, n.node_name, c.id AS zone_id, c.name AS zone, n.status, n.last_check,
     TIMESTAMPDIFF(SECOND, n.last_check, NOW()) AS health_age,
@@ -40,11 +41,12 @@ unset($infrastructureRow, $zone);
 <div class="infrastructure-scroll">
 <table>
 <caption>Гипервизоры по зонам доступности</caption>
-<thead><tr><th>Зона / узел</th><th>API</th><th>CPU</th><th>Память</th><th>Сеть, приём / передача</th><th>Последний замер</th></tr></thead>
+<thead><tr><th>Зона / узел</th><th>API</th><th>CPU</th><th>Память</th><th>Сеть, приём / передача</th><th>Интернет из гостя</th><th>Последний замер</th></tr></thead>
 <tbody>
 <?php foreach ($infrastructureNodes as $infrastructureNode):
     $fresh = $infrastructureNode['metric_age'] !== null && (int) $infrastructureNode['metric_age'] >= 0 && (int) $infrastructureNode['metric_age'] <= 900;
     $networkFresh = $fresh && $infrastructureNode['network_rx_mbits'] !== null && $infrastructureNode['network_tx_mbits'] !== null;
+    $probe = guestNetworkProbeStatus((int) $infrastructureNode['id'], time());
 ?>
 <tr>
 <td><?= htmlspecialchars($infrastructureNode['zone']) ?><br><strong><?= htmlspecialchars($infrastructureNode['node_name']) ?></strong></td>
@@ -58,13 +60,14 @@ unset($infrastructureRow, $zone);
 <?php else: ?>—<?php endif; ?></td>
 <?php endforeach; ?>
 <td><?= $networkFresh ? round((float) $infrastructureNode['network_rx_mbits'], 2) . ' / ' . round((float) $infrastructureNode['network_tx_mbits'], 2) . ' Мбит/с' : 'Нет свежего замера' ?></td>
+<td><?= htmlspecialchars($probe['label']) ?><?php if (isset($probe['checked_at'])): ?><br><small><?= date('H:i:s T', $probe['checked_at']) ?></small><?php endif; ?></td>
 <td><?= htmlspecialchars($infrastructureNode['created_at'] ?? 'Замеров нет') ?><?= !$fresh && $infrastructureNode['created_at'] !== null ? ' · данные устарели' : '' ?></td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$infrastructureNodes): ?><tr><td colspan="6">Доступных узлов пока нет.</td></tr><?php endif; ?>
+<?php if (!$infrastructureNodes): ?><tr><td colspan="7">Доступных узлов пока нет.</td></tr><?php endif; ?>
 </tbody></table>
 </div>
-<p>Трафик берётся из статистики ноды Proxmox. Колонка API показывает доступность управления со стороны панели.</p>
+<p>Трафик берётся из статистики Proxmox. Интернет проверяется по HTTPS из выделенной ВМ в её сетевом пуле.</p>
 </section>
 <style>
 .infrastructure-status { padding: 20px; border-radius: 12px; background: var(--workspace-surface, var(--db-card-bg, white)); color: var(--workspace-ink, var(--db-text, #193c32)); margin-bottom: 20px; border: 1px solid var(--workspace-border, var(--db-border, #d5e5de)); }

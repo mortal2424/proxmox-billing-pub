@@ -1,0 +1,16 @@
+[Unit]
+Description=HomeVlad guest internet probe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+LoadCredential=probe.json:/etc/homevlad-network-probe.json
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /usr/local/lib/homevlad/probe.py %d/probe.json
+TimeoutStartSec=35
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
