@@ -59,4 +59,6 @@ else
     echo "ℹ️ includes/config.php already exists, skipping generation."
 fi
 
+php /var/www/html/cronjobs/create_cloud_image_settings.php
+
 echo "✅ Init script finished."

@@ -263,6 +263,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
                 $vmParams['cloud_image'] = $placement['cloud_image'];
                 $vmParams['iso'] = $media;
                 $vmParams['cdroms'] = $media !== '' ? [$media] : [];
+                if ($placement['cloud_image'] !== null) {
+                    $volume = $placement['cloud_image']['volid'];
+                    return [withGuestOperationLocks(["cloud-image-volume:$volume"],
+                        static fn() => $proxmoxApi->createVM($vmParams)), $node];
+                }
                 return [$proxmoxApi->createVM($vmParams), $node];
             }
             return [$proxmoxApi->createLXC($vmParams), $node];

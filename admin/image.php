@@ -64,6 +64,12 @@ if (!$current_node_id && !empty($nodes)) {
 $error = '';
 $success = '';
 $uploaded_filename = '';
+$cloudNotice = $_SESSION['cloud_image_notice'] ?? null;
+unset($_SESSION['cloud_image_notice']);
+if (is_array($cloudNotice)) {
+    if ($cloudNotice[0] === 'success') $success = $cloudNotice[1];
+    else $error = $cloudNotice[1];
+}
 
 // Обработка загрузки файла (только для ISO и LXC, не для templates)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image_file']) && !$is_templates_section) {
@@ -169,6 +175,8 @@ $images = [];
 $available_templates = [];
 $cloudVolumes = [];
 $cloudStores = [];
+$cloudSettings = [];
+$cloudCanDelete = [];
 $image_delete_permissions = [];
 
 if ($current_node_id) {
@@ -204,6 +212,14 @@ if ($current_node_id) {
                     }
                 }
                 $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage);
+                $cloudSettings = cloudImageSettings($pdo, (int)$current_node_id);
+                $permissions = $proxmoxApi->request('GET', '/access/permissions');
+                foreach ($cloudStores as $store) {
+                    if (!empty($permissions['/storage/' . $store]['Datastore.Allocate']) ||
+                        !empty($permissions['/storage']['Datastore.Allocate']) || !empty($permissions['/']['Datastore.Allocate'])) {
+                        $cloudCanDelete[$store] = true;
+                    }
+                }
             } else {
                 $permissions = $proxmoxApi->request('GET','/access/permissions');
                 foreach ($permissions as $path => $grants) {
@@ -998,6 +1014,14 @@ $title = "Управление образами | HomeVlad Cloud";
                 overflow-x: auto;
             }
         }
+        .cloud-image-entry { border: 1px solid #8799b254; border-radius: .6rem; margin-block: .55rem; padding: .65rem .85rem; }
+        .cloud-image-entry summary { cursor: pointer; }
+        .cloud-image-entry p { margin-block: .6rem; }
+        .cloud-image-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .6rem; }
+        .cloud-image-form label { display: grid; gap: .3rem; }
+        .cloud-image-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; }
+        .cloud-image-actions button { margin: 0; }
+        .cloud-image-file { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-block: .55rem; overflow-wrap: anywhere; }
     </style>
 </head>
 <body>
@@ -1082,24 +1106,70 @@ $title = "Управление образами | HomeVlad Cloud";
             <?php elseif ($image_type === 'cloud'): ?>
                 <section class="card">
                     <h3><i class="fas fa-cloud"></i> Cloud-образы QEMU</h3>
-                    <p>Панель показывает в заказе образы, загруженные в хранилища с типом содержимого Import. Команду импорта выполните от пользователя сайта. Она скачает образ у издателя, сверит контрольную сумму и загрузит его по API.</p>
+                    <p>Выберите образ из каталога издателей. Импорт выполняется в фоне. При смене хранилища старый источник доступен заказам до завершения загрузки.</p>
                     <?php if (!$cloudStores): ?>
                         <p class="notification notification-warning">На ноде нет активного хранилища с типом Import.</p>
                     <?php endif ?>
                     <?php foreach (cloudImageCatalog() as $key => $cloud): ?>
-                        <details style="margin-block: .8rem">
-                            <summary>
-                                <strong><?= htmlspecialchars($cloud['label']) ?></strong>
-                                · <?= !empty($cloudVolumes[$key]) ? 'Доступен для заказов' : 'Требуется импорт' ?>
+                        <?php
+                        $setting = $cloudSettings[$key] ?? [];
+                        $files = $cloudVolumes[$key] ?? [];
+                        $source = $setting['storage'] ?? '';
+                        $label = $setting['display_name'] ?? '';
+                        $enabled = !isset($setting['enabled']) || (bool)$setting['enabled'];
+                        $published = $enabled && array_filter($files, static fn($file) =>
+                            $source === '' || str_starts_with($file['volid'], $source . ':'));
+                        ?>
+                        <details class="cloud-image-entry" <?= !empty($setting['pending_storage']) || !empty($setting['import_error']) ? 'open' : '' ?>>
+                            <summary><strong><?= htmlspecialchars($label === '' ? $cloud['label'] : $label) ?></strong>
+                                · <?= $published ? 'В каталоге заказов' : 'Скрыт или отсутствует' ?>
                             </summary>
-                            <p>Пользователь cloud-init — <code><?= htmlspecialchars($cloud['user']) ?></code>.</p>
-                            <?php foreach ($cloudVolumes[$key] ?? [] as $volume): ?>
-                                <p><code><?= htmlspecialchars($volume['volid']) ?></code> · диск от <?= $volume['minimum_disk'] ?> ГБ</p>
+                            <p><?= htmlspecialchars($cloud['label']) ?> · пользователь <code><?= htmlspecialchars($cloud['user']) ?></code>
+                                <?php if ($source !== ''): ?> · источник <code><?= htmlspecialchars($source) ?></code><?php endif ?>
+                            </p>
+                            <?php if (!empty($setting['pending_storage'])): ?>
+                                <p role="status">В очереди на импорт в <?= htmlspecialchars($setting['pending_storage']) ?>. Обновите страницу, чтобы проверить результат.</p>
+                            <?php endif ?>
+                            <?php if (!empty($setting['import_error'])): ?>
+                                <p role="alert"><?= htmlspecialchars($setting['import_error']) ?></p>
+                            <?php endif ?>
+                            <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                                <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
+                                <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                <input type="hidden" name="image_key" value="<?= htmlspecialchars($key) ?>">
+                                <label>Название для пользователей
+                                    <input class="form-control" name="display_name" maxlength="100" placeholder="<?= htmlspecialchars($cloud['label']) ?>" value="<?= htmlspecialchars($label) ?>">
+                                </label>
+                                <label>Хранилище исходника
+                                    <select class="form-control" name="storage">
+                                        <option value="">Выберите хранилище</option>
+                                        <?php foreach ($cloudStores as $store): ?>
+                                            <option value="<?= htmlspecialchars($store) ?>" <?= $store === ($setting['pending_storage'] ?? $source) ? 'selected' : '' ?>><?= htmlspecialchars($store) ?></option>
+                                        <?php endforeach ?>
+                                    </select>
+                                </label>
+                                <div class="cloud-image-actions">
+                                    <button class="btn-update" type="submit" name="action" value="rename">Сохранить название</button>
+                                    <button class="btn-update" type="submit" name="action" value="import" <?= !$cloudStores ? 'disabled' : '' ?>><?= $published ? 'Выбрать хранилище' : 'Добавить в каталог' ?></button>
+                                    <?php if ($published || !empty($setting['pending_id'])): ?>
+                                        <button class="btn-delete" type="submit" name="action" value="hide" onclick="return confirm('Убрать этот образ из заказов на текущей ноде?')">Убрать из каталога</button>
+                                    <?php endif ?>
+                                </div>
+                            </form>
+                            <?php foreach ($files as $file): ?>
+                                <?php $store = explode(':', $file['volid'], 2)[0]; ?>
+                                <form class="cloud-image-file" method="post" action="cloud_image_action.php">
+                                    <code><?= htmlspecialchars($file['volid']) ?></code> · диск от <?= (int)$file['minimum_disk'] ?> ГБ
+                                    <?php if (isset($cloudCanDelete[$store])): ?>
+                                        <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
+                                        <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                        <input type="hidden" name="image_key" value="<?= htmlspecialchars($key) ?>">
+                                        <input type="hidden" name="volume" value="<?= htmlspecialchars($file['volid']) ?>">
+                                        <button class="btn-delete" type="submit" name="action" value="delete_file" onclick="return confirm('Удалить файл из Proxmox? Общее хранилище может использоваться несколькими нодами.')">Удалить файл</button>
+                                    <?php endif ?>
+                                </form>
                             <?php endforeach ?>
                             <p><a href="<?= htmlspecialchars($cloud['base']) ?>" target="_blank" rel="noopener noreferrer">Каталог издателя</a></p>
-                            <?php foreach ($cloudStores as $store): ?>
-                                <p><code style="overflow-wrap: anywhere">php cronjobs/import_cloud_image.php <?= (int)$current_node_id ?> <?= htmlspecialchars($store) ?> <?= htmlspecialchars($key) ?></code></p>
-                            <?php endforeach ?>
                         </details>
                     <?php endforeach ?>
                 </section>

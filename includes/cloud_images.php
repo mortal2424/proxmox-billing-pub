@@ -78,3 +78,33 @@ function cloudImageCpuSupported(array $image, array $cpuInfo): bool
     }
     return !array_diff($required, $flags);
 }
+
+function cloudImageSettings(PDO $db, int $nodeId): array
+{
+    $query = $db->prepare('SELECT image_key, display_name, storage, enabled, pending_storage, pending_id, import_error FROM cloud_image_settings WHERE node_id=?');
+    $query->execute([$nodeId]);
+    return $query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
+}
+
+function publishedCloudImages(PDO $db, int $nodeId, array $images): array
+{
+    // PDO fetches the first selected column as the FETCH_UNIQUE index.
+    $query = $db->prepare('SELECT image_key, display_name, storage, enabled FROM cloud_image_settings WHERE node_id=?');
+    $query->execute([$nodeId]);
+    foreach ($query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC) as $key => $setting) {
+        if (empty($setting['enabled'])) {
+            unset($images[$key]);
+            continue;
+        }
+        if (!isset($images[$key])) continue;
+        $remaining = [];
+        foreach ($images[$key] as $image) {
+            if ($setting['storage'] !== null && !str_starts_with($image['volid'], $setting['storage'] . ':')) continue;
+            if ($setting['display_name'] !== '') $image['label'] = $setting['display_name'];
+            $remaining[] = $image;
+        }
+        if ($remaining) $images[$key] = $remaining;
+        else unset($images[$key]);
+    }
+    return $images;
+}
