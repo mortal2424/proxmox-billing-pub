@@ -198,6 +198,12 @@
       "commit": "b2eb8d9a899e5a7cbbf44d235c47e30a0c736b91",
       "sha256": "07ffc6f8b923523950b306f81846aafe4a99c434d5f342b41b9fda069e2beaf4",
       "summary": "Устранена вспышка крупного аватара при загрузке страниц кабинета."
+    },
+    {
+      "version": "2.5.1-beta8.34",
+      "commit": "b1dd9585c534c49c85709b676ed14e4285adfbeb",
+      "sha256": "eeb527d1662e390fca358c057cefff2c3b32b1027a72edad99d18c526c81224b",
+      "summary": "Проверка отдельного адреса API каждого нового участника Proxmox."
     }
   ]
 }
