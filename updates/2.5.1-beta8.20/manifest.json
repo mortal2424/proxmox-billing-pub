@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.20",
+  "from": "2.5.1-beta8.19",
+  "source_commit": "d8aa57597fbbebad18e39cdf5b196a27770c8ce9",
+  "changelog": "Добавлена сводка доступности API гипервизоров по зонам.\nКабинет различает измеренный ноль и отсутствие сетевого замера.\nГрафики админки показывают RX и TX в Мбит/с с сохранением дробной части.\nСбор CPU и памяти работает независимо от инвентаризации хранилищ и пропусков RRD.\nСбор и отображение проверены с node2 и server0.\n",
+  "files": {
+    "admin/get_node_stats.php": {
+      "before": "9bdc7a816ef65239631dcfbd74042e4156689f0e8d8b42c855c1d3219c5ccc11",
+      "sha256": "417f9cc5bd6bec06902631cda1ff04d441d36f9d1ce35dcbf26a09109229dfc4"
+    },
+    "admin/nodes.php": {
+      "before": "1a9ffaa02c403724e26616296d2e1b06a6590ce1e17335b469bdd68ad322009f",
+      "sha256": "73eba501c7bbf9b7727c32a6425f5a024f05a5a25e97cf7a0a99ae0cd5ad31e5"
+    },
+    "admin/update_node_stats.php": {
+      "before": "f56ae3541f01ace717931ce6863ed7e570ca9f4d93c90ab11b41d7c5fb49ad4c",
+      "sha256": "a0e6f2c6df21e5b5192145db3fd499def209b3c5d491a21b7d7beedf0428533c"
+    },
+    "includes/infrastructure_status.php": {
+      "before": "8a59d2740fac67a0fc450cd19e4612880f9c4224061768080ba305f7495dc597",
+      "sha256": "60800eae10bdb56b26b0373db81abbf35d29d1857865a2c61938e4909d82f042"
+    },
+    "includes/node_api_info.php": {
+      "before": "44961bcb81d686fd3719bd5375d4fb25e9f623a457a64a95e5954e55d3694d41",
+      "sha256": "46e02b2fd4321fc97eef46bfc0468462b3d391ab34addfb61a4bd746936077d1"
+    },
+    "includes/version.php": {
+      "before": "35ef24e2bf003a04d27fa3f68718d1c93ea7336f63d97b83fca7c053d21ecf48",
+      "sha256": "de189477a1db79d78b3742dbedb50f920beab9dbe0f12b2c12c7e74b3a9f4ce1"
+    }
+  }
+}
