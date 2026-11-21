@@ -48,6 +48,12 @@
       "commit": "6f6b48ad9d8d69936a30f1ed1067ccc7d2835032",
       "sha256": "115eba14415b7f235d54ddbe208b1232de3d26214fd4b99c45cb7e08f1eaf918",
       "summary": "Список QEMU и LXC с консолями и добавление нод по API-токену."
+    },
+    {
+      "version": "2.5.1-beta8.9",
+      "commit": "cb0d44bdd9f3cc25457920e6084eaeeec06c38cf",
+      "sha256": "20281b65c74d91e7886a29241ae6368df476218eb015697397e08cae6666b7c8",
+      "summary": "Кнопки управления VNC в цветах HomeVlad."
     }
   ]
 }
