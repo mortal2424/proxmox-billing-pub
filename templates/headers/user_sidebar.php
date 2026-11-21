@@ -308,6 +308,13 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     </a>
                 </li>
 
+                <li class="sidebar-menu-item">
+                    <a href="/templates/billing.php?view=usage" class="sidebar-menu-link" title="Потребление платформы" aria-label="Потребление платформы">
+                        <div class="menu-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
+                        <span class="menu-text">Потребление платформы</span>
+                    </a>
+                </li>
+
                 <?php if ($user['bonus_balance'] > 0): ?>
                 <li class="sidebar-menu-item">
                     <a href="/templates/billing.php#bonuses" class="sidebar-menu-link">

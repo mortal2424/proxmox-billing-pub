@@ -5,6 +5,7 @@ $workspaceLinks = [
     'my_vms.php' => ['/templates/my_vms.php', 'Серверы', 'fa-server'],
     'order_vm.php' => ['/templates/order_vm.php', 'Заказ', 'fa-plus'],
     'billing.php' => ['/templates/billing.php', 'Финансы', 'fa-wallet'],
+    'platform-usage' => ['/templates/billing.php?view=usage', 'Потребление платформы', 'fa-chart-line'],
     'support.php' => ['/templates/support.php', 'Поддержка', 'fa-headset'],
     'telegram.php' => ['/templates/telegram.php', 'Telegram', 'fa-paper-plane'],
     'settings.php' => ['/templates/settings.php', 'Профиль', 'fa-user'],

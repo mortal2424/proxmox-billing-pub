@@ -1685,13 +1685,13 @@ $title = "Биллинг | HomeVlad Cloud";
     </a>
 
     <!-- Модальное окно с графиками -->
-    <div class="modal" id="graphModal">
+    <div class="modal" id="graphModal" role="dialog" aria-modal="true" aria-labelledby="graphModalTitle">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 class="modal-title">
+                <h2 class="modal-title" id="graphModalTitle">
                     <i class="fas fa-chart-line"></i> Аналитика потребления платформы
                 </h2>
-                <button class="close-modal" id="closeGraphModal">
+                <button class="close-modal" id="closeGraphModal" type="button" aria-label="Закрыть аналитику">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -1846,9 +1846,6 @@ $title = "Биллинг | HomeVlad Cloud";
                     <p>Пополняйте баланс и сверяйте платежи и списания.</p>
                 </div>
                 <div class="header-actions" style="display: flex; gap: 12px;">
-                    <button class="btn btn-primary" id="showGraphBtn">
-                        <i class="fas fa-chart-line"></i> Потребление платформы
-                    </button>
                     <button class="btn btn-primary" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Обновить
                     </button>
@@ -2464,36 +2461,30 @@ $title = "Биллинг | HomeVlad Cloud";
 
             // Инициализация модального окна графиков
             const graphModal = document.getElementById('graphModal');
-            const showGraphBtn = document.getElementById('showGraphBtn');
             const closeGraphModal = document.getElementById('closeGraphModal');
+            const billingUrl = new URL(window.location.href);
 
-            // Открытие модального окна
-            showGraphBtn.addEventListener('click', function() {
+            function closeUsage() {
+                graphModal.classList.remove('show');
+                document.body.style.overflow = '';
+                billingUrl.searchParams.delete('view');
+                window.history.replaceState(null, '', billingUrl);
+                document.querySelector('.sidebar-menu-link[href="/templates/billing.php?view=usage"], .workspace-nav a[href="/templates/billing.php?view=usage"]')?.focus();
+            }
+
+            if (billingUrl.searchParams.get('view') === 'usage') {
                 graphModal.classList.add('show');
                 document.body.style.overflow = 'hidden';
+                closeGraphModal.focus();
                 renderCharts();
-            });
+            }
 
-            // Закрытие модального окна
-            closeGraphModal.addEventListener('click', function() {
-                graphModal.classList.remove('show');
-                document.body.style.overflow = 'auto';
+            closeGraphModal.addEventListener('click', closeUsage);
+            graphModal.addEventListener('click', event => {
+                if (event.target === graphModal) closeUsage();
             });
-
-            // Закрытие при клике вне модального окна
-            graphModal.addEventListener('click', function(e) {
-                if (e.target === graphModal) {
-                    graphModal.classList.remove('show');
-                    document.body.style.overflow = 'auto';
-                }
-            });
-
-            // Закрытие по Escape
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && graphModal.classList.contains('show')) {
-                    graphModal.classList.remove('show');
-                    document.body.style.overflow = 'auto';
-                }
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && graphModal.classList.contains('show')) closeUsage();
             });
 
             // Переключение между табами графиков
