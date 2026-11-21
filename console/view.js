@@ -82,6 +82,26 @@ credentialPanel.addEventListener('click', async event => {
     }
 });
 
+function typeGuestCredential(rfb, value) {
+    for (const character of value) {
+        const shifted = /[A-Z!]/.test(character);
+        let code;
+        if (/[a-z]/i.test(character)) code = 'Key' + character.toUpperCase();
+        if (/[0-9]/.test(character)) code = 'Digit' + character;
+        if (character === '!') code = 'Digit1';
+
+        // QEMU's extended key events carry physical scancodes. Send Shift explicitly.
+        if (shifted) rfb.sendKey(0xffe1, 'ShiftLeft', true);
+        try {
+            rfb.sendKey(character.charCodeAt(0), code);
+        } finally {
+            if (shifted) rfb.sendKey(0xffe1, 'ShiftLeft', false);
+        }
+    }
+    rfb.sendKey(0xff0d, 'Enter');
+    rfb.focus();
+}
+
 history.replaceState(null, '', location.pathname);
 
 function disconnected() {
@@ -119,11 +139,7 @@ if (!/^[a-f0-9]{64}$/.test(token)) {
                     rfb.addEventListener('connect', () => {
                         status.textContent = 'Консоль QEMU';
                         cad.hidden = false;
-                        enableGuestCredentials(value => {
-                            for (const character of value) rfb.sendKey(character.charCodeAt(0));
-                            rfb.sendKey(0xff0d, 'Enter');
-                            rfb.focus();
-                        });
+                        enableGuestCredentials(value => typeGuestCredential(rfb, value));
                     });
                     cad.addEventListener('click', () => rfb.sendCtrlAltDel());
                     rfb.addEventListener('disconnect', disconnected);
