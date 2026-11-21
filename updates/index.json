@@ -222,6 +222,12 @@
       "commit": "5c8dcd43d40ef8deca8199eb6d1ab663101af255",
       "sha256": "6d33873605b040dec3af6bba71a2e4bb16afb799021b5b9442f1c1e77dd1e58e",
       "summary": "Обновление IP в карточке ВМ и LXC на iPhone."
+    },
+    {
+      "version": "2.5.1-beta8.38",
+      "commit": "cd627f61409b5f956950930234312682f5b46dad",
+      "sha256": "d5eb7fdd7f7e5f34197e521331ae9175be8d8be6e7b044041826cd38f48e7032",
+      "summary": "Исправление страницы обновлений и фоновая проверка GitHub каждые пять минут."
     }
   ]
 }
