@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $description = trim($_POST['description'] ?? '');
         $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
 
-        if (empty($cluster_id)) throw new Exception("Кластер должен быть выбран");
+        if (empty($cluster_id)) throw new Exception("Выберите зону доступности");
         if (empty($node_name)) throw new Exception("Имя ноды обязательно");
         if (empty($hostname)) throw new Exception("Адрес сервера обязателен");
 
@@ -771,7 +771,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
     </style>
 </head>
 <body>
-    <?php require 'admin_sidebar.php'; ?>
+    <?php require __DIR__ . '/admin_header.php'; ?>
+    <?php require __DIR__ . '/admin_sidebar.php'; ?>
     <div class="node-wrapper">
         <div class="node-header">
             <div class="node-header-left">
@@ -796,8 +797,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
                 <div class="form-section">
                     <div class="form-section-header"><h2><i class="fas fa-cog"></i> Основные параметры</h2></div>
                     <div class="form-section-body">
-                        <div class="form-group"><label class="form-label required">Кластер</label><select name="cluster_id" class="form-input" id="clusterSelect" required><option value="">-- Выберите кластер --</option><?php foreach ($clusters as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
-                        <div class="form-group"><label class="form-label required">Имя ноды</label><input type="text" name="node_name" class="form-input" id="nodeName" maxlength="50" required><span class="form-hint">Уникальное имя в кластере</span></div>
+                        <div class="form-group"><label class="form-label required">Зона доступности</label><select name="cluster_id" class="form-input" id="clusterSelect" required><option value="">Выберите зону доступности</option><?php foreach ($clusters as $c): ?><option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option><?php endforeach; ?></select></div>
+                        <div class="form-group"><label class="form-label required">Имя ноды</label><input type="text" name="node_name" class="form-input" id="nodeName" maxlength="50" required><span class="form-hint">Уникальное имя в зоне доступности</span></div>
                         <div class="form-group"><label class="form-label required">Адрес сервера</label><input type="text" name="hostname" class="form-input" id="hostname" required><span class="form-hint">IP-адрес или домен</span></div>
                         <div class="form-group"><label class="form-label">Описание</label><textarea name="description" class="form-input" rows="3" id="description"></textarea></div>
                     </div>
@@ -825,7 +826,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
                         <label class="checkbox-container">
                             <input type="checkbox" name="is_cluster_master" id="isClusterMaster">
                             <span class="checkmark"></span>
-                            <span class="checkbox-label">Главная нода кластера <span class="checkbox-hint">Используется для VNC консоли всех нод кластера</span></span>
+                            <span class="checkbox-label">Главная нода зоны <span class="checkbox-hint">Назначает эту ноду главной в выбранной зоне</span></span>
                         </label>
                     </div>
                 </div>
