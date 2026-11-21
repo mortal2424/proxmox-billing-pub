@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.24",
+  "from": "2.5.1-beta8.23",
+  "source_commit": "1c9c3e3a992c20e7f67c7d958a889bfe37fdb938",
+  "changelog": "Оформлены фильтры статусов ВМ и контейнеров в полном режиме кабинета, включая тёмную тему.\n",
+  "files": {
+    "includes/version.php": {
+      "before": "fa7f638e4e2a851989cfeb38b4384c5a0414fd4d2d6d7efb00bde7845398f63b",
+      "sha256": "8fcb1c73504af13cbff3afcbdf96904f2b8ac64b9129761c5d95cf040928aa8c"
+    },
+    "templates/my_vms.php": {
+      "before": "614f78d7aa6d08875abdab8f24cb7b3edf70d657db0b4dca148429f6e662e574",
+      "sha256": "51c9136ed7273deb7ab5395aa6b3160c92f0c89752181ccc87870a747dff7a42"
+    }
+  }
+}
