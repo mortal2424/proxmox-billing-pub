@@ -1,0 +1,105 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.7",
+  "from": "2.5.1-beta8.6",
+  "source_commit": "d2e5c20fd69fe97dc85b152e2503a2b3543cf7fb",
+  "changelog": "Переход на ограниченные токены Proxmox и привязка биллинга к записи гостя.\n",
+  "files": {
+    "admin/admin_functions.php": {
+      "before": "2af154f4ec301c70aec251aeb23dd6303f824bf6256057aa0a40902e9afe096b",
+      "sha256": "6a72f6d9f2c2aab5e1b08d3e773705fa2369a7cc67c5362282debff8e4506597"
+    },
+    "admin/get_node_info.php": {
+      "before": "5179fa463943f3fb47df61cd20fed5792a797d64f246b7e6782ff64bd2519167",
+      "sha256": "6abd56d8d89feaf5018ff379d96bd944c22d70279c1062eb8b157d60dd2e7847"
+    },
+    "admin/image.php": {
+      "before": "6978f3ddb69879fe2fa1d545f30e945831f9923f9d56db6c5250382f4f7e701a",
+      "sha256": "ce6291b673ccd9cb5d865a56869a57972d98aa08b2e3c7651e9d51adad65e2ce"
+    },
+    "admin/settings.php": {
+      "before": "0e14d87e4e133f7474d4cec6c2f518d70903a065e2590e9224901df1b3dcd6d8",
+      "sha256": "80564d4a7c838437d602a8b5924e2dbd34af014f19aa9b2f9dc0ec40f43804bf"
+    },
+    "admin/update_node_stats.php": {
+      "before": "54d6c1a6910933c34e8bad7092689396be60b2c5a0a01d26ddb9f9012a853120",
+      "sha256": "f56ae3541f01ace717931ce6863ed7e570ca9f4d93c90ab11b41d7c5fb49ad4c"
+    },
+    "api/vm_settings.php": {
+      "before": "2ce9e8b74f8bbbe25079bf1c1fe048c1510ab6fab77998048524b3bd66458112",
+      "sha256": "5ec5d557dc4e362bcad8cef1d0c5a4da882fe0bd3fb72ebc8ce748c11aa84f55"
+    },
+    "console/bridge.py": {
+      "before": "c2d5b27ba04ee8aedaf49a57e7c184324408f1610575e2eba5dc3121bf1bfd86",
+      "sha256": "a948ee2089d03839895403a37014d4a9ddec327038f46c8f319224fa5c388ef4"
+    },
+    "cronjobs/migrate_vm_billing_guest_ids.php": {
+      "before": null,
+      "sha256": "e73743532ebb2d1e8f79588f3e1fe36e1fa0fc4a57e6b52c386d8c318b186c7d"
+    },
+    "docker-compose.yml": {
+      "before": "4130146ea550eba7606d1ddad2306be40f7b52898c3344da28998937daab1c33",
+      "sha256": "6f0a13eccabd7ecc89c7c5b4990e0f2de9d4f6df3c75e9851ec93c930823e49c"
+    },
+    "docs/development/proxmox-token-runtime.md": {
+      "before": null,
+      "sha256": "13ae5386611caa4a01a81412ce310c507242f765b57ebbeea3ab789f16f9f495"
+    },
+    "includes/ProxmoxApiClient.php": {
+      "before": "fd35dcd8eaef0021d2da81fa6d965874429de21f90f987dcc379db4f91e36223",
+      "sha256": "0ca0baefcee5fb1749b01b096e1676d4e3772b71bdc600599511b9594b5f5939"
+    },
+    "includes/ProxmoxCommandApi.php": {
+      "before": null,
+      "sha256": "6e09520c3f8be7462723b7ee451e15f3e4d1a5561cfc81612c01689e6aee7d7a"
+    },
+    "includes/ProxmoxGuestApi.php": {
+      "before": null,
+      "sha256": "2e93de78c212cd7ebb80bc5d8b8613c3b9c0fcfca0a2c0e2e6361272736b2c2f"
+    },
+    "includes/ProxmoxUpload.php": {
+      "before": null,
+      "sha256": "65a8384276ddc0e3983c0e6a90f069f52c19379987fa390216433007459071a3"
+    },
+    "includes/console_launch.php": {
+      "before": "4b1499fef0cca5b3e2b4cf75f2efa82632692eee91a4b7804619688230933b64",
+      "sha256": "da7973cd5f814f7a464800a3304776bb6baa52c2ecae4d187a71a15b1b32c632"
+    },
+    "includes/guest_mutations.php": {
+      "before": null,
+      "sha256": "a25d20a6fe7df62265bdf320df997057ac7df21b74b092041331ede422a32277"
+    },
+    "includes/guest_operation_lock.php": {
+      "before": null,
+      "sha256": "84dd369054106ee5abbf6ffa761ebe441762eb3dccccc586b54e5f764558b67e"
+    },
+    "includes/node_api_credentials.php": {
+      "before": null,
+      "sha256": "3e3a9a40aa254277022025671ae9e48de1ea0dfb808be61e3ef6666b3d21f803"
+    },
+    "includes/node_api_info.php": {
+      "before": null,
+      "sha256": "44961bcb81d686fd3719bd5375d4fb25e9f623a457a64a95e5954e55d3694d41"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "346870560d020d6c93c4869aa8766e7831cc88c9dcda684a432c768c6e571f34",
+      "sha256": "b5ab8145d200c2d64f332342ec03f6a883f4f62a0db0f2b307dd091459028e9e"
+    },
+    "includes/version.php": {
+      "before": "4ed8c1e1c5c106eeed1310c06cac35e5a3957be482eb2db2a576da021d4c3fe0",
+      "sha256": "6ada955193b1c709a0287af5a92bb2af3371d559d94755728b25e99fc0206c9f"
+    },
+    "includes/vm_ip_updater.php": {
+      "before": "81b15fc25be4890e3bfe7bd89593dc1fdf719d8918537fcf2cdd1e08dea9a5f1",
+      "sha256": "9ad12b7a13ca8214514f0f808f72c3b732ef771f440f8b8d7d8b90f1d0e638b6"
+    },
+    "templates/order_vm.php": {
+      "before": "c566325dd19feb43e7fed19599208f680c764aff198678d1d61a23b54552ce84",
+      "sha256": "b1e54cdba0ab4e111caa781a13cd5e2616af580f5b8ee81854d8758a6fae0569"
+    },
+    "templates/vm_settings.php": {
+      "before": "6145ff049899586ba434d5e6b716094729de8f62f1586804b81974013091345d",
+      "sha256": "7cfcac6d3cba9c77d8e48f1af286afb600b6ce6ed79172e4a6b01384ea367af0"
+    }
+  }
+}
