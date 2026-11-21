@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.27",
+  "from": "2.5.1-beta8.26",
+  "source_commit": "46378c5aee448c626018822c26e7fee567246ccd",
+  "changelog": "Переход на тариф с увеличением ресурсов, включая увеличение одного диска.\nДобавлены «Мои сети» со списком обнаруженных IP и удаление дополнительного интерфейса в карточке гостя.\n",
+  "files": {
+    "includes/ProxmoxGuestApi.php": {
+      "before": "2e93de78c212cd7ebb80bc5d8b8613c3b9c0fcfca0a2c0e2e6361272736b2c2f",
+      "sha256": "cb2ce8f8cf09742d6288faf02631b9e33466629e51607379c66be2d323381258"
+    },
+    "includes/guest_mutations.php": {
+      "before": "a25d20a6fe7df62265bdf320df997057ac7df21b74b092041331ede422a32277",
+      "sha256": "56a90a4d2585d1c07141e320d480dc54f17da1a810bd219250b2180557c64c3a"
+    },
+    "includes/version.php": {
+      "before": "95981371e640cb4aaa22ca9c0a4e73414b3076e1806dbffc13273c630ee4ddef",
+      "sha256": "3969f11f2a3dcb14950664a34254d928e90714ab912d1be016d76e76ee588089"
+    },
+    "templates/headers/user_header.php": {
+      "before": "e6c3433ea8efaeee2be6fb7e1cf7f1285b0b5b5ccf26fcbe4acd18a033246eac",
+      "sha256": "bf21ef50f55a51ce1debab9eab3e422ce5053ba0d6920014c0acddcde69f0cc0"
+    },
+    "templates/headers/workspace_nav.php": {
+      "before": "2983334d981f7a7bc537d17c08544d0289f988ae610e87532fe916d8640389eb",
+      "sha256": "de2852f83e8df8801ea98de8adc137cc4a46b5091f975b2d565d324cb6d35f9f"
+    },
+    "templates/my_networks.php": {
+      "before": null,
+      "sha256": "fb329befeff708d03317cc5fc391682ff10d3970e89fa19e014425cc13936d9c"
+    },
+    "templates/vm_settings.php": {
+      "before": "0163e6cf3d59c59f7aef637bd41364258d04d7f24007a1091268c02f1577baf0",
+      "sha256": "7f35dad93f8fbf0dbd6a596aeff87699f33cf820700d60cf2f728fd53ac58c2a"
+    }
+  }
+}
