@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
+require_once __DIR__ . '/../includes/guest_ip.php';
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
@@ -52,6 +53,15 @@ try {
 
 try {
 switch ($action) {
+    case 'get_ip':
+        try {
+            $live = readGuestIpAddresses([$proxmox, 'request'], $vm['node_name'], (int)$vm['vm_id'], $vm['vm_type']);
+        } catch (Throwable $error) {
+            $live = null;
+        }
+        echo json_encode(['addresses' => $live ?? $vm['ip_address'], 'live' => $live !== null]);
+        break;
+
     case 'get_disks':
         if ($vm['vm_type'] === 'qemu') {
             // Для KVM получаем информацию о дисках

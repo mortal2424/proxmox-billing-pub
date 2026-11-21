@@ -2,6 +2,7 @@
 require_once __DIR__ . '/cli_only.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/proxmox_functions.php';
+require_once __DIR__ . '/guest_ip.php';
 
 final class VmIpUpdater
 {
@@ -22,20 +23,10 @@ final class VmIpUpdater
                 $query->execute([$node['id']]);
                 foreach ($query->fetchAll(PDO::FETCH_ASSOC) as $vm) {
                     try {
-                        $vmid = (int)$vm['vm_id'];
-                        $type = $vm['vm_type'] === 'lxc' ? 'lxc' : 'qemu';
-                        $base = '/nodes/' . rawurlencode($node['node_name']) . '/' . $type . '/' . $vmid;
-                        $status = $api->request('GET', $base . '/status/current');
-                        if (($status['status'] ?? '') !== 'running') {
-                            $addresses = null;
-                        } else {
-                            $interfaces = $api->request('GET', $base . ($type === 'lxc' ? '/interfaces' : '/agent/network-get-interfaces'));
-                            $addresses = self::addresses($interfaces['result'] ?? $interfaces);
-                            // An absent agent or an empty response must not erase a known address.
-                            if ($addresses === null) continue;
-                        }
-                        $save = $this->pdo->prepare('UPDATE vms SET ip_address=? WHERE node_id=? AND vm_id=?');
-                        $save->execute([$addresses, $node['id'], $vmid]);
+                        $addresses = readGuestIpAddresses([$api, 'request'], $node['node_name'], (int)$vm['vm_id'], $vm['vm_type']);
+                        if ($addresses === null) continue;
+                        $save = $this->pdo->prepare("UPDATE vms SET ip_address=? WHERE node_id=? AND vm_id=? AND vm_type=? AND status<>'deleted'");
+                        $save->execute([$addresses, $node['id'], $vm['vm_id'], $vm['vm_type']]);
                     } catch (Throwable $error) {
                         ++$failures;
                         error_log('VM IP read failed node='.(int)$node['id'].' vm='.(int)$vm['vm_id'].' class='.get_class($error));
@@ -49,23 +40,7 @@ final class VmIpUpdater
         return ['success' => $failures === 0, 'failures' => $failures];
     }
 
-    public static function addresses(array $interfaces): ?string
-    {
-        $addresses = [];
-        foreach ($interfaces as $interface) {
-            if (!is_array($interface) || ($interface['name'] ?? '') === 'lo') continue;
-            $values = isset($interface['inet']) ? [explode('/', $interface['inet'])[0]] : [];
-            foreach ($interface['ip-addresses'] ?? [] as $address) {
-                if (($address['ip-address-type'] ?? '') === 'ipv4') $values[] = $address['ip-address'] ?? '';
-            }
-            foreach ($values as $ip) {
-                if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ||
-                    preg_match('/^(?:127\.|169\.254\.|0\.)/', $ip) || $ip === '255.255.255.255') continue;
-                $addresses[$ip] = true;
-            }
-        }
-        return $addresses ? implode(', ', array_keys($addresses)) : null;
-    }
+
 }
 
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {

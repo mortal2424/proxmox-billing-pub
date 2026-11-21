@@ -759,6 +759,9 @@ try {
                     <small><?= htmlspecialchars($vm['name'] ?? '') ?></small>
                 </h1>
                     <p>Проверьте конфигурацию и параметры выбранного сервера.</p>
+                    <p>IP <strong id="guest-ip"><?= htmlspecialchars($vm['ip_address'] ?: 'Пока не определён') ?></strong>
+                        <small id="guest-ip-source"><?= $vm['ip_address'] ? 'Последний известный' : '' ?></small>
+                    </p>
                 </div>
                 <div class="header-actions">
                     <button class="btn-refresh" onclick="window.location.reload()">
@@ -997,6 +1000,15 @@ try {
     function loadVmData() {
         const vmId = <?= $vm['id'] ?>;
         const vmType = '<?= $vm['vm_type'] ?>';
+
+        fetch(`/api/vm_settings.php?action=get_ip&id=${vmId}`)
+            .then(response => response.ok ? response.json() : null)
+            .then(data => {
+                if (!data || typeof data.addresses !== 'string' || !data.addresses) return;
+                document.getElementById('guest-ip').textContent = data.addresses;
+                document.getElementById('guest-ip-source').textContent = data.live ? '' : 'Последний известный';
+            })
+            .catch(() => {});
 
         // Загрузка данных о дисках
         fetch(`/api/vm_settings.php?action=get_disks&id=${vmId}`)

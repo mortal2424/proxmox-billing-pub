@@ -73,7 +73,7 @@ credentialPanel.addEventListener('click', async event => {
         const {value} = await requestCredential(action);
         if (sendCredential !== send || typeof value !== 'string' || !/^[ -~]{1,128}$/.test(value)) return;
         send(value);
-        powerResult.textContent = 'Данные введены. Проверьте поле и подтвердите вход.';
+        powerResult.textContent = 'Данные введены, Enter отправлен.';
     } catch (error) {
         powerResult.textContent = error.message;
         if (action === 'password') passwordButton.hidden = true;
@@ -121,6 +121,7 @@ if (!/^[a-f0-9]{64}$/.test(token)) {
                         cad.hidden = false;
                         enableGuestCredentials(value => {
                             for (const character of value) rfb.sendKey(character.charCodeAt(0));
+                            rfb.sendKey(0xff0d, 'Enter');
                             rfb.focus();
                         });
                     });
@@ -160,7 +161,7 @@ function openTerminal(socket) {
     terminal.focus();
     status.textContent = 'Консоль LXC';
     enableGuestCredentials(value => {
-        enterText(value);
+        enterText(value + '\r');
         terminal.focus();
     });
     const observer = new ResizeObserver(() => fit.fit());

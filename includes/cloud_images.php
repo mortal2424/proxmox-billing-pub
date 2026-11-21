@@ -38,6 +38,26 @@ function cloudImageCatalog(): array
     return $images;
 }
 
+function cloudGuestAgentSnippet(callable $request, string $node, array $stores): ?string
+{
+    foreach ($stores as $store) {
+        $storage = $store['storage'] ?? '';
+        if (empty($store['active']) || empty($store['enabled']) ||
+            !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $storage) ||
+            !in_array('snippets', explode(',', $store['content'] ?? ''), true)) continue;
+
+        $volume = $storage . ':snippets/homevlad-qemu-agent.yaml';
+        try {
+            $path = '/nodes/' . rawurlencode($node) . '/storage/' . rawurlencode($storage) . '/content';
+            $contents = $request('GET', $path, ['content' => 'snippets']);
+            if (in_array($volume, array_column($contents, 'volid'), true)) return $volume;
+        } catch (Throwable $error) {
+            error_log('Guest agent snippet inventory unavailable for storage ' . $storage);
+        }
+    }
+    return null;
+}
+
 function cloudImportVolumes(callable $request, string $node, ?array $storage = null): array
 {
     $path = '/nodes/' . rawurlencode($node) . '/storage';

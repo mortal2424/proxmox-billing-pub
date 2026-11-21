@@ -112,6 +112,9 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                     }
                 }
                 if ($image === null) continue;
+                if (!$windows) {
+                    $image['agent_snippet'] = cloudGuestAgentSnippet([$api, 'request'], $node['node_name'], $stores);
+                }
             }
             foreach ($stores as $storage) {
                 $content = explode(',', $storage['content'] ?? '');

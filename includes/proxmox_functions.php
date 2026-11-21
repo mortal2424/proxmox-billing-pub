@@ -215,6 +215,13 @@ class ProxmoxAPI {
                 'cipassword' => $params['password'],
                 'serial0' => 'socket',
             ];
+            if (!$isWindows && !empty($image['agent_snippet'])) {
+                $snippet = $image['agent_snippet'];
+                if (!preg_match('#^[A-Za-z0-9_.-]{1,64}:snippets/homevlad-qemu-agent\.yaml$#D', $snippet)) {
+                    throw new InvalidArgumentException('Некорректный файл Cloud-Init для гостевого агента');
+                }
+                $cloudConfig['cicustom'] = 'vendor=' . $snippet;
+            }
             if (isset($image['cpu'])) {
                 $cloudConfig['cpu'] = $image['cpu'];
             }
