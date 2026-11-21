@@ -78,7 +78,7 @@ switch ($argv[1] ?? '') {
                 "$label file differs");
         }
         requireSmoke(!is_file($root.'/backups/restore/recovery.json'), 'Restore journal remains');
-        echo "Verified DB ${argv[2]}, files ${argv[3]}\n";
+        echo "Verified DB {$argv[2]}, files {$argv[3]}\n";
         break;
     default:
         throw new InvalidArgumentException('Unknown smoke command');

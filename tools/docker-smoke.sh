@@ -23,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$qa/checkout"
-git archive HEAD | tar -x -C "$qa/checkout"
+git archive HEAD | tar -x --exclude=uploads --exclude=logs --exclude=backups -C "$qa/checkout"
 cd "$qa/checkout"
 mkdir -p logs uploads backups docker/proxmox-tls webroot
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=nginx' \

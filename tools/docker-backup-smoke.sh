@@ -1,4 +1,6 @@
 # Sourced only by tools/docker-smoke.sh after a disposable Compose stack has started.
+set -E
+trap 'printf "Backup smoke failed at line %s\n" "$LINENO" >&2' ERR
 "${compose[@]}" cp tools/docker-backup-smoke.php apache:/tmp/docker-backup-smoke.php
 app=("${compose[@]}" exec -T --user www-data apache)
 fixture=("${compose[@]}" exec -T --user www-data -e HOMEVLAD_DOCKER_SMOKE=1 apache php /tmp/docker-backup-smoke.php)
