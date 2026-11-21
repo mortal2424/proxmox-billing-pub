@@ -29,7 +29,9 @@ if (/^[a-f0-9]{48}$/.test(control)) {
             });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || 'Команда не выполнена');
-            powerResult.textContent = 'Команда принята. При отключении откройте консоль повторно из кабинета.';
+            powerResult.textContent = result.already_stopped
+                ? 'Машина уже остановлена.'
+                : 'Команда принята. При отключении откройте консоль повторно из кабинета.';
         } catch (error) {
             powerResult.textContent = error.message;
         } finally {

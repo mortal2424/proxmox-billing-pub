@@ -80,6 +80,24 @@ try {
         if (is_array($result) && ($result['success'] ?? true) === false) {
             throw new RuntimeException('Не удалось запустить машину');
         }
+    } elseif ($action === 'stop') {
+        $vmId = (int) $context['vm_id'];
+        $statusPath = "/nodes/{$node['node_name']}/$type/$vmId/status/current";
+        $isStopped = static fn () => ($api->request('GET', $statusPath)['status'] ?? null) === 'stopped';
+        $alreadyStopped = $isStopped();
+        if (!$alreadyStopped) {
+            try {
+                $api->controlGuest($vmId, $type, $action);
+            } catch (RuntimeException $error) {
+                // Another request can stop the guest between the status check and the command.
+                if (!in_array($error->getCode(), [0, 500], true) || !$isStopped()) {
+                    throw $error;
+                }
+                $alreadyStopped = true;
+            }
+        }
+        echo json_encode(['success' => true, 'already_stopped' => $alreadyStopped]);
+        return;
     } else {
         $api->controlGuest((int) $context['vm_id'], $type, $action);
     }
