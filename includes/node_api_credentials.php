@@ -4,6 +4,7 @@ require_once __DIR__.'/node_credentials.php';
 function panelNodeApiCredentials(array $node): array
 {
     if(str_contains((string)($node['username']??''),'!'))return $node;
+    if (PHP_SAPI !== 'cli' || getenv('HOMEVLAD_TEST_TOKEN_CANDIDATES') !== '1') return $node;
     $directory=getenv('PROXMOX_TOKEN_CANDIDATE_DIR')?:dirname(__DIR__,2).'/.proxmox-api-candidates';
     if(empty($node['id']))return $node;
     $file=$directory.'/'.(int)$node['id'].'.json';

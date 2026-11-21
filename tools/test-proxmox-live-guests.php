@@ -13,6 +13,7 @@ $directory=$options['journal-dir'];
 if(is_link($directory)||(!is_dir($directory)&&!mkdir($directory,0700,true))||(fileperms($directory)&0077)!==0)throw new RuntimeException('Private QA journal required');
 $pdo=(new Database)->getConnection();$query=$pdo->prepare('SELECT * FROM proxmox_nodes WHERE id=? AND is_active=1');$query->execute([(int)$options['node']]);$node=$query->fetch(PDO::FETCH_ASSOC);
 if(!$node)throw new RuntimeException('Node unavailable');
+putenv('HOMEVLAD_TEST_TOKEN_CANDIDATES=1');
 $client=new ProxmoxApiClient(panelNodeApiCredentials($node));if(!$client->usesToken())throw new RuntimeException('Token required; root fallback forbidden');
 $base='/nodes/'.rawurlencode($node['node_name']);$stores=$client->request('GET',$base.'/storage');$failed=false;
 usort($stores,fn($a,$b)=>(['lvmthin'=>0,'zfspool'=>1,'dir'=>2][$a['type']??'']??3)<=>(['lvmthin'=>0,'zfspool'=>1,'dir'=>2][$b['type']??'']??3));
