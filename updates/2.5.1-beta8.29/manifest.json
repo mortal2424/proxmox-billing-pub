@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.29",
+  "from": "2.5.1-beta8.28",
+  "source_commit": "2d320ea03b91ff85121640bf15353668c2e07915",
+  "changelog": "IP в карточке ВМ и LXC с чтением из гостя и резервом на последний известный адрес.\nАвтоустановка гостевого агента для Linux cloud-образов при наличии Cloud-Init Snippet.\nВвод логина и пароля в консоли завершает Enter.\n",
+  "files": {
+    "api/vm_settings.php": {
+      "before": "5ec5d557dc4e362bcad8cef1d0c5a4da882fe0bd3fb72ebc8ce748c11aa84f55",
+      "sha256": "32ea03b6ff6de13673a087cc3987a841892199328f0b8699c51b31dcc92997ff"
+    },
+    "console/view.html": {
+      "before": "816d525ad2f7161aa234f6ecccade6203466ad4985f044ddbd42d299a18cb9a9",
+      "sha256": "b9d29999098a40842c70219ddc4cd93484089b2d6970be77c168237ae4336829"
+    },
+    "console/view.js": {
+      "before": "99444a39592828b9ed28f2f51af0ed525aa3458e18dfd4445fe67eaf469b071b",
+      "sha256": "e3a8222b4b9914313c2e3fa3d85582801c3f19d108ef714274032aac67cd18cc"
+    },
+    "includes/cloud_images.php": {
+      "before": "d3561a8b11e6334aa2b450e26e9167d5a51ed7808836130f5b933920652f0313",
+      "sha256": "29eb569d525ad004d960ac9532d127c42d41db8411f5b7179ea1661280aa64e6"
+    },
+    "includes/guest_ip.php": {
+      "before": null,
+      "sha256": "a1e89693d88b137bbfa917a65e5bb685a95532600ae3ef19400495c955e29aa2"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "471789f17252ba9a0f6b874498e11d1ca74ae4e76038227e484e346c34e6659f",
+      "sha256": "d9a89a1ab6a2b6854f7b3244d50ad37e748d418726979ed790110abed7a929eb"
+    },
+    "includes/version.php": {
+      "before": "77ffd1bd28d91fcbdb518217eb6b519d56d738c5d4e4d747ed357654276ebce8",
+      "sha256": "66ae71f62096c44bb20c6507425e394b2f2d5776945089c5a36a3ef9b3d69170"
+    },
+    "includes/vm_ip_updater.php": {
+      "before": "9ad12b7a13ca8214514f0f808f72c3b732ef771f440f8b8d7d8b90f1d0e638b6",
+      "sha256": "4e0ab0eb206dd8c3db3ce3a6d36048a61532af5fd6c34f2443adb4262ea33644"
+    },
+    "includes/zone_placement.php": {
+      "before": "122c6307c03a628d6bdc63cb0c0a154768685b5d5dc20256c76fa65879cd63ab",
+      "sha256": "1db47dbc840c726d05d610f103f9ace4ccfb71bf30cbe505af6dee307167b46f"
+    },
+    "install/cloud-init/homevlad-qemu-agent.yaml": {
+      "before": null,
+      "sha256": "ba162ff900d1971fca8543305dba78192e06abc1a1708539584ad14774d14a92"
+    },
+    "templates/vm_settings.php": {
+      "before": "571b417dbc51c324932b88203a0afa311c2f69e6bc1246e888c8f9a0a499984d",
+      "sha256": "94c0b73aa15fc7fd5eead5d0205b73f8061b7827907eb7f63d7f925f0d041281"
+    }
+  }
+}
