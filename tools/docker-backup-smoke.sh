@@ -17,8 +17,13 @@ new_session() {
 backup_action() {
     local action=$1
     shift
-    "${https[@]}" --fail-with-body "${cookie[@]}" -H 'X-Backup-Action: 1' \
-        --data-urlencode "backup_csrf=$backup_csrf" "$@" "$web/admin/backup.php?action=$action"
+    local response
+    if ! response=$("${https[@]}" --fail-with-body "${cookie[@]}" -H 'X-Backup-Action: 1' \
+        --data-urlencode "backup_csrf=$backup_csrf" "$@" "$web/admin/backup.php?action=$action"); then
+        jq -r '.message // "No error message"' <<< "$response" >&2
+        return 1
+    fi
+    printf '%s\n' "$response"
 }
 schedule() {
     backup_action save_schedule -d "id=$1" --data-urlencode "name=$2" -d "keep_count=$3" \
@@ -36,7 +41,10 @@ hex_of_file() {
 }
 
 new_session
-manual=$(manual_archive db)
+if ! manual=$(manual_archive db); then
+    "${app[@]}" sh -c 'MYSQL_PWD="$DB_PASSWORD" mariadb-dump --single-transaction --skip-lock-tables --no-tablespaces --hex-blob -h "$DB_HOST" -u "$DB_USER" "$DB_NAME" >/dev/null' || true
+    exit 1
+fi
 manual_hash=$(hex_of_file "$manual")
 schedule 0 'Smoke A' 5
 schedule 0 'Smoke B' 5
