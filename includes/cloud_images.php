@@ -66,3 +66,15 @@ function cloudImportVolumes(callable $request, string $node, ?array $storage = n
     unset($versions);
     return $images;
 }
+
+function cloudImageCpuSupported(array $image, array $cpuInfo): bool
+{
+    if (!isset($image['cpu'])) return true;
+
+    $flags = preg_split('/\s+/', trim((string)($cpuInfo['flags'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+    $required = ['cx16', 'lahf_lm', 'pni', 'popcnt', 'sse4_1', 'sse4_2', 'ssse3'];
+    if ($image['cpu'] === 'x86-64-v3') {
+        array_push($required, 'abm', 'avx', 'avx2', 'bmi1', 'bmi2', 'f16c', 'fma', 'movbe', 'xsave');
+    }
+    return !array_diff($required, $flags);
+}

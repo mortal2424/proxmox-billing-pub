@@ -99,7 +99,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             $image = null;
             if ($cloudImage !== '') {
                 foreach (cloudImportVolumes([$api, 'request'], $node['node_name'], $stores)[$cloudImage] ?? [] as $version) {
-                    if ($version['minimum_disk'] <= $disk) {
+                    if ($version['minimum_disk'] <= $disk && cloudImageCpuSupported($version, $status['cpuinfo'] ?? [])) {
                         $image = $version;
                         break;
                     }
