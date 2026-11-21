@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.31",
+  "from": "2.5.1-beta8.30",
+  "source_commit": "cded72e7ad8b5458f8f0072aea2a6eae89f71025",
+  "changelog": "В редакторе ноды появилась кнопка обновления состава кластера Proxmox. Новые ноды добавляются в ту же зону, выдача ресурсов по ним включается отдельно.\n",
+  "files": {
+    "admin/edit_node.php": {
+      "before": "eb905d183ecbed2a7d4385004d4a88934e88dc5466277f5102621306cf6412eb",
+      "sha256": "d0b7de39f7a685f7a66d3ac55558d87c2b9b418b73921fbdbd6bd5163ce20de4"
+    },
+    "includes/proxmox_node_import.php": {
+      "before": "0da66ab5fb699c935617e1536d3c67395f63d7af15b0d2c7dcff460312fbd2dc",
+      "sha256": "65d7cd28b35e67c03e8d9366f1ac4bfd38c36628ac990e8845deddae659defdc"
+    },
+    "includes/version.php": {
+      "before": "c749afda93db5e15a35287c8b5d8e741559a9a690146566a7b33e312ddd84b10",
+      "sha256": "3bd59b0eed5903163ff58fa10e7ce46a16333d43415b3c66b04a3d1a85722ae4"
+    }
+  }
+}
