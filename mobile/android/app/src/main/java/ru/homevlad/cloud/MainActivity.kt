@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,7 +19,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -38,6 +47,10 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private const val origin = "https://" + BuildConfig.HOST
+private val mint = Color(0xFF176B55)
+private val mintBackground = Color(0xFFDCF3E9)
+private val mintGradient = Brush.verticalGradient(listOf(mintBackground, Color(0xFFF7FBF9)))
+private const val orderApi = "/api/mobile_order.php"
 private const val authApi = "/api/mobile_auth.php"
 private class CloudHttpException(val status: Int, message: String) : IllegalStateException(message)
 private const val api = "/api/mobile_resources.php"
@@ -70,7 +83,7 @@ class CloudModel : ViewModel() {
             try {
                 connection.instanceFollowRedirects = false
                 connection.connectTimeout = 15000
-                connection.readTimeout = 20000
+                connection.readTimeout = if (path == orderApi && body != null) 680000 else 20000
                 connection.setRequestProperty("Accept", "application/json")
                 synchronized(cookies) {
                     cookies.get(url.toURI(), emptyMap()).forEach { (key, values) ->
@@ -258,7 +271,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         val vault = DeviceTokenVault(this)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = androidx.compose.ui.graphics.Color(0xFF287963))) {
+            MaterialTheme(colorScheme = lightColorScheme(primary = mint, background = mintBackground, surface = Color(0xFFF7FCF9), secondaryContainer = Color(0xFFC4EBDC))) {
                 Cabinet(vault)
             }
         }
@@ -285,8 +298,8 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
         page = if (page == "ticket") { if (adminContext) "admin_tickets" else "tickets" }
             else if (page.startsWith("admin_")) "admin" else "overview"
     }
-    Scaffold(topBar = {
-        TopAppBar(title = { Text("HomeVlad") }, actions = {
+    Scaffold(containerColor = Color.Transparent, topBar = {
+        if (model.snapshot != null) TopAppBar(title = { Text("HomeVlad") }, actions = {
             if (isAdmin) IconButton(onClick = { page = "admin" }) {
                 Icon(Icons.Default.Settings, contentDescription = "Админка")
             }
@@ -310,7 +323,7 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
             }
         }
     }) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        Column(Modifier.padding(padding).fillMaxSize().background(mintGradient)) {
             if (model.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             val snapshot = model.snapshot
             if (snapshot == null) {
@@ -323,7 +336,12 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                         Text("Бонусы " + money(snapshot.getDouble("bonusBalance")))
                         model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     }
-                    item { Text("Машины", style = MaterialTheme.typography.titleLarge) }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Машины", style = MaterialTheme.typography.titleLarge)
+                            FilledTonalButton(onClick = { page = "order" }) { Text("Создать ВМ / LXC") }
+                        }
+                    }
                     items(objects(snapshot.getJSONArray("guests"))) { guest ->
                         Card(Modifier.fillMaxWidth().clickable { selectedGuest = guest; page = "guest" }) {
                             Column(Modifier.padding(16.dp)) {
@@ -366,6 +384,10 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                         }
                     }
                 }
+                "order" -> NativeOrder(model) {
+                    model.refresh()
+                    page = "overview"
+                }
                 "guest" -> selectedGuest?.let { NativeGuest(model, it, revision) }
                 "payments", "admin_payments" -> NativePayments(model, page.startsWith("admin"), revision)
                 "tickets", "admin_tickets" -> NativeTickets(model, page.startsWith("admin"), revision) { id, admin ->
@@ -384,20 +406,24 @@ private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var answer by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Image(painterResource(R.drawable.app_icon), "HomeVlad", Modifier.size(80.dp))
-        Text("Вход", style = MaterialTheme.typography.headlineLarge)
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Image(painterResource(R.drawable.app_icon), "HomeVlad", Modifier.size(84.dp))
+        Text("HomeVlad", style = MaterialTheme.typography.headlineLarge)
+        Text("Вход в облачный кабинет", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Card(Modifier.widthIn(max = 420.dp).fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         OutlinedTextField(email, { email = it }, label = { Text("Email") }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
         OutlinedTextField(password, { password = it }, label = { Text("Пароль") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
         model.challenge?.let {
-            OutlinedTextField(answer, { answer = it }, label = { Text("CAPTCHA · ${it.getString("captcha")} = ?") },
+            OutlinedTextField(answer, { answer = it }, label = { Text("Проверка · ${it.getString("captcha")} = ?") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
         }
         TextButton(onClick = { answer = ""; model.prepareLogin() }, enabled = !model.loading) { Text("Обновить CAPTCHA") }
-        Button(onClick = { model.login(email, password, answer, vault); password = ""; answer = "" },
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { model.login(email, password, answer, vault); password = ""; answer = "" },
             enabled = !model.loading && model.challenge != null && email.isNotBlank() && password.isNotEmpty() && answer.isNotEmpty()) {
             Text("Войти")
         }
@@ -407,6 +433,8 @@ private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
             }
         }
         model.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        }
+        }
     }
 }
 
@@ -432,6 +460,7 @@ private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int) {
             if (!it.isNull("cpu")) Text("CPU ${it.getDouble("cpu")}%")
             if (!it.isNull("memory")) Text("Память ${it.getDouble("memory")}%")
         }
+        NativeGuestGraphs(model, guest.getInt("id"), revision)
         listOf("start" to "Запустить", "shutdown" to "Выключить ОС", "reboot" to "Перезагрузить", "stop" to "Остановить принудительно")
             .forEach { (action, label) -> Button(enabled = !busy, onClick = { command = action }) { Text(label) } }
         error?.let { Text(it) }
@@ -697,5 +726,210 @@ private fun NativeAdminUsers(model: CloudModel, revision: Int) {
             TextButton(onClick = { scope.launch { load(cursor) } }, enabled = !busy) { Text("Загрузить ещё") }
         } }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+    }
+}
+
+private data class GuestOrderOption(val id: String, val label: String, val os: String?)
+
+private fun orderOptions(data: JSONObject?, key: String): List<GuestOrderOption> {
+    val array = data?.optJSONArray(key) ?: return emptyList()
+    return (0 until array.length()).mapNotNull { index ->
+        array.optJSONObject(index)?.let {
+            GuestOrderOption(it.getString("id"), it.getString("label"), it.optString("os_type").ifBlank { null })
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OrderDropdown(label: String, selected: String, choices: List<GuestOrderOption>, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded, { expanded = it && choices.isNotEmpty() }) {
+        OutlinedTextField(choices.firstOrNull { it.id == selected }?.label.orEmpty(), {}, readOnly = true,
+            enabled = choices.isNotEmpty(), label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth())
+        ExposedDropdownMenu(expanded, { expanded = false }) {
+            choices.forEach { item ->
+                DropdownMenuItem({ Text(item.label) }, { onSelect(item.id); expanded = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeOrder(model: CloudModel, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var type by remember { mutableStateOf("qemu") }
+    var catalogue by remember { mutableStateOf<JSONObject?>(null) }
+    var resources by remember { mutableStateOf<JSONObject?>(null) }
+    var hostname by remember { mutableStateOf("") }
+    var zone by remember { mutableStateOf("") }
+    var network by remember { mutableStateOf("") }
+    var storage by remember { mutableStateOf("") }
+    var image by remember { mutableStateOf("") }
+    var tariff by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
+    var confirm by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var created by remember { mutableStateOf(false) }
+    BackHandler(enabled = submitting) {}
+    LaunchedEffect(type) {
+        try { catalogue = model.request("$orderApi?vm_type=$type") }
+        catch (error: Exception) {
+            if (error is CancellationException) throw error
+            message = error.message
+        }
+    }
+    LaunchedEffect(type, zone) {
+        if (zone.isBlank()) return@LaunchedEffect
+        loading = true
+        try { resources = model.request("/templates/get_zone_placement.php?zone_id=$zone&vm_type=$type") }
+        catch (error: Exception) {
+            if (error is CancellationException) throw error
+            message = error.message
+        } finally { loading = false }
+    }
+    val images = orderOptions(resources, if (type == "qemu") "cloud" else "media")
+    val os = images.firstOrNull { it.id == image }?.os
+    val plans = orderOptions(catalogue, "tariffs").filter { os == null || it.os == null || it.os == os }
+    val canSubmit = !loading && !submitting && hostname.isNotBlank() && zone.isNotBlank() &&
+        network.isNotBlank() && storage.isNotBlank() && image.isNotBlank() && plans.any { it.id == tariff }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Создание машины", style = MaterialTheme.typography.headlineSmall)
+        if (created) {
+            Text("Гость создан")
+            message?.let { Text(it) }
+            Button(onClick = onDone) { Text("К списку машин") }
+            return@Column
+        }
+        if (!submitting) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf("qemu" to "Виртуальная машина", "lxc" to "LXC").forEach { (id, label) ->
+                    FilterChip(type == id, onClick = {
+                        if (type != id) {
+                            type = id; catalogue = null; resources = null; zone = ""; network = ""
+                            storage = ""; image = ""; tariff = ""; message = null
+                        }
+                    }, label = { Text(label) })
+                }
+            }
+            OutlinedTextField(hostname, { hostname = it }, label = { Text("Имя хоста") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OrderDropdown("Зона доступности", zone, orderOptions(catalogue, "zones")) {
+                if (zone != it) { zone = it; resources = null; network = ""; storage = ""; image = ""; tariff = ""; message = null }
+            }
+            if (zone.isNotBlank()) {
+                if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                OrderDropdown("Пул сети", network, orderOptions(resources, "network")) { network = it }
+                OrderDropdown("Пул хранилищ", storage, orderOptions(resources, "storage")) { storage = it }
+                OrderDropdown(if (type == "qemu") "Cloud-образ" else "Шаблон LXC", image, images) { image = it; tariff = "" }
+                OrderDropdown("Тариф", tariff, plans) { tariff = it }
+                if (resources != null && (images.isEmpty() || orderOptions(resources, "network").isEmpty() || orderOptions(resources, "storage").isEmpty())) {
+                    Text("Для этого типа гостя в зоне доступны не все ресурсы. Выберите другую зону.")
+                }
+            }
+            Text("Пароль создаст сервер. Его можно посмотреть в веб-кабинете в течение 24 часов.", style = MaterialTheme.typography.bodySmall)
+            Button(onClick = { confirm = true }, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) { Text("Создать") }
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text("Создаём гостя…")
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    }
+    if (confirm) AlertDialog(
+        onDismissRequest = { confirm = false }, title = { Text("Подтвердить заказ") },
+        text = { Text(plans.firstOrNull { it.id == tariff }?.label.orEmpty()) },
+        confirmButton = {
+            TextButton(onClick = {
+                confirm = false
+                if (!canSubmit) return@TextButton
+                submitting = true; message = null
+                scope.launch {
+                    try {
+                        val response = model.request(orderApi, JSONObject().put("vm_type", type).put("zone_id", zone)
+                            .put("hostname", hostname).put("network_pool", network).put("storage_pool", storage)
+                            .put("tariff_id", tariff).put(if (type == "qemu") "cloud_image" else "template", image))
+                        created = response.getBoolean("success")
+                        message = if (response.isNull("warning")) null else response.optString("warning")
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        message = if (error is CloudHttpException && error.status == 422) error.message
+                            else "Заказ не подтверждён. Проверьте список машин перед повтором."
+                    } finally { submitting = false }
+                }
+            }) { Text("Создать") }
+        }, dismissButton = { TextButton(onClick = { confirm = false }) { Text("Отмена") } }
+    )
+}
+
+@Composable
+private fun NativeGuestGraphs(model: CloudModel, guestId: Int, revision: Int) {
+    val periods = listOf("hour" to "Час", "day" to "День", "week" to "Неделя", "month" to "Месяц", "year" to "Год")
+    var period by remember { mutableStateOf("hour") }
+    var metrics by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(guestId, period, revision) {
+        loading = true; error = null
+        try { metrics = objects(model.request("$api?resource=guest_metrics&id=$guestId&period=$period").getJSONArray("items")) }
+        catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            error = failure.message
+        } finally { loading = false }
+    }
+    Text("Графики", style = MaterialTheme.typography.titleMedium)
+    OrderDropdown("Период", period, periods.map { GuestOrderOption(it.first, it.second, null) }) { period = it }
+    if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+    else if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
+    else {
+        MetricChart("CPU и память · %", "CPU" to "cpu", "Память" to "memory", metrics)
+        MetricChart("Сеть · Мбит/с", "Вход" to "netIn", "Выход" to "netOut", metrics)
+        MetricChart("Диск · МиБ/с", "Чтение" to "diskRead", "Запись" to "diskWrite", metrics)
+    }
+}
+
+@Composable
+private fun MetricChart(title: String, first: Pair<String, String>, second: Pair<String, String>, points: List<JSONObject>) {
+    val colors = listOf(mint, Color(0xFF4364B5))
+    val series = listOf(first, second)
+    val values = series.map { (_, key) -> points.map { it.optDouble(key).takeIf(Double::isFinite) } }
+    val available = values.flatten().filterNotNull()
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            if (available.isEmpty()) {
+                Text("Нет замеров за этот период", style = MaterialTheme.typography.bodySmall)
+            } else {
+                val maxValue = available.max().coerceAtLeast(0.01)
+                val start = points.first().getLong("time")
+                val span = (points.last().getLong("time") - start).coerceAtLeast(1)
+                Canvas(Modifier.fillMaxWidth().height(112.dp).semantics { contentDescription = title }) {
+                    listOf(0.25f, 0.5f, 0.75f, 1f).forEach { tick ->
+                        drawLine(Color(0xFFD0E7DE), Offset(0f, size.height * tick), Offset(size.width, size.height * tick))
+                    }
+                    values.forEachIndexed { index, row ->
+                        var previous: Offset? = null
+                        row.forEachIndexed { point, value ->
+                            val next = value?.let {
+                                Offset(((points[point].getLong("time") - start).toDouble() / span).toFloat() * size.width,
+                                    size.height * (1f - (it / maxValue).toFloat().coerceIn(0f, 1f)))
+                            }
+                            if (next != null) {
+                                previous?.let { drawLine(colors[index], it, next, strokeWidth = 2.dp.toPx()) }
+                                    ?: drawCircle(colors[index], 2.dp.toPx(), next)
+                            }
+                            previous = next
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    series.forEachIndexed { index, item -> Text(item.first, color = colors[index], style = MaterialTheme.typography.labelMedium) }
+                }
+                Text(String.format(Locale.getDefault(), "Шкала 0–%.2f", maxValue), style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }

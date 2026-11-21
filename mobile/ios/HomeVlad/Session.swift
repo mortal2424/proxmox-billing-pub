@@ -19,6 +19,8 @@ struct CloudAcknowledgement: Decodable {
     let csrf: String?
     let id: Int?
     let token: String?
+    let guestId: Int?
+    let warning: String?
 }
 private struct CloudServerError: Decodable { let error: String }
 struct CloudRequestError: LocalizedError {
@@ -120,6 +122,7 @@ private enum BiometricTokenVault {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
+        if path == "/api/mobile_order.php", body != nil { request.timeoutInterval = 680 }
         let (data, response) = try await client.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw CloudError.unavailable }
         guard response.statusCode == 200 else {

@@ -110,3 +110,38 @@ func cloudStatus(_ value: String) -> String {
     default: "Неизвестно"
     }
 }
+
+struct OrderOption: Decodable, Identifiable {
+    let id: String
+    let label: String
+    let os_type: String?
+}
+struct OrderCatalogue: Decodable {
+    let zones: [OrderOption]
+    let tariffs: [OrderOption]
+}
+struct OrderResources: Decodable {
+    let network: [OrderOption]
+    let storage: [OrderOption]
+    let cloud: [OrderOption]
+    let media: [OrderOption]
+
+    enum CodingKeys: String, CodingKey { case network, storage, cloud, media }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        network = try values.decode([OrderOption].self, forKey: .network)
+        storage = try values.decode([OrderOption].self, forKey: .storage)
+        cloud = try values.decode([OrderOption].self, forKey: .cloud)
+        media = (try? values.decode([OrderOption].self, forKey: .media)) ?? []
+    }
+}
+struct GuestMetric: Decodable, Identifiable {
+    let time: Int
+    let cpu: Double?
+    let memory: Double?
+    let netIn: Double?
+    let netOut: Double?
+    let diskRead: Double?
+    let diskWrite: Double?
+    var id: Int { time }
+}

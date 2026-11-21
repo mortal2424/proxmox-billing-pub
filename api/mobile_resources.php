@@ -140,9 +140,9 @@ try {
         }
         mobileRespond(['items' => $items, 'next' => count($users) > 50 ? $items[49]['id'] : null]);
     }
-    if ($resource === 'guest') {
+    if (in_array($resource, ['guest','guest_metrics'], true)) {
         $query = $pdo->prepare('SELECT v.vm_id,v.vm_type,n.* FROM vms v JOIN proxmox_nodes n ON n.id=v.node_id
-            WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1');
+            WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1 AND v.status<>\'deleted\'');
         $query->execute([(int) ($_GET['id'] ?? 0), $userId, (int) $isAdmin]);
         $node = $query->fetch(PDO::FETCH_ASSOC);
         if (!$node) mobileRespond(['error' => 'Машина недоступна'], 404);
@@ -150,8 +150,26 @@ try {
         require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
         $api = new ProxmoxApiClient($node);
         $type = $node['vm_type'] === 'lxc' ? 'lxc' : 'qemu';
-        $path = '/nodes/' . rawurlencode($node['node_name']) . '/' . $type . '/' . (int) $node['vm_id'] . '/status/current';
-        $state = $api->request('GET', $path);
+        $path = '/nodes/' . rawurlencode($node['node_name']) . '/' . $type . '/' . (int) $node['vm_id'];
+        if ($resource === 'guest_metrics') {
+            $period = $_GET['period'] ?? 'hour';
+            if (!in_array($period, ['hour','day','week','month','year'], true)) mobileRespond(['error'=>'Неверный период'], 400);
+            $points = $api->request('GET', $path . '/rrddata', ['timeframe'=>$period, 'cf'=>'AVERAGE']);
+            $items = [];
+            foreach ($points as $point) {
+                if (!isset($point['time'])) continue;
+                $metric = static fn(string $key, float $factor = 1.0): ?float =>
+                    isset($point[$key]) && is_numeric($point[$key]) ? (float)$point[$key] * $factor : null;
+                $items[] = [
+                    'time'=>(int)$point['time'], 'cpu'=>$metric('cpu',100),
+                    'memory'=>isset($point['mem']) && ($point['maxmem'] ?? 0)>0 ? 100*(float)$point['mem']/$point['maxmem'] : null,
+                    'netIn'=>$metric('netin', 8/1000000), 'netOut'=>$metric('netout', 8/1000000),
+                    'diskRead'=>$metric('diskread', 1/1048576), 'diskWrite'=>$metric('diskwrite', 1/1048576),
+                ];
+            }
+            mobileRespond(['items'=>$items]);
+        }
+        $state = $api->request('GET', $path . '/status/current');
         mobileRespond(['status' => $state['status'] ?? 'unknown',
             'cpu' => isset($state['cpu']) ? (float) $state['cpu'] * 100 : null,
             'memory' => ($state['maxmem'] ?? 0) > 0 ? (float) $state['mem'] / $state['maxmem'] * 100 : null,

@@ -3,6 +3,7 @@ import SwiftUI
 struct Cabinet: View {
     @ObservedObject var session: CloudSession
     @State private var selectedTab = "overview"
+    @State private var ordering = false
 
     var body: some View {
         Group {
@@ -45,6 +46,9 @@ struct Cabinet: View {
                         }
                         .navigationTitle("HomeVlad")
                         .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button { ordering = true } label: { Label("Создать ВМ или LXC", systemImage: "plus") }
+                            }
                             if snapshot.isAdmin {
                                 ToolbarItem(placement: .topBarTrailing) {
                                     Button { selectedTab = "admin" } label: {
@@ -53,6 +57,11 @@ struct Cabinet: View {
                                 }
                             }
                         }
+                        .sheet(isPresented: $ordering) {
+                            NavigationStack { NativeOrder(session: session) }
+                        }
+                        .scrollContentBackground(.hidden)
+                        .background(HomeVladMintBackground())
                         .refreshable { await session.refresh() }
                     }.tabItem { Label("Обзор", systemImage: "cloud") }.tag("overview")
                     NavigationStack {
@@ -78,6 +87,7 @@ struct Cabinet: View {
                             }
                             if snapshot.nodes.isEmpty { Text("Доступных узлов пока нет") }
                         }
+                        .scrollContentBackground(.hidden).background(HomeVladMintBackground())
                         .navigationTitle("Мониторинг")
                         .refreshable { await session.refresh() }
                     }.tabItem { Label("Мониторинг", systemImage: "chart.bar") }.tag("monitor")
@@ -110,38 +120,60 @@ struct NativeLogin: View {
     @State private var answer = ""
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Image(systemName: "cloud.fill").font(.system(size: 48)).foregroundStyle(.tint)
-                        .frame(maxWidth: .infinity).padding()
-                    Text("HomeVlad").font(.largeTitle.bold()).frame(maxWidth: .infinity)
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 42, weight: .medium))
+                        .foregroundStyle(Color(red: 0.10, green: 0.45, blue: 0.35))
+                        .frame(width: 84, height: 84)
+                        .background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 24))
+                    Text("HomeVlad").font(.system(.largeTitle, design: .rounded).bold())
+                    Text("Вход в облачный кабинет").foregroundStyle(.secondary)
+                }
+                VStack(spacing: 14) {
                     TextField("Email", text: $email).keyboardType(.emailAddress)
                         .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
                     SecureField("Пароль", text: $password).textContentType(.password)
-                    if let challenge = session.challenge {
-                        TextField("CAPTCHA · \(challenge.captcha) = ?", text: $answer).keyboardType(.numberPad)
+                        .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
+                    HStack {
+                        if let challenge = session.challenge {
+                            TextField("\(challenge.captcha) = ?", text: $answer).keyboardType(.numberPad)
+                                .accessibilityLabel("Ответ на проверочный вопрос")
+                                .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
+                        }
+                        Button {
+                            answer = ""
+                            Task { await session.prepareLogin() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise").padding(8)
+                        }.accessibilityLabel("Обновить CAPTCHA").disabled(session.loading)
                     }
-                    Button("Обновить CAPTCHA") {
-                        answer = ""
-                        Task { await session.prepareLogin() }
-                    }.disabled(session.loading)
-                    Button("Войти") {
+                    Button {
                         Task {
                             await session.login(email: email, password: password, answer: answer)
                             password = ""
                             answer = ""
                         }
-                    }.disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty || answer.isEmpty)
+                    } label: { Text("Войти").frame(maxWidth: .infinity) }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                    .disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty || answer.isEmpty)
                     if session.biometricEnabled, let label = session.biometricLabel {
                         Button { Task { await session.biometricLogin() } } label: {
                             Label("Войти по " + label, systemImage: label == "Face ID" ? "faceid" : "touchid")
                         }.disabled(session.loading || session.challenge == nil)
                     }
                     if session.loading { ProgressView() }
+                    if let error = session.error { Text(error).font(.footnote).foregroundStyle(.red) }
                 }
-                if let error = session.error { Section { Text(error).foregroundStyle(.red) } }
-            }.navigationTitle("Вход")
-        }
+                .padding(22)
+                .background(.white, in: RoundedRectangle(cornerRadius: 26))
+            }
+            .frame(maxWidth: 420)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 38)
+            .frame(maxWidth: .infinity)
+        }.background(HomeVladMintBackground())
     }
 }
