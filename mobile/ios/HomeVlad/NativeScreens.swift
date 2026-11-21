@@ -8,6 +8,7 @@ struct NativeGuestDetail: View {
     @State private var busy = false
     @State private var message: String?
     @State private var pending: String?
+    @State private var showConsole = false
 
     var body: some View {
         List {
@@ -24,6 +25,10 @@ struct NativeGuestDetail: View {
                 if let cpu = live?.cpu { LabeledContent("CPU", value: String(format: "%.1f%%", cpu)) }
                 if let memory = live?.memory { LabeledContent("Память", value: String(format: "%.1f%%", memory)) }
             }
+            Section {
+                Button { showConsole = true } label: { Label("Открыть консоль", systemImage: "terminal") }
+                    .disabled((live?.status ?? guest.status) != "running")
+            }
             NativeGuestGraphs(session: session, guestId: guest.id)
             Section("Управление") {
                 ForEach(["start", "shutdown", "reboot", "stop"], id: \.self) { command in
@@ -38,6 +43,9 @@ struct NativeGuestDetail: View {
         .navigationTitle(guest.name)
         .task { await load() }
         .refreshable { await load() }
+        .fullScreenCover(isPresented: $showConsole) {
+            NavigationStack { NativeConsoleScreen(session: session, guest: guest) }
+        }
         .alert("Управление машиной", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } })) {
             Button("Отмена", role: .cancel) { pending = nil }
             Button("Выполнить", role: pending == "stop" ? .destructive : nil) {

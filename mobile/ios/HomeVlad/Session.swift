@@ -110,6 +110,31 @@ private enum BiometricTokenVault {
         return try await request(path, body: payload)
     }
 
+    func consoleTicket(guestId: Int) async throws -> ConsoleLaunchTicket {
+        let grant: ConsoleLaunchTicket = try await request("/api/mobile_console.php", body: ["csrf": csrf, "id": guestId])
+        guard grant.ticket.utf8.count == 64,
+              grant.ticket.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
+            throw CloudError.unavailable
+        }
+        return grant
+    }
+
+    func consoleConnection(path: String) throws -> NativeVNCConnection {
+        guard path == "/console/socket",
+              var endpoint = URLComponents(url: CloudEnvironment.origin, resolvingAgainstBaseURL: false) else {
+            throw CloudError.unavailable
+        }
+        endpoint.scheme = "wss"
+        endpoint.path = path
+        guard let url = endpoint.url else { throw CloudError.unavailable }
+        var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        request.setValue(CloudEnvironment.origin.absoluteString, forHTTPHeaderField: "Origin")
+        let socket = client.webSocketTask(with: request)
+        socket.maximumMessageSize = 4 * 1024 * 1024
+        return NativeVNCConnection(socket: socket)
+    }
+
     private func request<T: Decodable>(_ path: String, body: [String: Any]?) async throws -> T {
         guard let url = URL(string: path, relativeTo: CloudEnvironment.origin)?.absoluteURL,
               url.scheme == "https", url.host == CloudEnvironment.host, url.port == nil || url.port == 443 else {
