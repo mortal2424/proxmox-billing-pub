@@ -31,7 +31,7 @@ function cloudImageCatalog(): array
     foreach ([2022, 2025] as $version) {
         $images["windows-server-$version"] = [
             'label' => "Windows Server $version", 'user' => 'Administrator',
-            'os_type' => 'windows',
+            'os_type' => 'windows', 'cpu' => 'x86-64-v2-AES',
             'minimum_ram' => 2048, 'minimum_disk' => 32,
         ];
     }
@@ -84,6 +84,7 @@ function cloudImageCpuSupported(array $image, array $cpuInfo): bool
     if ($image['cpu'] === 'x86-64-v3') {
         array_push($required, 'abm', 'avx', 'avx2', 'bmi1', 'bmi2', 'f16c', 'fma', 'movbe', 'xsave');
     }
+    if ($image['cpu'] === 'x86-64-v2-AES') $required[] = 'aes';
     return !array_diff($required, $flags);
 }
 
