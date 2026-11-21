@@ -1343,11 +1343,11 @@ require 'admin_header.php';
                     labels: labels,
                     datasets: [
                         {
-                            data: data.map(item => (item.network_rx || 0) / 100),
+                            data: data.map(item => item.network_rx),
                             label: 'Входящий трафик (Mbit/s)'
                         },
                         {
-                            data: data.map(item => (item.network_tx || 0) / 100),
+                            data: data.map(item => item.network_tx),
                             label: 'Исходящий трафик (Mbit/s)'
                         }
                     ]

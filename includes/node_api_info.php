@@ -2,7 +2,7 @@
 require_once __DIR__.'/ProxmoxApiClient.php';
 require_once __DIR__.'/node_api_credentials.php';
 
-function panelNodeApiInfo(array $node): array
+function panelNodeApiInfo(array $node, bool $includeStorage = true): array
 {
     $api = new ProxmoxApiClient(panelNodeApiCredentials($node));
     $base = '/nodes/'.rawurlencode($node['node_name']);
@@ -20,9 +20,10 @@ function panelNodeApiInfo(array $node): array
         'ip'=>$node['hostname'], 'mac'=>'N/A',
         'stats'=>['cpu_usage'=>round(100*($status['cpu']??0),2), 'ram_usage'=>$percent,
             'ram_total'=>round($total/1048576,2), 'network_rx_bytes'=>0, 'network_tx_bytes'=>0,
-            'network_rx_mbits'=>0, 'network_tx_mbits'=>0, 'network_unavailable'=>true],
+            'network_rx_mbits'=>null, 'network_tx_mbits'=>null],
     ];
-    foreach ($api->request('GET',$base.'/storage') as $storage) {
+    $storages = $includeStorage ? $api->request('GET', $base.'/storage') : [];
+    foreach ($storages as $storage) {
         $type = (string)($storage['type']??'unknown');
         $entry = ['name'=>(string)$storage['storage'], 'type'=>$type, 'active'=>!empty($storage['active']),
             'total'=>(int)($storage['total']??0), 'used'=>(int)($storage['used']??0),
@@ -34,13 +35,19 @@ function panelNodeApiInfo(array $node): array
     // RRD netin/netout are bytes per second, not cumulative interface counters.
     try {
         $rows=$api->request('GET',$base.'/rrddata',['timeframe'=>'hour','cf'=>'AVERAGE']);
-        foreach(array_reverse($rows)as$row){
-            if(!isset($row['netin'],$row['netout'],$row['time'])||time()-(int)$row['time']>600)continue;
-            $result['stats']['network_unavailable']=false;
-            $result['stats']['network_rx_mbits']=round(max(0,(float)$row['netin'])*8/1000000,2);
-            $result['stats']['network_tx_mbits']=round(max(0,(float)$row['netout'])*8/1000000,2);
-            break;
+        $now = time();
+        $timestamp = $now - 601;
+        foreach ($rows as $row) {
+            if (!is_numeric($row['time'] ?? null) || !is_numeric($row['netin'] ?? null) ||
+                !is_numeric($row['netout'] ?? null)) continue;
+            $time = (int) $row['time'];
+            if ($time <= $timestamp || $time > $now || $row['netin'] < 0 || $row['netout'] < 0) continue;
+            $timestamp = $time;
+            $result['stats']['network_rx_mbits'] = round((float) $row['netin'] * 8 / 1000000, 2);
+            $result['stats']['network_tx_mbits'] = round((float) $row['netout'] * 8 / 1000000, 2);
         }
-    } catch(Throwable $error) { $result['stats']['network_unavailable']=true; }
+    } catch (RuntimeException $error) {
+        // CPU and memory remain available when Proxmox cannot return RRD data.
+    }
     return $result;
 }

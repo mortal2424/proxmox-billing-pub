@@ -25,8 +25,8 @@ try {
     $columns = $pdo->query("SHOW COLUMNS FROM node_stats LIKE 'network_rx_mbits'")->fetch();
     if (!$columns) {
         $pdo->exec("ALTER TABLE node_stats
-                   ADD COLUMN network_rx_mbits DECIMAL(10,2) DEFAULT 0,
-                   ADD COLUMN network_tx_mbits DECIMAL(10,2) DEFAULT 0");
+                   ADD COLUMN network_rx_mbits DECIMAL(10,2) DEFAULT NULL,
+                   ADD COLUMN network_tx_mbits DECIMAL(10,2) DEFAULT NULL");
         $log('Добавлены новые колонки для хранения скорости сети');
     }
 } catch (PDOException $e) {
@@ -60,7 +60,7 @@ foreach ($nodes as $node) {
 
     try {
         // Получаем текущую статистику с ноды
-        $stats = panelNodeApiInfo($node)['stats'];
+        $stats = panelNodeApiInfo($node, includeStorage: false)['stats'];
 
         if (isset($stats['error'])) {
             $log("Ошибка получения статистики: ".$stats['error']);
@@ -96,15 +96,16 @@ foreach ($nodes as $node) {
             $stats['ram_total'],
             $stats['network_rx_bytes'],
             $stats['network_tx_bytes'],
-            round($rx_mbits, 2),
-            round($tx_mbits, 2)
+            $rx_mbits,
+            $tx_mbits
         ]);
 
         if (!$result) {
             $error = $stmt->errorInfo();
             $log("Ошибка сохранения: ".$error[2]);
         } else {
-            $log("Данные успешно сохранены (RX: ".round($rx_mbits, 2)." Мбит/с, TX: ".round($tx_mbits, 2)." Мбит/с)");
+            $log($rx_mbits === null ? 'CPU и память сохранены, замера сети нет' :
+                "Данные сохранены (RX: $rx_mbits Мбит/с, TX: $tx_mbits Мбит/с)");
         }
 
     } catch (Exception $e) {

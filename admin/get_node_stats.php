@@ -83,8 +83,8 @@ try {
             'cpu' => (float)$stat['cpu'],
             'memory' => (float)$stat['memory'],
             'memory_total' => (int)$stat['memory_total'],
-            'network_rx' => (int)$stat['network_rx'],
-            'network_tx' => (int)$stat['network_tx']
+            'network_rx' => $stat['network_rx'] === null ? null : (float) $stat['network_rx'],
+            'network_tx' => $stat['network_tx'] === null ? null : (float) $stat['network_tx']
         ];
     }
 
