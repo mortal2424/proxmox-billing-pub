@@ -204,6 +204,12 @@
       "commit": "b1dd9585c534c49c85709b676ed14e4285adfbeb",
       "sha256": "eeb527d1662e390fca358c057cefff2c3b32b1027a72edad99d18c526c81224b",
       "summary": "Проверка отдельного адреса API каждого нового участника Proxmox."
+    },
+    {
+      "version": "2.5.1-beta8.35",
+      "commit": "530777725e0ee9fc3ddbef02f760c27f3deba5a0",
+      "sha256": "2b8e2177c55d2f4e230d24ea8e574052e02cc8e4b78b2e85c663dc3b6ff65019",
+      "summary": "Мобильная биометрия, нативная админка и IP в карточке гостя."
     }
   ]
 }
