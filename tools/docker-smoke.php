@@ -1,6 +1,15 @@
 <?php
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+if (getenv('HOMEVLAD_DOCKER_SMOKE') !== '1' || getenv('DB_NAME') !== 'homevlad_smoke') {
+    fwrite(STDERR, "Disposable Docker smoke database required\n");
+    exit(1);
+}
+
 require '/var/www/html/includes/db.php';
 require '/var/www/html/includes/node_credentials.php';
 

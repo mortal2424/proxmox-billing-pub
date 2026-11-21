@@ -13,3 +13,4 @@ webroot/*
 docker/proxmox-tls
 docker/ssl
 includes/config.php
+tools/docker-smoke*

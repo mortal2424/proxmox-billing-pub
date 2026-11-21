@@ -51,9 +51,11 @@ ready
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T apache apache2ctl -t
 "${compose[@]}" exec -T apache sh -c 'cat >/tmp/homevlad-docker-pve.key; chmod 0600 /tmp/homevlad-docker-pve.key' < "$qa/pve.key"
-"${compose[@]}" exec -d apache /usr/bin/python3 /var/www/html/tools/docker-smoke.py serve
-"${compose[@]}" exec -T --user www-data apache php /var/www/html/tools/docker-smoke.php
-"${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /var/www/html/tools/docker-smoke.py test
+"${compose[@]}" cp tools/docker-smoke.py apache:/tmp/docker-smoke.py
+"${compose[@]}" cp tools/docker-smoke.php apache:/tmp/docker-smoke.php
+"${compose[@]}" exec -d apache /usr/bin/python3 /tmp/docker-smoke.py serve
+"${compose[@]}" exec -T --user www-data -e HOMEVLAD_DOCKER_SMOKE=1 apache php /tmp/docker-smoke.php
+"${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py test
 
 session=$("${compose[@]}" exec -T --user www-data apache cat /tmp/homevlad-docker-sessions.json)
 sid=$(jq -r '.sessions.admin.id' <<< "$session")
