@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/admin_functions.php';
 require_once __DIR__ . '/../includes/zone_placement.php';
 
 $pdo = (new Database())->getConnection();
