@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/node_credentials.php';
+require_once __DIR__ . '/../includes/proxmox_node_import.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -23,7 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $node_name = trim($_POST['node_name']);
         $hostname = trim($_POST['hostname']);
         $api_port = intval($_POST['api_port'] ?? 8006);
-        $ssh_port = 22; // Legacy database column.
         $username = trim($_POST['api_token_id'] ?? '');
         $password = is_string($_POST['api_token_secret'] ?? null) ? $_POST['api_token_secret'] : '';
         $is_active = isset($_POST['is_active']) ? 1 : 0;
@@ -34,49 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         if (empty($node_name)) throw new Exception("Имя ноды обязательно");
         if (empty($hostname)) throw new Exception("Адрес сервера обязателен");
 
-        if ($is_cluster_master) {
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE cluster_id = ? AND is_cluster_master = 1");
-            $stmt->execute([$cluster_id]);
-            if ($stmt->fetchColumn() > 0) throw new Exception("В этом кластере уже есть главная нода");
-        }
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE cluster_id = ? AND node_name = ?");
-        $stmt->execute([$cluster_id, $node_name]);
-        if ($stmt->fetchColumn() > 0) throw new Exception("Нода с таким именем уже существует в этом кластере");
-
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes WHERE hostname = ? AND api_port = ?");
-        $stmt->execute([$hostname, $api_port]);
-        if ($stmt->fetchColumn() > 0) throw new Exception("Нода с таким адресом и портом уже существует");
-
-        if (!preg_match('/^[A-Za-z0-9_.-]+$/D', $node_name)) {
-            throw new InvalidArgumentException('Некорректное имя ноды');
-        }
-        require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
-        $client = new ProxmoxApiClient(['hostname'=>$hostname, 'api_port'=>$api_port,
-            'username'=>$username, 'password'=>$password]);
-        if (!$client->usesToken()) {
-            throw new InvalidArgumentException('Укажите полный ID API-токена в формате пользователь@realm!имя');
-        }
-        $client->request('GET', '/nodes/' . rawurlencode($node_name) . '/status');
-        $status = 'online';
-
-        $sql = "INSERT INTO proxmox_nodes
-               (cluster_id, node_name, hostname, api_port, ssh_port, username,
-                password, is_active, description, is_cluster_master, last_check, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
-
-        $stmt = $pdo->prepare($sql);
-        $encrypted_password = encryptNodePassword($password);
-        $stmt->execute([
-            $cluster_id, $node_name, $hostname, $api_port, $ssh_port,
-            $username, $encrypted_password, $is_active, $description,
-            $is_cluster_master, $status
-        ]);
-
-        $node_id = $pdo->lastInsertId();
-        error_log("Нода создана: ID = $node_id, Name = $node_name, Cluster = $cluster_id");
-
-        $_SESSION['success'] = "Нода '{$node_name}' добавлена. API-токен проверен.";
+        $connection = compact('cluster_id', 'node_name', 'hostname', 'api_port', 'username', 'password',
+            'is_active', 'description', 'is_cluster_master');
+        $members = discoverProxmoxMembers(new ProxmoxApiClient($connection), $node_name);
+        $count = importProxmoxMembers($pdo, $connection, $members);
+        $_SESSION['success'] = "Участников найдено: " . count($members) . ". Добавлено: $count.";
         header("Location: nodes.php");
         exit;
     } catch (Exception $e) {
@@ -91,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?></title>
+    <title>Добавление ноды | HomeVlad</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
@@ -848,7 +809,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
                     <div class="form-section-body">
                         <div class="form-group"><label class="form-label">API порт</label><input type="number" name="api_port" class="form-input" value="8006" id="apiPort" min="1" max="65535"><span class="form-hint">Порт API Proxmox</span></div>
                         <div class="form-group"><label class="form-label" for="apiTokenId">ID API-токена</label><input type="text" name="api_token_id" class="form-input" id="apiTokenId" placeholder="billing@pve!homevlad" required autocomplete="off"></div>
-                        <div class="form-group"><label class="form-label" for="apiTokenSecret">Секрет API-токена</label><input type="password" name="api_token_secret" class="form-input" id="apiTokenSecret" required autocomplete="new-password"><span class="form-hint">Секрет хранится в зашифрованном виде. При сохранении панель проверит HTTPS и доступ к ноде.</span></div>
+                        <div class="form-group"><label class="form-label" for="apiTokenSecret">Секрет API-токена</label><input type="password" name="api_token_secret" class="form-input" id="apiTokenSecret" required autocomplete="new-password"><span class="form-hint">Панель проверит токен и добавит участников кластера в выбранную зону. Недоступные участники добавляются выключенными.</span></div>
                     </div>
                 </div>
 

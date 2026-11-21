@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/proxmox_tls.php';
+require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
 
 $lock = fopen(sys_get_temp_dir() . '/homevlad-node-health.lock', 'c');
 if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
@@ -9,7 +9,7 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
 }
 $pdo = (new Database())->getConnection();
 $update = $pdo->prepare('UPDATE proxmox_nodes SET status = ?, last_check = NOW() WHERE id = ?');
-foreach ($pdo->query('SELECT id, hostname, api_port FROM proxmox_nodes WHERE is_active = 1') as $node) {
+foreach ($pdo->query('SELECT id, hostname, api_port, node_name, username, password FROM proxmox_nodes WHERE is_active = 1') as $node) {
     $host = $node['hostname'];
     $port = (int) ($node['api_port'] ?: 8006);
     if (!filter_var($host, FILTER_VALIDATE_IP) && !filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
@@ -18,6 +18,17 @@ foreach ($pdo->query('SELECT id, hostname, api_port FROM proxmox_nodes WHERE is_
     }
     if (str_contains($host, ':')) {
         $host = '[' . $host . ']';
+    }
+    if (str_contains((string)$node['username'], '!')) {
+        try {
+            (new ProxmoxApiClient($node))->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/status');
+            $state = 'online';
+        } catch (Throwable $error) {
+            $state = 'unknown';
+            error_log('Node member status unavailable for node ' . (int)$node['id']);
+        }
+        $update->execute([$state, $node['id']]);
+        continue;
     }
     $http_response_header = [];
     try {

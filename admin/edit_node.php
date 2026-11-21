@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/node_credentials.php';
+require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -70,15 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cluster_id = intval($_POST['cluster_id']);
             $node_name = trim($_POST['node_name']);
             $hostname = trim($_POST['hostname']);
-            $ssh_port = intval($_POST['ssh_port'] ?? 22);
             $api_port = intval($_POST['api_port'] ?? 8006);
-            $username = trim($_POST['username'] ?? '');
-            $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+            $username = trim($_POST['api_token_id'] ?? '');
+            $password = is_string($_POST['api_token_secret'] ?? null) ? $_POST['api_token_secret'] : '';
             $is_active = isset($_POST['is_active']) ? 1 : 0;
             $description = trim($_POST['description'] ?? '');
             $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
-            $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
-            $force_status_update = isset($_POST['force_status_update']) ? 1 : 0;
 
             // Валидация
             if (empty($cluster_id)) {
@@ -112,51 +109,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Проверка уникальности хоста и порта (кроме текущей)
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM proxmox_nodes
-                                  WHERE hostname = ? AND api_port = ? AND id != ?");
-            $stmt->execute([$hostname, $api_port, $node['id']]);
-            if ($stmt->fetchColumn() > 0) {
-                throw new Exception("Нода с таким адресом и портом уже существует");
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM proxmox_nodes
+                WHERE hostname=? AND api_port=? AND cluster_id<>? AND id<>?');
+            $stmt->execute([$hostname, $api_port, $cluster_id, $node['id']]);
+            if ($stmt->fetchColumn() > 0) throw new RuntimeException('Адрес API уже используется в другой зоне');
+
+            if ($password === '' && ($username !== $node['username'] ||
+                $hostname !== $node['hostname'] || $api_port !== (int)$node['api_port'])) {
+                throw new InvalidArgumentException('При смене адреса, порта или ID укажите секрет API-токена');
             }
-
-            $new_status = $node['status'];
-            $verification_result = null;
-
-            // Проверяем доступность ноды, если не пропущена и требуется
-            if (!$skip_verification && $force_status_update) {
-                $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port);
-                if ($verification_result['success']) {
-                    $new_status = 'online';
-                    $is_active = 1;
-                } else {
-                    $new_status = 'offline';
-                    $is_active = 0;
-                }
-
-                // Записываем результат проверки
-                try {
-                    $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                          VALUES (?, 'manual', ?, ?, ?, NOW())");
-                    $stmt->execute([$node['id'], $new_status, $verification_result['response_time'], json_encode($verification_result)]);
-                } catch (Exception $e) {
-                    // Игнорируем ошибку записи лога
-                    error_log("Не удалось записать лог проверки: " . $e->getMessage());
-                }
-            }
+            $client = new ProxmoxApiClient(['hostname'=>$hostname, 'api_port'=>$api_port,
+                'username'=>$username, 'password'=>$password !== '' ? $password : $node['password']]);
+            if (!$client->usesToken()) throw new InvalidArgumentException('Укажите ID и секрет API-токена');
+            if (!preg_match('/^[A-Za-z0-9_.-]+$/D', $node_name)) throw new InvalidArgumentException('Некорректное имя ноды');
+            $client->request('GET', '/nodes/' . $node_name . '/status');
+            $new_status = 'online';
 
             // Подготавливаем данные для обновления
             $update_data = [
                 'cluster_id' => $cluster_id,
                 'node_name' => $node_name,
                 'hostname' => $hostname,
-                'ssh_port' => $ssh_port,
                 'api_port' => $api_port,
                 'username' => $username,
                 'is_active' => $is_active,
                 'description' => $description,
                 'is_cluster_master' => $is_cluster_master,
                 'status' => $new_status,
-                'last_check' => $force_status_update ? date('Y-m-d H:i:s') : $node['last_check'],
+                'last_check' => date('Y-m-d H:i:s'),
                 'id' => $node['id']
             ];
 
@@ -199,10 +179,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Нода обновлена: ID = {$node['id']}, Name = $node_name");
 
             $success_message = "Нода '{$node_name}' успешно обновлена";
-            if ($force_status_update) {
-                $success_message .= ". Статус: " . ($new_status === 'online' ? 'доступна' : 'недоступна');
-            }
-
             $_SESSION['success'] = $success_message;
             header("Location: nodes.php");
             exit;
@@ -216,14 +192,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Обработка ручной проверки доступности
     if (isset($_POST['check_availability'])) {
         try {
-            $verification_result = verifyNodeAvailability($node['hostname'], $node['ssh_port'], $node['api_port']);
-
-            // Обновляем статус ноды
-            $new_status = $verification_result['success'] ? 'online' : 'offline';
-            $is_active = $verification_result['success'] ? 1 : 0;
-
-            $stmt = $pdo->prepare("UPDATE proxmox_nodes SET status = ?, is_active = ?, last_check = NOW() WHERE id = ?");
-            $stmt->execute([$new_status, $is_active, $node['id']]);
+            $started = microtime(true);
+            $new_status = 'offline';
+            try {
+                $client = new ProxmoxApiClient($node);
+                if (!$client->usesToken()) throw new RuntimeException('Требуется API-токен');
+                $client->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/status');
+                $new_status = 'online';
+            } catch (Throwable $error) {
+                error_log('Node API check failed for node ' . (int)$node['id']);
+            }
+            $verification_result = ['response_time'=>(int)round((microtime(true)-$started)*1000), 'status'=>$new_status];
+            $stmt = $pdo->prepare('UPDATE proxmox_nodes SET status=?, last_check=NOW() WHERE id=?');
+            $stmt->execute([$new_status, $node['id']]);
 
             // Записываем результат проверки
             try {
@@ -244,178 +225,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-/**
- * Функция проверки доступности ноды (упрощенная версия)
- */
-function verifyNodeAvailability($hostname, $ssh_port = 22, $api_port = 8006) {
-    $result = [
-        'success' => false,
-        'message' => '',
-        'response_time' => 0,
-        'checks' => []
-    ];
-
-    $start_time = microtime(true);
-
-    try {
-        // 1. Проверка доступности API порта Proxmox - основной критерий
-        $api_result = checkPort($hostname, $api_port, 5);
-        $result['checks']['api'] = $api_result;
-
-        if ($api_result['success']) {
-            $result['success'] = true;
-            $result['message'] = "API порт доступен";
-
-            // 2. Дополнительная проверка веб-интерфейса (необязательная)
-            $web_result = checkProxmoxWeb($hostname, $api_port);
-            $result['checks']['web'] = $web_result;
-
-            if ($web_result['success']) {
-                $result['message'] = "Proxmox веб-интерфейс доступен";
-            }
-        } else {
-            $result['message'] = "API порт ($api_port) недоступен. Ошибка: " . ($api_result['error'] ?? 'Неизвестная ошибка');
-        }
-
-    } catch (Exception $e) {
-        $result['message'] = "Ошибка при проверке: " . $e->getMessage();
-    }
-
-    $result['response_time'] = round((microtime(true) - $start_time) * 1000, 2);
-
-    return $result;
-}
-
-/**
- * Проверка доступности порта (упрощенная версия)
- */
-function checkPort($hostname, $port, $timeout = 5) {
-    $result = ['success' => false];
-
-    // Для портов Proxmox API (8006, 443) используем SSL
-    $protocol = (in_array($port, [443, 8443, 8006])) ? "ssl://" : "";
-
-    $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-
-    if ($socket) {
-        $result['success'] = true;
-        fclose($socket);
-    } else {
-        $result['error'] = $errstr;
-        $result['errno'] = $errno;
-
-        // Попытка без SSL для порта 8006
-        if ($port == 8006 && $protocol === "ssl://") {
-            $socket2 = @fsockopen($hostname, $port, $errno2, $errstr2, $timeout);
-            if ($socket2) {
-                $result['success'] = true;
-                $result['warning'] = "Порт доступен, но не по SSL";
-                fclose($socket2);
-            }
-        }
-    }
-
-    return $result;
-}
-
-/**
- * Проверка веб-интерфейса Proxmox
- */
-function checkProxmoxWeb($hostname, $port) {
-    $result = ['success' => false];
-
-    $url = "https://{$hostname}:{$port}";
-
-    // Используем curl если доступен
-    if (function_exists('curl_init')) {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 5,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_NOBODY => true, // HEAD запрос
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER => [
-                'User-Agent: Mozilla/5.0 (Proxmox Check)'
-            ]
-        ]);
-
-        @curl_exec($ch);
-
-        if (!curl_errno($ch)) {
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            // Proxmox возвращает 401 для неавторизованных запросов, что нормально
-            if ($http_code == 200 || $http_code == 401 || $http_code == 403) {
-                $result['success'] = true;
-                $result['http_code'] = $http_code;
-            }
-        } else {
-            $result['error'] = curl_error($ch);
-        }
-
-        curl_close($ch);
-    } else {
-        // Альтернатива через stream_context
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ],
-            'http' => [
-                'timeout' => 5,
-                'ignore_errors' => true,
-                'header' => "User-Agent: Mozilla/5.0 (Proxmox Check)\r\n"
-            ]
-        ]);
-
-        $headers = @get_headers($url, 0, $context);
-
-        if ($headers && is_array($headers)) {
-            foreach ($headers as $header) {
-                if (strpos($header, 'HTTP/') === 0) {
-                    $response_code = substr($header, 9, 3);
-                    if ($response_code == '200' || $response_code == '401' || $response_code == '403') {
-                        $result['success'] = true;
-                        $result['http_code'] = $response_code;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    return $result;
-}
-
-/**
- * Простая проверка доступности хоста
- */
-function checkHostSimple($hostname, $timeout = 2) {
-    $result = ['success' => false];
-
-    // Просто проверяем, разрешается ли DNS имя
-    $ip = gethostbyname($hostname);
-    if ($ip !== $hostname) {
-        $result['success'] = true;
-        $result['ip'] = $ip;
-    }
-
-    return $result;
-}
-
-$title = "Редактирование ноды | HomeVlad Cloud";
-require 'admin_header.php';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?></title>
+    <title>Редактирование ноды | HomeVlad</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
     <link rel="icon" href="../img/cloud.png" type="image/png">
@@ -1237,19 +1053,7 @@ require 'admin_header.php';
                                     <span class="form-hint">IP-адрес или доменное имя сервера</span>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <i class="fas fa-terminal"></i> SSH порт
-                                    </label>
-                                    <input type="number"
-                                           name="ssh_port"
-                                           class="form-input"
-                                           value="<?= htmlspecialchars($node['ssh_port'] ?? 22) ?>"
-                                           min="1"
-                                           max="65535"
-                                           id="sshPort">
-                                    <span class="form-hint">Порт для SSH подключения</span>
-                                </div>
+
 
                                 <div class="form-group">
                                     <label class="form-label">
@@ -1267,26 +1071,26 @@ require 'admin_header.php';
 
                                 <div class="form-group">
                                     <label class="form-label">
-                                        <i class="fas fa-user"></i> Пользователь
+                                        <i class="fas fa-user"></i> ID API-токена
                                     </label>
                                     <input type="text"
-                                           name="username"
+                                           name="api_token_id"
                                            class="form-input"
-                                           value="<?= htmlspecialchars($node['username']) ?>"
-                                           id="username">
-                                    <span class="form-hint">Имя пользователя для подключения</span>
+                                           value="<?= htmlspecialchars(str_contains($node['username'], '!') ? $node['username'] : '') ?>"
+                                           id="apiTokenId" required autocomplete="off">
+                                    <span class="form-hint">Полный ID в формате пользователь@realm!имя</span>
                                 </div>
 
                                 <div class="form-group">
                                     <label class="form-label">
-                                        <i class="fas fa-key"></i> Пароль
+                                        <i class="fas fa-key"></i> Секрет API-токена
                                     </label>
                                     <input type="password"
-                                           name="password"
+                                           name="api_token_secret"
                                            class="form-input"
                                            placeholder="Оставьте пустым, чтобы не менять"
-                                           id="password">
-                                    <span class="form-hint">Введите новый пароль или оставьте пустым</span>
+                                           id="apiTokenSecret" autocomplete="new-password">
+                                    <span class="form-hint">Оставьте пустым, чтобы сохранить текущий секрет. При смене ID или адреса введите секрет заново.</span>
                                 </div>
                             </div>
 
@@ -1325,28 +1129,9 @@ require 'admin_header.php';
                                     </span>
                                 </label>
 
-                                <label class="checkbox-container">
-                                    <input type="checkbox"
-                                           name="skip_verification"
-                                           id="skipVerification">
-                                    <span class="checkmark"></span>
-                                    <span class="checkbox-label">
-                                        <i class="fas fa-forward"></i> Не проверять доступность
-                                        <span class="checkbox-hint">Сохранить без проверки доступности</span>
-                                    </span>
-                                </label>
 
-                                <label class="checkbox-container">
-                                    <input type="checkbox"
-                                           name="force_status_update"
-                                           id="forceStatusUpdate"
-                                           checked>
-                                    <span class="checkmark"></span>
-                                    <span class="checkbox-label">
-                                        <i class="fas fa-sync"></i> Обновить статус
-                                        <span class="checkbox-hint">Обновить статус доступности при сохранении</span>
-                                    </span>
-                                </label>
+
+
                             </div>
 
                             <div class="form-actions">
@@ -1481,269 +1266,7 @@ require 'admin_header.php';
         </div>
     </div>
 
-    <!-- Оверлей загрузки -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-    </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Элементы формы
-        const nodeForm = document.getElementById('nodeForm');
-        const clusterSelect = document.getElementById('clusterSelect');
-        const nodeName = document.getElementById('nodeName');
-        const hostname = document.getElementById('hostname');
-        const sshPort = document.getElementById('sshPort');
-        const apiPort = document.getElementById('apiPort');
-        const submitBtn = document.getElementById('submitBtn');
-        const skipVerification = document.getElementById('skipVerification');
-        const forceStatusUpdate = document.getElementById('forceStatusUpdate');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-
-        // Валидация формы
-        nodeForm.addEventListener('submit', function(e) {
-            // Не отменяем отправку формы по умолчанию
-            if (!validateForm()) {
-                e.preventDefault();
-                return;
-            }
-
-            // Если проверка не пропущена и требуется обновление статуса, показываем подтверждение
-            if (!skipVerification.checked && forceStatusUpdate.checked) {
-                if (!confirm('При сохранении будет выполнена проверка доступности ноды. Продолжить?')) {
-                    e.preventDefault();
-                    return;
-                }
-            }
-
-            // Показываем загрузку
-            loadingOverlay.classList.add('active');
-
-            // Форма отправится стандартным способом
-        });
-
-        // Общая валидация формы
-        function validateForm() {
-            let isValid = true;
-
-            // Очищаем ошибки
-            clearFieldErrors();
-
-            // Проверка обязательных полей
-            if (!clusterSelect.value) {
-                showFieldError(clusterSelect, 'Выберите кластер');
-                isValid = false;
-            }
-
-            if (!nodeName.value.trim()) {
-                showFieldError(nodeName, 'Введите имя ноды');
-                isValid = false;
-            } else if (nodeName.value.trim().length > 50) {
-                showFieldError(nodeName, 'Имя ноды не должно превышать 50 символов');
-                isValid = false;
-            }
-
-            if (!hostname.value.trim()) {
-                showFieldError(hostname, 'Введите адрес сервера');
-                isValid = false;
-            } else if (!isValidHostname(hostname.value.trim())) {
-                showFieldError(hostname, 'Введите корректный IP-адрес или доменное имя');
-                isValid = false;
-            }
-
-            // Проверка портов
-            if (!isValidPort(sshPort.value)) {
-                showFieldError(sshPort, 'Введите корректный SSH порт (1-65535)');
-                isValid = false;
-            }
-
-            if (!isValidPort(apiPort.value)) {
-                showFieldError(apiPort, 'Введите корректный API порт (1-65535)');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        // Валидация хоста
-        function isValidHostname(hostname) {
-            // Проверка IP-адреса IPv4
-            const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-
-            // Проверка IP-адреса IPv6 (упрощенная)
-            const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-
-            // Проверка доменного имени
-            const domainPattern = /^(?!:\/\/)([a-zA-Z0-9-_]+\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\.[a-zA-Z]{2,11}?$/;
-
-            return ipPattern.test(hostname) || ipv6Pattern.test(hostname) || domainPattern.test(hostname) || hostname === 'localhost';
-        }
-
-        // Валидация порта
-        function isValidPort(port) {
-            const portNum = parseInt(port);
-            return !isNaN(portNum) && portNum >= 1 && portNum <= 65535;
-        }
-
-        // Показать ошибку поля
-        function showFieldError(field, message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'field-error';
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-
-            field.parentNode.appendChild(errorDiv);
-            field.style.borderColor = 'var(--edit-danger)';
-
-            // Фокусировка на поле с ошибкой
-            field.focus();
-        }
-
-        // Очистка ошибок полей
-        function clearFieldErrors() {
-            document.querySelectorAll('.field-error').forEach(el => el.remove());
-            document.querySelectorAll('.form-input').forEach(input => {
-                input.style.borderColor = '';
-            });
-        }
-
-        // Взаимодействие чекбоксов
-        skipVerification.addEventListener('change', function() {
-            if (this.checked) {
-                forceStatusUpdate.disabled = true;
-                forceStatusUpdate.checked = false;
-            } else {
-                forceStatusUpdate.disabled = false;
-            }
-        });
-
-        forceStatusUpdate.addEventListener('change', function() {
-            if (this.checked) {
-                skipVerification.disabled = true;
-                skipVerification.checked = false;
-            } else {
-                skipVerification.disabled = false;
-            }
-        });
-
-        // Автоматическая проверка при изменении хоста или портов
-        let verificationTimeout;
-        const fieldsToWatch = [hostname, sshPort, apiPort];
-
-        fieldsToWatch.forEach(field => {
-            field.addEventListener('input', function() {
-                clearTimeout(verificationTimeout);
-                verificationTimeout = setTimeout(() => {
-                    if (hostname.value.trim()) {
-                        // Сбрасываем чекбокс обновления статуса
-                        forceStatusUpdate.checked = true;
-                        skipVerification.checked = false;
-                    }
-                }, 1000);
-            });
-        });
-
-        // Анимация при загрузке страницы
-        const editCards = document.querySelectorAll('.edit-card');
-        editCards.forEach((card, index) => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(20px)';
-
-            setTimeout(() => {
-                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-            }, index * 100);
-        });
-
-        // Обновление отступа при изменении размера окна
-        function updateWrapperMargin() {
-            const wrapper = document.querySelector('.edit-wrapper');
-            const sidebar = document.querySelector('.admin-sidebar');
-
-            if (window.innerWidth <= 768) {
-                wrapper.style.marginLeft = '0';
-            } else if (sidebar.classList.contains('compact')) {
-                wrapper.style.marginLeft = '70px';
-            } else {
-                wrapper.style.marginLeft = '280px';
-            }
-        }
-
-        window.addEventListener('resize', updateWrapperMargin);
-
-        // Наблюдатель за изменением класса сайдбара
-        const sidebar = document.querySelector('.admin-sidebar');
-        if (sidebar) {
-            const observer = new MutationObserver(updateWrapperMargin);
-            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-        }
-
-        // Сохранение данных формы при случайном обновлении
-        function saveFormData() {
-            sessionStorage.setItem('nodeEditFormData', JSON.stringify({
-                cluster_id: clusterSelect.value,
-                node_name: nodeName.value,
-                hostname: hostname.value,
-                ssh_port: sshPort.value,
-                api_port: apiPort.value,
-                username: document.getElementById('username').value,
-                description: document.getElementById('description').value,
-                is_active: document.getElementById('isActive').checked,
-                is_cluster_master: document.getElementById('isClusterMaster').checked,
-                skip_verification: skipVerification.checked,
-                force_status_update: forceStatusUpdate.checked
-            }));
-        }
-
-        // Восстанавливаем данные из sessionStorage
-        function restoreFormData() {
-            const savedData = sessionStorage.getItem('nodeEditFormData');
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                clusterSelect.value = data.cluster_id || '';
-                nodeName.value = data.node_name || '';
-                hostname.value = data.hostname || '';
-                sshPort.value = data.ssh_port || '22';
-                apiPort.value = data.api_port || '8006';
-                document.getElementById('username').value = data.username || '';
-                document.getElementById('description').value = data.description || '';
-                document.getElementById('isActive').checked = data.is_active !== false;
-                document.getElementById('isClusterMaster').checked = data.is_cluster_master || false;
-                skipVerification.checked = data.skip_verification || false;
-                forceStatusUpdate.checked = data.force_status_update !== false;
-
-                // Обновляем состояние чекбоксов
-                if (skipVerification.checked) {
-                    forceStatusUpdate.disabled = true;
-                }
-                if (forceStatusUpdate.checked) {
-                    skipVerification.disabled = true;
-                }
-            }
-        }
-
-        // Очищаем сохраненные данные при успешной отправке
-        nodeForm.addEventListener('submit', function() {
-            sessionStorage.removeItem('nodeEditFormData');
-        });
-
-        // Сохраняем данные при изменении
-        clusterSelect.addEventListener('change', saveFormData);
-        nodeName.addEventListener('input', saveFormData);
-        hostname.addEventListener('input', saveFormData);
-        sshPort.addEventListener('input', saveFormData);
-        apiPort.addEventListener('input', saveFormData);
-        document.getElementById('username').addEventListener('input', saveFormData);
-        document.getElementById('description').addEventListener('input', saveFormData);
-        document.getElementById('isActive').addEventListener('change', saveFormData);
-        document.getElementById('isClusterMaster').addEventListener('change', saveFormData);
-        skipVerification.addEventListener('change', saveFormData);
-        forceStatusUpdate.addEventListener('change', saveFormData);
-
-        // Восстанавливаем данные при загрузке
-        restoreFormData();
-    });
-    </script>
     <?php require 'admin_footer.php'; ?>
 </body>
 </html>
