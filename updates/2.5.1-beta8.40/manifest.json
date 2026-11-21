@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.40",
+  "from": "2.5.1-beta8.39",
+  "source_commit": "7d7965567f2c5977fa0bd94ce76405b2e9ae5361",
+  "changelog": "В мобильной админке доступны ВМ и LXC всех пользователей, управление питанием и VNC.\nДобавлены настройки нод и зон доступности и переключатель режима администратора на iPhone.\n",
+  "files": {
+    "api/mobile_admin.php": {
+      "before": null,
+      "sha256": "d89215fbe35439a5db6367095b3052947bb86cd83eeb0eeab159d7cc0dcb2b70"
+    },
+    "api/mobile_resources.php": {
+      "before": "9e217f87d26eff975092afa3c272cb8fa9ba851f2a44063d9f9bc2384d630104",
+      "sha256": "e45ff028f7a99521e93b3074cd573bb53349fb50c0bb4964bb4942e7ce902f81"
+    },
+    "includes/mobile_infrastructure.php": {
+      "before": null,
+      "sha256": "a3c1fcc5ce0277fb68416dda05ed5e79d1b237321d69bb90de7326d75ac02675"
+    },
+    "includes/proxmox_node_import.php": {
+      "before": "2f64b57be463401c3362edbced08029113a333bdd380b5d4f1d9bb5eca4aaa7d",
+      "sha256": "1e970d73b2d08cdbbea6d43f2b755025b1e005df8aa061ba78048d5c1d8d5eef"
+    },
+    "includes/version.php": {
+      "before": "691cdb6e5574098c45d8d6f4d37812e818791b483d55d0a3306a484b672d797d",
+      "sha256": "6601dee650adfe721dca1f68aefa970054e2573b98cc97dbb00ec3a7b63f1464"
+    }
+  }
+}
