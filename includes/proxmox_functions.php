@@ -66,6 +66,27 @@ class ProxmoxAPI {
         );
     }
 
+    public function stopGuestIfRunning(int $vmid, string $type): bool {
+        if ($vmid < 1 || !in_array($type, ['qemu', 'lxc'], true)) {
+            throw new InvalidArgumentException('Некорректный гость Proxmox');
+        }
+        $path = "/nodes/{$this->nodeName}/$type/$vmid/status/current";
+        $isStopped = fn () => ($this->request('GET', $path)['status'] ?? null) === 'stopped';
+        if ($isStopped()) {
+            return false;
+        }
+        try {
+            $this->controlGuest($vmid, $type, 'stop');
+        } catch (RuntimeException $error) {
+            // A concurrent stop can finish after the initial status check.
+            if (!in_array($error->getCode(), [0, 500], true) || !$isStopped()) {
+                throw $error;
+            }
+            return false;
+        }
+        return true;
+    }
+
     private function requireIsoVolume(string $volume): void {
         if (!preg_match('#^([A-Za-z0-9_.-]+):iso/[A-Za-z0-9_.+-]+$#D', $volume, $match)) {
             throw new InvalidArgumentException('Некорректный ISO-образ');
