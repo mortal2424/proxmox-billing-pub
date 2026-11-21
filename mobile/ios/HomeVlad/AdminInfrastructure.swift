@@ -197,14 +197,11 @@ private struct AdminZoneEditor: View {
                 Toggle("Режим обслуживания", isOn: $zone.maintenance)
             }
             Section("Размещение") {
-                LabeledContent {
+                LabeledContent("Лимит на ноду") {
                     TextField("Лимит", value: $zone.limit, format: .number.grouping(.never))
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .accessibilityLabel("Лимит ВМ и LXC на ноду")
-                } label: {
-                    Text("Лимит ВМ и LXC на ноду")
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 LabeledContent("Порог нагрузки, %") {
                     TextField("Порог", value: $zone.threshold, format: .number.grouping(.never))
