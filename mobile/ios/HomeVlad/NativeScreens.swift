@@ -15,6 +15,8 @@ struct NativeGuestDetail: View {
             Section("Конфигурация") {
                 LabeledContent("Тип", value: guest.type.uppercased())
                 LabeledContent("Идентификатор", value: String(guest.vmId))
+                if let owner = guest.owner { LabeledContent("Пользователь", value: owner) }
+                if let node = guest.node { LabeledContent("Нода", value: node) }
                 LabeledContent("Последний известный IP", value: live?.ipAddress ?? guest.ipAddress ?? "Пока не определён")
                 LabeledContent("CPU", value: "\(guest.cpu) vCPU")
                 LabeledContent("Память", value: "\(guest.ramMiB) МБ")

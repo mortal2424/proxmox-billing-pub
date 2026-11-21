@@ -23,7 +23,7 @@ try {
             }
             $query = $pdo->prepare('SELECT v.*, n.hostname AS api_host, n.username, n.password, n.ssh_port, n.node_name
                 FROM vms v JOIN proxmox_nodes n ON n.id=v.node_id
-                WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1');
+                WHERE v.id=? AND (v.user_id=? OR ?=1) AND n.is_active=1 AND v.status<>\'deleted\'');
             $query->execute([$id, $userId, (int) $isAdmin]);
             $guest = $query->fetch(PDO::FETCH_ASSOC);
             if (!$guest || !in_array($guest['vm_type'], ['qemu', 'lxc'], true)) {

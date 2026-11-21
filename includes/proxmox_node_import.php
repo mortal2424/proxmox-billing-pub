@@ -108,7 +108,8 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): array
                 }
             }
             $insert->execute([$zone,$name,$hostname,$connection['api_port'],$connection['username'],
-                $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,$status,(int)!$refresh]);
+                $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,
+                $status,(int)(!$refresh && ($connection['available_for_users'] ?? true))]);
             ++$count;
         }
         $db->commit();

@@ -30,6 +30,9 @@ struct CloudGuest: Decodable, Identifiable {
     let ramMiB: Int
     let diskGiB: Int
     let ipAddress: String?
+    let owner: String?
+    let node: String?
+    let zone: String?
 
 
 }

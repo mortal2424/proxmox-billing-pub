@@ -15,6 +15,7 @@
 		A00000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000000C /* Assets.xcassets */; };
 		A00000000000000000000017 /* NativeVNC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* NativeVNC.swift */; };
 		A00000000000000000000019 /* NativeConsoleScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001A /* NativeConsoleScreen.swift */; };
+		A0000000000000000000001B /* AdminInfrastructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* AdminInfrastructure.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		A0000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000018 /* NativeVNC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVNC.swift; sourceTree = "<group>"; };
 		A0000000000000000000001A /* NativeConsoleScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeConsoleScreen.swift; sourceTree = "<group>"; };
+		A0000000000000000000001C /* AdminInfrastructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminInfrastructure.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -54,6 +56,7 @@
 				A0000000000000000000000B /* Session.swift */,
 				A00000000000000000000014 /* Cabinet.swift */,
 				A00000000000000000000016 /* NativeScreens.swift */,
+				A0000000000000000000001C /* AdminInfrastructure.swift */,
 				A0000000000000000000001A /* NativeConsoleScreen.swift */,
 				A00000000000000000000018 /* NativeVNC.swift */,
 				A0000000000000000000000C /* Assets.xcassets */,
@@ -133,6 +136,7 @@
 				A0000000000000000000000F /* Session.swift in Sources */,
 				A00000000000000000000013 /* Cabinet.swift in Sources */,
 				A00000000000000000000015 /* NativeScreens.swift in Sources */,
+				A0000000000000000000001B /* AdminInfrastructure.swift in Sources */,
 				A00000000000000000000019 /* NativeConsoleScreen.swift in Sources */,
 				A00000000000000000000017 /* NativeVNC.swift in Sources */,
 			);
@@ -166,13 +170,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "HomeVlad";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID защищает вход в кабинет HomeVlad.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.homevlad.cloud.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -187,13 +191,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "HomeVlad";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID защищает вход в кабинет HomeVlad.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.homevlad.cloud;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = BILLING_PRODUCTION;
 				PRODUCT_NAME = "$(TARGET_NAME)";

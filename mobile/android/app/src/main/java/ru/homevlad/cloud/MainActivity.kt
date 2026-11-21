@@ -83,7 +83,12 @@ class CloudModel : ViewModel() {
             try {
                 connection.instanceFollowRedirects = false
                 connection.connectTimeout = 15000
-                connection.readTimeout = if (path == orderApi && body != null) 680000 else 20000
+                connection.readTimeout = when {
+                    body == null -> 20000
+                    path == orderApi -> 680000
+                    path == mobileAdminApi -> 120000
+                    else -> 20000
+                }
                 connection.setRequestProperty("Accept", "application/json")
                 synchronized(cookies) {
                     cookies.get(url.toURI(), emptyMap()).forEach { (key, values) ->
@@ -294,11 +299,13 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
         if (!isAdmin && adminMode) {
             adminMode = false
             selectedTicket = 0
+            selectedGuest = null
+            consoleOpen = false
             page = "overview"
         }
     }
     val guest = selectedGuest
-    if (consoleOpen && guest != null && model.snapshot != null) {
+    if (consoleOpen && guest != null && model.snapshot != null && (!adminMode || inAdmin)) {
         ConsoleScreen(model, guest) { consoleOpen = false }
         return
     }
@@ -306,19 +313,21 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
         LaunchedEffect(Unit) { consoleOpen = false; selectedGuest = null; page = "overview" }
     }
     val tabs = if (inAdmin) listOf(
-        "admin" to "Сводка", "admin_users" to "Клиенты", "admin_tickets" to "Тикеты", "admin_payments" to "Платежи"
+        "admin" to "Сводка", "admin_guests" to "Машины", "admin_tickets" to "Тикеты", "admin_payments" to "Платежи"
     ) else listOf(
         "overview" to "Обзор", "monitor" to "Мониторинг", "tickets" to "Поддержка", "payments" to "Финансы"
     )
     val selectedTab = when (page) {
         "ticket" -> if (inAdmin) "admin_tickets" else "tickets"
         "order", "guest" -> "overview"
-        "admin_monitor" -> "admin"
+        "admin_monitor", "admin_infrastructure" -> "admin"
+        "admin_guest" -> "admin_guests"
         else -> page
     }
     BackHandler(enabled = page != (if (inAdmin) "admin" else "overview")) {
         page = when (page) {
             "ticket" -> if (inAdmin) "admin_tickets" else "tickets"
+            "admin_guest" -> "admin_guests"
             else -> if (inAdmin) "admin" else "overview"
         }
     }
@@ -349,6 +358,7 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                     onClick = { page = target }, label = { Text(label) },
                     icon = { Icon(when (target) {
                         "overview", "admin" -> Icons.Default.Home
+                        "admin_guests" -> Icons.Default.List
                         "monitor" -> Icons.Default.Info
                         "tickets", "admin_tickets" -> Icons.Default.MailOutline
                         "payments", "admin_payments" -> Icons.Default.ShoppingCart
@@ -427,6 +437,9 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                     page = "overview"
                 }
                 "guest" -> selectedGuest?.let { NativeGuest(model, it, revision) { consoleOpen = true } }
+                "admin_guest" -> if (inAdmin) selectedGuest?.let { NativeGuest(model, it, revision) { consoleOpen = true } }
+                "admin_guests" -> if (inAdmin) AdminGuestList(model, revision) { selectedGuest = it; page = "admin_guest" }
+                "admin_infrastructure" -> if (inAdmin) AdminInfrastructure(model, revision)
                 "payments", "admin_payments" -> if (page == "payments" || inAdmin) NativePayments(model, inAdmin, revision)
                 "tickets", "admin_tickets" -> if (page == "tickets" || inAdmin) {
                     NativeTickets(model, inAdmin, revision) { id, _ -> selectedTicket = id; page = "ticket" }
@@ -490,6 +503,8 @@ private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int, ope
     Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(guest.getString("name"), style = MaterialTheme.typography.headlineSmall)
         Text("№${guest.getInt("vmId")} · ${guest.getString("type").uppercase()}")
+        guest.optString("owner").takeIf { it.isNotBlank() }?.let { Text("Пользователь: $it") }
+        guest.optString("node").takeIf { it.isNotBlank() }?.let { Text("Нода: $it") }
         Text(status(live?.optString("status") ?: guest.getString("status")))
         val ip = (live?.takeUnless { it.isNull("ipAddress") } ?: guest.takeUnless { it.isNull("ipAddress") })
             ?.optString("ipAddress").orEmpty()
@@ -714,6 +729,8 @@ private fun NativeAdminOverview(model: CloudModel, revision: Int, navigate: (Str
         item { Text("Сводка", style = MaterialTheme.typography.headlineSmall) }
         if (summary == null && error == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
+        item { AdminSectionCard("ВМ и LXC", "Все пользовательские машины",
+            Icons.Default.List) { navigate("admin_guests") } }
         item { AdminSectionCard("Пользователи",
             summary?.let { "${it.getInt("active_users")} активных из ${it.getInt("users")}" },
             Icons.Default.Person) { navigate("admin_users") } }
@@ -723,9 +740,10 @@ private fun NativeAdminOverview(model: CloudModel, revision: Int, navigate: (Str
         item { AdminSectionCard("Платежи",
             summary?.let { "К проверке: ${it.getInt("pending_payments")}" },
             Icons.Default.ShoppingCart) { navigate("admin_payments") } }
-        item { AdminSectionCard("Инфраструктура",
+        item { AdminSectionCard("Ноды и зоны доступности",
             summary?.let { "Зон: ${it.getInt("zones")} · Активных нод: ${it.getInt("nodes")}" },
-            Icons.Default.Info) { navigate("admin_monitor") } }
+            Icons.Default.Settings) { navigate("admin_infrastructure") } }
+        item { AdminSectionCard("Мониторинг", null, Icons.Default.Info) { navigate("admin_monitor") } }
     }
 }
 
