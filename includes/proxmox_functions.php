@@ -184,12 +184,18 @@ class ProxmoxAPI {
             escapeshellarg($scsihw),
             escapeshellarg($marker)
         );
+        if ($isWindows && !empty($params['cloud_image'])) {
+            // Set ostype before sending cipassword. Proxmox preserves the Windows
+            // password for ConfigDrive2 instead of applying a Unix password hash.
+            $createCmd .= ' --ostype win11';
+        }
         error_log("[VM Creation] Creating base VM: {$createCmd}");
         $this->execSSHCommand($createCmd);
 
         if (!empty($params['cloud_image'])) {
             $image = $params['cloud_image'];
-            if ($isWindows || $hasIso || !in_array($image['user'] ?? '', ['ubuntu', 'debian', 'cloud-user'], true) ||
+            if ($hasIso || ($image['os_type'] ?? 'linux') !== ($isWindows ? 'windows' : 'linux') ||
+                !in_array($image['user'] ?? '', $isWindows ? ['Administrator'] : ['ubuntu', 'debian', 'cloud-user'], true) ||
                 !preg_match('#^[A-Za-z0-9_.-]{1,64}:import/homevlad-[a-z0-9.-]+\.qcow2$#D', $image['volid'] ?? '') ||
                 (int)$diskSize < (int)($image['minimum_disk'] ?? PHP_INT_MAX)) {
                 throw new InvalidArgumentException('Некорректный cloud-образ или недостаточный размер диска');
@@ -203,7 +209,7 @@ class ProxmoxAPI {
                 'boot' => 'order=scsi0',
                 'net0' => "virtio,bridge=$networkValue",
                 'ipconfig0' => 'ip=dhcp',
-                'citype' => 'nocloud',
+                'citype' => $isWindows ? 'configdrive2' : 'nocloud',
                 'ciuser' => $image['user'],
                 'cipassword' => $params['password'],
                 'serial0' => 'socket',

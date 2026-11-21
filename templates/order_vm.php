@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
         if ($fromCloud && (!is_string($cloudKey) || !isset(cloudImageCatalog()[$cloudKey]))) {
             throw new InvalidArgumentException('Выберите cloud-образ');
         }
-        $osType = $fromCloud ? 'linux' : ($_POST['os_type'] ?? 'linux');
+        $osType = $fromCloud ? (cloudImageCatalog()[$cloudKey]['os_type'] ?? 'linux') : ($_POST['os_type'] ?? 'linux');
         $osVersion = $fromCloud ? cloudImageCatalog()[$cloudKey]['label'] : ($vmType === 'qemu' ? ($_POST['os_version'] ?? '') : 'linux');
 
         $custom_cpu = (int)($_POST['custom_cpu'] ?? 0);
@@ -130,6 +130,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             throw new InvalidArgumentException('Пароль cloud-init должен содержать минимум 8 символов');
         }
         if ($password !== $confirmPassword) throw new Exception('Пароли не совпадают');
+        if ($fromCloud && $osType === 'windows') {
+            if (!preg_match('/^[a-z0-9][a-z0-9-]{0,13}[a-z0-9]$|^[a-z0-9]$/D', $hostname) || ctype_digit($hostname)) {
+                throw new InvalidArgumentException('Имя компьютера Windows должно содержать до 15 символов и не состоять только из цифр');
+            }
+            $classes = 0;
+            foreach (['/[a-z]/', '/[A-Z]/', '/[0-9]/', '/[^A-Za-z0-9]/'] as $rule) {
+                $classes += preg_match($rule, $password);
+            }
+            if (strlen($password) < 12 || strlen($password) > 127 || $classes < 3 ||
+                preg_match('/[^\x20-\x7e]/', $password) || stripos($password, 'Administrator') !== false) {
+                throw new InvalidArgumentException('Пароль Windows должен содержать 12–127 печатных ASCII-символов из трёх групп: прописные, строчные, цифры и специальные символы');
+            }
+        }
         if ($storagePool === '') throw new Exception('Не выбран пул хранилищ');
         if ($vmType === 'qemu' && empty($osVersion)) throw new Exception('Необходимо указать версию ОС');
         if ($vmType === 'lxc' && empty($template)) throw new Exception('Необходимо выбрать шаблон LXC');
@@ -151,10 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
             $stmt->execute([$tariffId, $vmType]);
             $tariff = $stmt->fetch();
             if (!$tariff) throw new Exception('Выбранный тарифный план не найден');
-            if ($vmType === 'qemu' && ($tariff['os_type'] ?? '') === 'windows') {
-                if ($fromCloud) throw new InvalidArgumentException('Для тарифа Windows выберите установку из ISO');
-                $osType = 'windows';
+            $tariffOs = $tariff['os_type'] ?? '';
+            if ($fromCloud && in_array($tariffOs, ['linux', 'windows'], true) && $tariffOs !== $osType) {
+                throw new InvalidArgumentException('Выберите cloud-образ для ОС выбранного тарифа');
             }
+            if ($vmType === 'qemu' && $tariffOs === 'windows') $osType = 'windows';
 
             $total_cpu = $tariff['cpu'];
             $total_ram = $tariff['ram'];
@@ -1781,6 +1795,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                             </optgroup>
                             <optgroup label="Windows" id="windows-versions">
                                 <option value="11" <?= (isset($_POST['os_version']) && $_POST['os_version'] === '11') ? 'selected' : '' ?>>Windows 11</option>
+                                <option value="2025" <?= (($_POST['os_version'] ?? '') === '2025') ? 'selected' : '' ?>>Windows Server 2025</option>
                                 <option value="2022" <?= (isset($_POST['os_version']) && $_POST['os_version'] === '2022') ? 'selected' : '' ?>>Windows Server 2022</option>
                                 <option value="2019" <?= (isset($_POST['os_version']) && $_POST['os_version'] === '2019') ? 'selected' : '' ?>>Windows Server 2019</option>
                                 <option value="2016" <?= (isset($_POST['os_version']) && $_POST['os_version'] === '2016') ? 'selected' : '' ?>>Windows Server 2016</option>
@@ -1948,6 +1963,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                             const option = typeof value === 'string' ? new Option(value, value) : new Option(value.label, value.id);
                             if (key === 'cloud') {
                                 option.dataset.user = value.user;
+                                option.dataset.os = value.os_type;
                                 option.dataset.minimum = value.minimum_disk;
                             }
                             select.add(option);
@@ -2178,7 +2194,6 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     if (osType && osTypeSelect) {
                         osTypeSelect.value = osType;
                         osTypeSelect.dispatchEvent(new Event('change'));
-                        if (osType === 'windows' && installMethodSelect) installMethodSelect.value = 'iso';
                         updateInstallMethod();
                     }
                 }
@@ -2268,9 +2283,17 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
             function updateInstallMethod() {
                 if (!installMethodSelect) return;
                 const tariffOs = document.querySelector('input[name="tariff_id"]:checked')?.dataset.osType;
-                const windowsTariff = tariffOs === 'windows' && document.getElementById('is-custom').value !== '1';
-                installMethodSelect.options[0].disabled = windowsTariff;
-                if (windowsTariff) installMethodSelect.value = 'iso';
+                const fixedOs = document.getElementById('is-custom').value !== '1' && ['windows', 'linux'].includes(tariffOs) ? tariffOs : '';
+                let available = 0;
+                for (const option of cloudImageSelect.options) {
+                    if (!option.value) continue;
+                    option.hidden = Boolean(fixedOs && option.dataset.os !== fixedOs);
+                    option.disabled = option.hidden;
+                    if (!option.disabled) available++;
+                }
+                if (cloudImageSelect.selectedOptions[0]?.disabled) cloudImageSelect.selectedIndex = 0;
+                cloudImageSelect.options[0].text = available
+                    ? 'Выберите cloud-образ' : 'Нет cloud-образов для выбранной зоны и тарифа';
                 const cloud = installMethodSelect.value === 'cloud';
                 document.getElementById('cloud-image-container').hidden = !cloud;
                 cloudImageSelect.disabled = !cloud;
@@ -2286,7 +2309,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 const minimum = cloudImageSelect.selectedOptions[0]?.dataset.minimum;
                 document.getElementById('guest-password-label').textContent = cloud && user ? 'Пароль пользователя ' + user + ':' : 'Пароль администратора:';
                 document.getElementById('cloud-image-description').textContent = user
-                    ? 'Пользователь ' + user + ' · диск от ' + minimum + ' ГБ · сеть по DHCP.'
+                    ? 'Пользователь ' + user + ' · диск от ' + minimum + ' ГБ · сеть по DHCP.' +
+                        (cloudImageSelect.selectedOptions[0]?.dataset.os === 'windows' ? ' Используйте временный пароль и смените его после первого входа.' : '')
                     : 'После выбора зоны появятся доступные cloud-образы. Сеть настраивается по DHCP.';
             }
 

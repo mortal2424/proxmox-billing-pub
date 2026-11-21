@@ -55,6 +55,9 @@ try {
                 throw new InvalidArgumentException('Выберите активное хранилище с типом Import');
             }
             $existing = array_filter($sources, static fn($source) => str_starts_with($source, "$storage:"));
+            if (!$existing && !isset(cloudImageCatalog()[$key]['base'])) {
+                throw new InvalidArgumentException('Загрузите подготовленный образ Windows в выбранное хранилище Proxmox');
+            }
             if ($existing) {
                 $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,display_name,storage) VALUES (?,?,?,?)
                     ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),storage=VALUES(storage),enabled=1,

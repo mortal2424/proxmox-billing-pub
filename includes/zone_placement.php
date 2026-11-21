@@ -89,18 +89,18 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                 }
                 if ($network === '') continue;
             }
-            if ($media !== '' || $windows) {
+            if ($media !== '' || ($windows && $cloudImage === '')) {
                 $images = $type === 'qemu' ? $api->getISOImages() : $api->getLXCTemplates();
                 $volumes = array_column($images, 'volid');
                 if ($media !== '' && !in_array($media, $volumes, true)) continue;
-                if ($windows && !in_array('local:iso/virtio-win.iso', $volumes, true)) continue;
+                if ($windows && $cloudImage === '' && !in_array('local:iso/virtio-win.iso', $volumes, true)) continue;
             }
             $stores = $api->request('GET', $base . '/storage');
             $image = null;
             if ($cloudImage !== '') {
                 $availableImages = publishedCloudImages($pdo, (int)$node['id'], cloudImportVolumes([$api, 'request'], $node['node_name'], $stores));
                 foreach ($availableImages[$cloudImage] ?? [] as $version) {
-                    if ($version['minimum_disk'] <= $disk && cloudImageCpuSupported($version, $status['cpuinfo'] ?? [])) {
+                    if ($version['minimum_disk'] <= $disk && ($version['minimum_ram'] ?? 0) <= $ram && cloudImageCpuSupported($version, $status['cpuinfo'] ?? [])) {
                         $image = $version;
                         break;
                     }

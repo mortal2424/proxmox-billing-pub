@@ -28,6 +28,13 @@ function cloudImageCatalog(): array
             'file' => $file, 'checksums' => "$file.SHA256SUM", 'hash' => 'sha256',
         ];
     }
+    foreach ([2022, 2025] as $version) {
+        $images["windows-server-$version"] = [
+            'label' => "Windows Server $version", 'user' => 'Administrator',
+            'os_type' => 'windows',
+            'minimum_ram' => 2048, 'minimum_disk' => 32,
+        ];
+    }
     return $images;
 }
 
@@ -52,9 +59,10 @@ function cloudImportVolumes(callable $request, string $node, ?array $storage = n
                     !isset($catalog[$parts[1]])) {
                     continue;
                 }
-                $images[$parts[1]][] = $catalog[$parts[1]] + [
-                    'volid' => $volid, 'minimum_disk' => (int)$parts[2], 'uploaded' => (int)($volume['ctime'] ?? 0),
-                ];
+                $images[$parts[1]][] = array_replace($catalog[$parts[1]], [
+                    'volid' => $volid, 'minimum_disk' => max((int)$parts[2], $catalog[$parts[1]]['minimum_disk'] ?? 1),
+                    'uploaded' => (int)($volume['ctime'] ?? 0),
+                ]);
             }
         } catch (RuntimeException $error) {
             error_log('Cloud image inventory unavailable for storage ' . $name);
@@ -91,7 +99,11 @@ function publishedCloudImages(PDO $db, int $nodeId, array $images): array
     // PDO fetches the first selected column as the FETCH_UNIQUE index.
     $query = $db->prepare('SELECT image_key, display_name, storage, enabled FROM cloud_image_settings WHERE node_id=?');
     $query->execute([$nodeId]);
-    foreach ($query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC) as $key => $setting) {
+    $settings = $query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
+    foreach ($images as $key => $versions) {
+        if (($versions[0]['os_type'] ?? '') === 'windows' && empty($settings[$key]['storage'])) unset($images[$key]);
+    }
+    foreach ($settings as $key => $setting) {
         if (empty($setting['enabled'])) {
             unset($images[$key]);
             continue;

@@ -36,7 +36,7 @@ try {
                     if (isset($result['cloud'][$key]) && $result['cloud'][$key]['minimum_disk'] <= $minimum) continue;
                     $result['cloud'][$key] = [
                         'id' => $key, 'label' => $versions[0]['label'], 'user' => $versions[0]['user'],
-                        'minimum_disk' => $minimum,
+                        'minimum_disk' => $minimum, 'os_type' => $versions[0]['os_type'] ?? 'linux',
                     ];
                 }
             }

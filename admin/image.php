@@ -1115,9 +1115,10 @@ $title = "Управление образами | HomeVlad Cloud";
                         $setting = $cloudSettings[$key] ?? [];
                         $files = $cloudVolumes[$key] ?? [];
                         $source = $setting['storage'] ?? '';
+                        $preparedWindows = ($cloud['os_type'] ?? '') === 'windows';
                         $label = $setting['display_name'] ?? '';
                         $enabled = !isset($setting['enabled']) || (bool)$setting['enabled'];
-                        $published = $enabled && array_filter($files, static fn($file) =>
+                        $published = $enabled && (!$preparedWindows || $source !== '') && array_filter($files, static fn($file) =>
                             $source === '' || str_starts_with($file['volid'], $source . ':'));
                         ?>
                         <details class="cloud-image-entry" <?= !empty($setting['pending_storage']) || !empty($setting['import_error']) ? 'open' : '' ?>>
@@ -1169,7 +1170,11 @@ $title = "Управление образами | HomeVlad Cloud";
                                     <?php endif ?>
                                 </form>
                             <?php endforeach ?>
-                            <p><a href="<?= htmlspecialchars($cloud['base']) ?>" target="_blank" rel="noopener noreferrer">Каталог издателя</a></p>
+                            <?php if ($preparedWindows): ?>
+                                <p>Загрузите подготовленный QCOW2 с Cloudbase-Init в хранилище Import через Proxmox, затем опубликуйте его здесь.</p>
+                            <?php else: ?>
+                                <p><a href="<?= htmlspecialchars($cloud['base']) ?>" target="_blank" rel="noopener noreferrer">Каталог издателя</a></p>
+                            <?php endif ?>
                         </details>
                     <?php endforeach ?>
                 </section>

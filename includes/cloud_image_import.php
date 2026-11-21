@@ -10,6 +10,9 @@ function importCloudImage(array $node, string $storage, string $key): string
     if (!$image || !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $storage)) {
         throw new InvalidArgumentException('Неизвестный образ или хранилище');
     }
+    if (!isset($image['base'])) {
+        throw new InvalidArgumentException('Этот образ нужно предварительно подготовить и загрузить в Proxmox');
+    }
     $api = new ProxmoxApiClient(panelNodeApiCredentials($node));
     $path = '/nodes/' . rawurlencode($node['node_name']) . '/storage/' . rawurlencode($storage);
     $status = $api->request('GET', $path . '/status');
