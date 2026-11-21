@@ -96,6 +96,12 @@
       "commit": "278c115186c73a4e82e822d49042e9792d182419",
       "sha256": "ec0d0f8ee1dee700b615d4b53c173f2ef7889e9db20a3a6324f5ed98f86aa28d",
       "summary": "Заказ ВМ и LXC по зоне доступности, сетевому пулу с SDN и пулу хранилищ. Автоматическое размещение на подходящей ноде."
+    },
+    {
+      "version": "2.5.1-beta8.17",
+      "commit": "263bff3a2f20924f077b187694465aad2fb083fa",
+      "sha256": "e4610b278eb8bbc03b116504a6c956020aa33474d11edccdd4a90d8c4ff954a8",
+      "summary": "Создание ВМ QEMU из cloud-образов Ubuntu, Debian и CentOS Stream через cloud-init. Ручная установка ISO сохранена."
     }
   ]
 }
