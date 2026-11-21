@@ -72,19 +72,82 @@ foreach ($query->fetchAll() as $entry) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Пулы размещения | HomeVlad</title>
+<link rel="stylesheet" href="/admin/css/admin_style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-<?php include __DIR__.'/css/admin_style.css'; ?>
-body { min-height: 100vh; background: radial-gradient(ellipse at 12% 0%, #d8f1ee 0, transparent 45%), linear-gradient(145deg, #f4f8fc, #e8eef6); }
-[data-theme="dark"] body, body.dark-theme { background: radial-gradient(ellipse at 12% 0%, #173c42 0, transparent 48%), linear-gradient(145deg, #0d1523, #172438); color: #e8f1f5; }
-.placement-panel { max-width: 70rem; margin: 2rem auto; padding: 1rem; }
-.placement-panel section { margin-block: 1.5rem; }
-.placement-panel form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-block: .75rem; padding: 1rem; border: 1px solid #a9b9c9; border-radius: .6rem; background: var(--admin-card-bg, #fff); }
-[data-theme="dark"] .placement-panel form, body.dark-theme .placement-panel form { background: #172438; border-color: #42556e; }
-.placement-panel fieldset { display: flex; flex-wrap: wrap; gap: .65rem; }
+.placement-workspace {
+    --pool-card: #fff;
+    --pool-text: #172438;
+    --pool-muted: #445a72;
+    --pool-border: #c6d4e1;
+    --pool-field: #f5f9fc;
+    margin-left: 280px;
+    min-height: 100vh;
+    padding: clamp(1rem, 3vw, 2.5rem);
+    color: var(--pool-text);
+    background: radial-gradient(ellipse at 10% 0%, #ccece7, transparent 50%), linear-gradient(145deg, #f5f9fd, #e6edf5);
+}
+[data-theme="dark"] .placement-workspace, body.dark-theme .placement-workspace {
+    --pool-card: #172438;
+    --pool-text: #edf4f7;
+    --pool-muted: #bdcbdc;
+    --pool-border: #42556e;
+    --pool-field: #22334a;
+    background: radial-gradient(ellipse at 10% 0%, #173c42, transparent 50%), linear-gradient(145deg, #0e1727, #172438);
+}
+.admin-sidebar.compact + .placement-workspace { margin-left: 70px; }
+.placement-panel { max-width: 72rem; margin: auto; }
+.placement-panel h1 { margin-block: .6rem; font-size: clamp(1.5rem, 4vw, 2.2rem); }
+.placement-panel h2 { margin-block: 1.2rem .6rem; font-size: 1.2rem; }
+.placement-panel p { color: var(--pool-muted); }
+.placement-panel a { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
+.pool-card {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-block: .75rem;
+    padding: 1.1rem;
+    border: 1px solid var(--pool-border);
+    border-radius: .9rem;
+    background: var(--pool-card);
+    box-shadow: 0 .25rem 1rem #0d203514;
+}
+.pool-card > label { display: grid; gap: .4rem; font-weight: 600; }
+.pool-card input:not([type=hidden]):not([type=checkbox]) {
+    min-width: 0; width: 100%; box-sizing: border-box; padding: .625rem .75rem;
+    border: 1px solid var(--pool-border); border-radius: .5rem;
+    font: inherit; color: inherit; background: var(--pool-field);
+}
+.pool-card fieldset {
+    grid-column: 1 / -1; min-width: 0; display: flex; flex-wrap: wrap; gap: .55rem;
+    padding: .75rem; border: 1px solid var(--pool-border); border-radius: .55rem;
+}
+.pool-card fieldset label {
+    display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .6rem;
+    border: 1px solid var(--pool-border); border-radius: .4rem; background: var(--pool-field);
+    overflow-wrap: anywhere;
+}
+.pool-card input[type=checkbox] { accent-color: #007b72; width: 1.05rem; height: 1.05rem; }
+.pool-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; }
+.pool-actions button {
+    border: 1px solid transparent; border-radius: .5rem; min-height: 2.65rem;
+    padding: .45rem .9rem; font: 600 .9rem system-ui; cursor: pointer;
+}
+.pool-actions button[value=save] { background: #007b72; color: white; }
+.pool-actions button[value=delete] { background: #fde8ec; color: #8a2435; }
+.pool-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.placement-panel :focus-visible { outline: 2px solid #008c82; outline-offset: 2px; }
+@media (max-width: 1200px) { .placement-workspace { margin-left: 70px; } }
+@media (max-width: 768px) {
+    .placement-workspace, .admin-sidebar.compact + .placement-workspace { margin-left: 0; }
+    .pool-card { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
-<main class="placement-panel">
+<?php require __DIR__ . '/admin_header.php'; ?>
+<?php require __DIR__ . '/admin_sidebar.php'; ?>
+<main class="placement-workspace"><div class="placement-panel">
 <a href="nodes.php">← Ноды</a>
 <h1>Пулы размещения · <?= $escape($node['node_name']) ?></h1>
 <p>Одинаковые имена пулов объединяют ресурсы нескольких нод в одной зоне.</p>
@@ -93,7 +156,7 @@ body { min-height: 100vh; background: radial-gradient(ellipse at 12% 0%, #d8f1ee
 <section>
 <h2><?= $escape($label) ?></h2>
 <?php foreach ($pools[$kind] + [''=>[]] as $name=>$selected): ?>
-<form method="post">
+<form method="post" class="pool-card">
 <input type="hidden" name="node_csrf" value="<?= $escape($_SESSION['node_csrf']) ?>">
 <input type="hidden" name="kind" value="<?= $escape($kind) ?>">
 <label>Имя пула <input name="pool" required maxlength="64" pattern="[A-Za-z0-9_.-]+" value="<?= $escape($name) ?>" <?= $name !== '' ? 'readonly' : '' ?>></label>
@@ -105,12 +168,13 @@ body { min-height: 100vh; background: radial-gradient(ellipse at 12% 0%, #d8f1ee
 <label><input type="checkbox" name="members[]" value="<?= $escape($resource) ?>" <?= in_array($resource,$selected,true) ? 'checked' : '' ?>> <?= $escape($resource) ?></label>
 <?php endforeach ?>
 </fieldset>
-<button name="action" value="save" <?= !$inventory[$kind] ? 'disabled' : '' ?>><?= $name === '' ? 'Создать пул' : 'Сохранить' ?></button>
+<div class="pool-actions"><button name="action" value="save" <?= !$inventory[$kind] ? 'disabled' : '' ?>><?= $name === '' ? 'Создать пул' : 'Сохранить' ?></button>
 <?php if ($name !== ''): ?><button name="action" value="delete">Удалить пул</button><?php endif ?>
-</form>
+</div></form>
 <?php endforeach ?>
 </section>
 <?php endforeach ?>
-</main>
+</div></main>
+<?php require __DIR__ . '/admin_footer.php'; ?>
 </body>
 </html>
