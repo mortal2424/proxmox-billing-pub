@@ -102,6 +102,12 @@
       "commit": "263bff3a2f20924f077b187694465aad2fb083fa",
       "sha256": "e4610b278eb8bbc03b116504a6c956020aa33474d11edccdd4a90d8c4ff954a8",
       "summary": "Создание ВМ QEMU из cloud-образов Ubuntu, Debian и CentOS Stream через cloud-init. Ручная установка ISO сохранена."
+    },
+    {
+      "version": "2.5.1-beta8.18",
+      "commit": "024d874e7fd6633a54aa7bfcb8ed2e6fa29a3fce",
+      "sha256": "e1fcbe1106e6d93a539475a871007196d0793d09e01806afe01cd0d656e2d9d3",
+      "summary": "Управление cloud-образами, названия для заказов, фоновый импорт и смена источника хранения. Инструкции настройки в README."
     }
   ]
 }
