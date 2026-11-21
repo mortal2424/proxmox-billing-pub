@@ -23,7 +23,7 @@ $pdo = $db->getConnection();
 
 try {
     $stmt = $pdo->prepare("
-        SELECT n.*, c.name as cluster_name 
+        SELECT n.*, c.name as cluster_name
         FROM proxmox_nodes n
         JOIN proxmox_clusters c ON c.id = n.cluster_id
         WHERE n.id = ? AND n.is_active = 1
@@ -47,8 +47,19 @@ try {
         $nodeId, // Добавляем ID ноды
         $pdo     // Добавляем подключение к БД
     );
-    
+
     $vms = $proxmox->getVirtualMachines();
+    foreach ($proxmox->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/lxc') as $guest) {
+        $vms[] = [
+            'vmid' => (int)$guest['vmid'],
+            'name' => $guest['name'] ?? 'LXC',
+            'status' => $guest['status'] ?? 'unknown',
+            'type' => 'lxc',
+            'cpus' => (int)($guest['cpus'] ?? 0),
+            'mem' => round(($guest['mem'] ?? 0) / 1073741824, 2),
+            'disk' => round(($guest['maxdisk'] ?? 0) / 1073741824, 2),
+        ];
+    }
     echo json_encode(['vms' => $vms]);
 
 } catch (Exception $e) {

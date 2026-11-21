@@ -23,14 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $node_name = trim($_POST['node_name']);
         $hostname = trim($_POST['hostname']);
         $api_port = intval($_POST['api_port'] ?? 8006);
-        $ssh_port = intval($_POST['ssh_port'] ?? 22);
-        $username = trim($_POST['username'] ?? '');
-        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+        $ssh_port = 22; // Legacy database column.
+        $username = trim($_POST['api_token_id'] ?? '');
+        $password = is_string($_POST['api_token_secret'] ?? null) ? $_POST['api_token_secret'] : '';
         $is_active = isset($_POST['is_active']) ? 1 : 0;
         $description = trim($_POST['description'] ?? '');
         $is_cluster_master = isset($_POST['is_cluster_master']) ? 1 : 0;
-        $skip_verification = isset($_POST['skip_verification']) ? 1 : 0;
-        $ignore_ssl = isset($_POST['ignore_ssl']) ? 1 : 0;
 
         if (empty($cluster_id)) throw new Exception("Кластер должен быть выбран");
         if (empty($node_name)) throw new Exception("Имя ноды обязательно");
@@ -50,17 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $stmt->execute([$hostname, $api_port]);
         if ($stmt->fetchColumn() > 0) throw new Exception("Нода с таким адресом и портом уже существует");
 
-        $verification_result = null;
-        $status = 'unknown';
-
-        if (!$skip_verification) {
-            $verification_result = verifyNodeAvailability($hostname, $ssh_port, $api_port, $ignore_ssl);
-            if (!$verification_result['success']) {
-                throw new Exception("Проверка доступности не пройдена: " . $verification_result['message']);
-            }
-            $is_active = 1;
-            $status = 'online';
+        if (!preg_match('/^[A-Za-z0-9_.-]+$/D', $node_name)) {
+            throw new InvalidArgumentException('Некорректное имя ноды');
         }
+        require_once __DIR__ . '/../includes/ProxmoxApiClient.php';
+        $client = new ProxmoxApiClient(['hostname'=>$hostname, 'api_port'=>$api_port,
+            'username'=>$username, 'password'=>$password]);
+        if (!$client->usesToken()) {
+            throw new InvalidArgumentException('Укажите полный ID API-токена в формате пользователь@realm!имя');
+        }
+        $client->request('GET', '/nodes/' . rawurlencode($node_name) . '/status');
+        $status = 'online';
 
         $sql = "INSERT INTO proxmox_nodes
                (cluster_id, node_name, hostname, api_port, ssh_port, username,
@@ -78,15 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
         $node_id = $pdo->lastInsertId();
         error_log("Нода создана: ID = $node_id, Name = $node_name, Cluster = $cluster_id");
 
-        if (!$skip_verification && $verification_result) {
-            try {
-                $stmt = $pdo->prepare("INSERT INTO node_checks (node_id, check_type, status, response_time, details, created_at)
-                                      VALUES (?, 'full', 'success', ?, ?, NOW())");
-                $stmt->execute([$node_id, $verification_result['response_time'], json_encode($verification_result)]);
-            } catch (Exception $e) {}
-        }
-
-        $_SESSION['success'] = "Нода '{$node_name}' успешно добавлена" . ($skip_verification ? " (проверка пропущена)" : " (проверка пройдена)");
+        $_SESSION['success'] = "Нода '{$node_name}' добавлена. API-токен проверен.";
         header("Location: nodes.php");
         exit;
     } catch (Exception $e) {
@@ -95,149 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['add_node']) || isset
     }
 }
 
-function verifyNodeAvailability($hostname, $ssh_port = 22, $api_port = 8006, $ignore_ssl = false) {
-    $result = ['success' => false, 'message' => '', 'response_time' => 0, 'checks' => []];
-    $start_time = microtime(true);
-    try {
-        $dns = checkDNSResolution($hostname);
-        $result['checks']['dns'] = $dns;
-        if (!$dns['success']) throw new Exception("Не удалось разрешить DNS имя хоста");
-
-        $ping = checkHostAvailability($hostname);
-        $result['checks']['ping'] = $ping;
-        if (!$ping['success']) throw new Exception("Хост не отвечает на стандартные порты");
-
-        $ssh = checkPort($hostname, $ssh_port);
-        $result['checks']['ssh'] = $ssh;
-        if (!$ssh['success']) throw new Exception("SSH порт ($ssh_port) недоступен");
-
-        $api = checkPort($hostname, $api_port);
-        $result['checks']['api'] = $api;
-        if (!$api['success']) throw new Exception("API порт ($api_port) недоступен");
-
-        $https = checkHTTPS($hostname, $api_port, $ignore_ssl);
-        $result['checks']['https'] = $https;
-        if ($ignore_ssl && !$https['success'] && $api['success']) {
-            $https['success'] = true;
-            $https['warning'] = "SSL проверка пропущена (самоподписанный сертификат)";
-            $result['checks']['https'] = $https;
-        }
-        if (!$https['success']) throw new Exception("HTTPS не отвечает");
-
-        $result['success'] = true;
-        $result['message'] = "Все проверки пройдены успешно";
-    } catch (Exception $e) {
-        $result['message'] = $e->getMessage();
-    }
-    $result['response_time'] = round((microtime(true) - $start_time) * 1000, 2);
-    return $result;
-}
-
-function checkDNSResolution($hostname) {
-    $result = ['success' => false, 'ip' => null];
-    if (filter_var($hostname, FILTER_VALIDATE_IP)) {
-        $result['success'] = true;
-        $result['ip'] = $hostname;
-        return $result;
-    }
-    $ip = gethostbyname($hostname);
-    if ($ip !== $hostname) {
-        $result['success'] = true;
-        $result['ip'] = $ip;
-    } else {
-        $dns = @dns_get_record($hostname, DNS_A);
-        if (!empty($dns)) {
-            $result['success'] = true;
-            $result['ip'] = $dns[0]['ip'] ?? null;
-        }
-    }
-    return $result;
-}
-
-function checkHostAvailability($hostname, $timeout = 2) {
-    $result = ['success' => false];
-    $ports = [80, 443, 22, 8006];
-    foreach ($ports as $port) {
-        $protocol = in_array($port, [443, 8006]) ? "ssl://" : "";
-        $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-        if ($socket) {
-            $result['success'] = true;
-            fclose($socket);
-            break;
-        }
-    }
-    return $result;
-}
-
-function checkPort($hostname, $port, $timeout = 3) {
-    $result = ['success' => false];
-    $protocol = (in_array($port, [443, 8443, 8006])) ? "ssl://" : "";
-    $socket = @fsockopen($protocol . $hostname, $port, $errno, $errstr, $timeout);
-    if ($socket) {
-        $result['success'] = true;
-        fclose($socket);
-    } else {
-        if ($port == 8006 && $protocol === "ssl://") {
-            $socket2 = @fsockopen($hostname, $port, $errno2, $errstr2, $timeout);
-            if ($socket2) {
-                $result['success'] = true;
-                $result['warning'] = "Порт доступен, но не по SSL";
-                fclose($socket2);
-            }
-        }
-    }
-    return $result;
-}
-
-function checkHTTPS($hostname, $port, $ignore_ssl = false, $timeout = 5) {
-    $result = ['success' => false];
-    $url = "https://{$hostname}:{$port}";
-    if (function_exists('curl_init')) {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => $timeout,
-            CURLOPT_SSL_VERIFYPEER => !$ignore_ssl,
-            CURLOPT_SSL_VERIFYHOST => $ignore_ssl ? 0 : 2,
-            CURLOPT_NOBODY => true,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER => ['User-Agent: Mozilla/5.0']
-        ]);
-        @curl_exec($ch);
-        if (!curl_errno($ch)) {
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            if ($code == 200 || $code == 401 || $code == 403) $result['success'] = true;
-        }
-        curl_close($ch);
-    } else {
-        $context = stream_context_create([
-            'ssl' => [
-                'verify_peer' => !$ignore_ssl,
-                'verify_peer_name' => !$ignore_ssl,
-                'allow_self_signed' => $ignore_ssl
-            ],
-            'http' => ['timeout' => $timeout, 'ignore_errors' => true]
-        ]);
-        $headers = @get_headers($url, 0, $context);
-        if ($headers && is_array($headers)) {
-            foreach ($headers as $header) {
-                if (strpos($header, 'HTTP/') === 0 && preg_match('/\d{3}/', $header, $m)) {
-                    $code = $m[0];
-                    if ($code == 200 || $code == 401 || $code == 403) {
-                        $result['success'] = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return $result;
-}
-
-$title = "Добавление ноды | HomeVlad Cloud";
-require 'admin_header.php';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -999,58 +846,9 @@ require 'admin_header.php';
                 <div class="form-section">
                     <div class="form-section-header"><h2><i class="fas fa-plug"></i> Параметры подключения</h2></div>
                     <div class="form-section-body">
-                        <div class="form-group"><label class="form-label">SSH порт</label><input type="number" name="ssh_port" class="form-input" value="22" id="sshPort" min="1" max="65535"><span class="form-hint">Порт для SSH</span></div>
                         <div class="form-group"><label class="form-label">API порт</label><input type="number" name="api_port" class="form-input" value="8006" id="apiPort" min="1" max="65535"><span class="form-hint">Порт API Proxmox</span></div>
-                        <div class="form-group"><label class="form-label">Пользователь</label><input type="text" name="username" class="form-input" id="username" placeholder="root"></div>
-                        <div class="form-group"><label class="form-label">Пароль</label><input type="password" name="password" class="form-input" id="password"><span class="form-hint">Пароль (шифруется)</span></div>
-                    </div>
-                </div>
-
-                <!-- Проверка доступности (с добавленной HTTPS проверкой) -->
-                <div class="form-section verification-section">
-                    <div class="form-section-header verification-header"><h2><i class="fas fa-check-circle"></i> Проверка доступности</h2></div>
-                    <div class="form-section-body">
-                        <div class="verification-status" id="verificationStatus">
-                            <div class="verification-item">
-                                <div class="verification-icon"><i class="fas fa-server"></i></div>
-                                <div class="verification-content">
-                                    <div class="verification-label">Доступность хоста</div>
-                                    <div class="verification-details">DNS и стандартные порты</div>
-                                    <div class="verification-status-text pending" id="pingStatusText">ожидание</div>
-                                </div>
-                            </div>
-                            <div class="verification-item">
-                                <div class="verification-icon"><i class="fas fa-terminal"></i></div>
-                                <div class="verification-content">
-                                    <div class="verification-label">Доступность SSH порта</div>
-                                    <div class="verification-details">Порт: <span id="sshPortDisplay">22</span></div>
-                                    <div class="verification-status-text pending" id="sshStatusText">ожидание</div>
-                                </div>
-                            </div>
-                            <div class="verification-item">
-                                <div class="verification-icon"><i class="fas fa-code"></i></div>
-                                <div class="verification-content">
-                                    <div class="verification-label">Доступность API порта</div>
-                                    <div class="verification-details">Порт: <span id="apiPortDisplay">8006</span></div>
-                                    <div class="verification-status-text pending" id="apiStatusText">ожидание</div>
-                                </div>
-                            </div>
-                            <div class="verification-item">
-                                <div class="verification-icon"><i class="fas fa-lock"></i></div>
-                                <div class="verification-content">
-                                    <div class="verification-label">HTTPS соединение</div>
-                                    <div class="verification-details">Порт: <span id="apiPortDisplay">8006</span></div>
-                                    <div class="verification-status-text pending" id="httpsStatusText">ожидание</div>
-                                </div>
-                            </div>
-                            <div class="verification-actions">
-                                <button type="button" class="verification-btn" id="verifyBtn"><i class="fas fa-play"></i> Запустить проверку</button>
-                            </div>
-                            <div class="verification-results" id="verificationResults" style="display: none;">
-                                <div class="verification-result-item"><span class="result-label">Общее время проверки:</span><span class="result-value" id="totalTime">0 мс</span></div>
-                                <div class="verification-result-item"><span class="result-label">Статус:</span><span class="result-value" id="overallStatus">не проверено</span></div>
-                            </div>
-                        </div>
+                        <div class="form-group"><label class="form-label" for="apiTokenId">ID API-токена</label><input type="text" name="api_token_id" class="form-input" id="apiTokenId" placeholder="billing@pve!homevlad" required autocomplete="off"></div>
+                        <div class="form-group"><label class="form-label" for="apiTokenSecret">Секрет API-токена</label><input type="password" name="api_token_secret" class="form-input" id="apiTokenSecret" required autocomplete="new-password"><span class="form-hint">Секрет хранится в зашифрованном виде. При сохранении панель проверит HTTPS и доступ к ноде.</span></div>
                     </div>
                 </div>
 
@@ -1068,16 +866,6 @@ require 'admin_header.php';
                             <span class="checkmark"></span>
                             <span class="checkbox-label">Главная нода кластера <span class="checkbox-hint">Используется для VNC консоли всех нод кластера</span></span>
                         </label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" name="skip_verification" id="skipVerification">
-                            <span class="checkmark"></span>
-                            <span class="checkbox-label">Пропустить проверку доступности <span class="checkbox-hint">Добавить ноду без проверки (не рекомендуется)</span></span>
-                        </label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" name="ignore_ssl" id="ignoreSSL">
-                            <span class="checkmark"></span>
-                            <span class="checkbox-label">Игнорировать SSL ошибки <span class="checkbox-hint">Для самоподписанных сертификатов</span></span>
-                        </label>
                     </div>
                 </div>
             </div>
@@ -1089,197 +877,6 @@ require 'admin_header.php';
         </form>
     </div>
 
-    <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const clusterSelect = document.getElementById('clusterSelect');
-        const nodeName = document.getElementById('nodeName');
-        const hostname = document.getElementById('hostname');
-        const sshPort = document.getElementById('sshPort');
-        const apiPort = document.getElementById('apiPort');
-        const sshPortDisplay = document.getElementById('sshPortDisplay');
-        const apiPortDisplay = document.getElementById('apiPortDisplay');
-        const verifyBtn = document.getElementById('verifyBtn');
-        const submitBtn = document.getElementById('submitBtn');
-        const skipVerification = document.getElementById('skipVerification');
-        const ignoreSSL = document.getElementById('ignoreSSL');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const pingStatusText = document.getElementById('pingStatusText');
-        const sshStatusText = document.getElementById('sshStatusText');
-        const apiStatusText = document.getElementById('apiStatusText');
-        const httpsStatusText = document.getElementById('httpsStatusText');
-        const verificationResults = document.getElementById('verificationResults');
-        const totalTimeSpan = document.getElementById('totalTime');
-        const overallStatusSpan = document.getElementById('overallStatus');
-
-        let verificationCompleted = false;
-        let verificationInProgress = false;
-
-        function updatePortDisplays() {
-            sshPortDisplay.textContent = sshPort.value;
-            apiPortDisplay.textContent = apiPort.value;
-        }
-        sshPort.addEventListener('input', updatePortDisplays);
-        apiPort.addEventListener('input', updatePortDisplays);
-        updatePortDisplays();
-
-        function updateStatusText(element, status, text) {
-            if (!element) return;
-            element.className = `verification-status-text ${status}`;
-            element.textContent = text;
-        }
-
-        function resetVerificationStatus() {
-            updateStatusText(pingStatusText, 'pending', 'ожидание');
-            updateStatusText(sshStatusText, 'pending', 'ожидание');
-            updateStatusText(apiStatusText, 'pending', 'ожидание');
-            updateStatusText(httpsStatusText, 'pending', 'ожидание');
-            verificationResults.style.display = 'none';
-            overallStatusSpan.textContent = 'не проверено';
-            overallStatusSpan.className = 'result-value';
-            totalTimeSpan.textContent = '0 мс';
-            submitBtn.disabled = !skipVerification.checked;
-            verificationCompleted = false;
-        }
-
-        function validateBasicFields() {
-            let valid = true;
-            document.querySelectorAll('.field-error').forEach(el => el.remove());
-            if (!clusterSelect.value) { showError(clusterSelect, 'Выберите кластер'); valid=false; }
-            if (!nodeName.value.trim()) { showError(nodeName, 'Введите имя ноды'); valid=false; }
-            if (!hostname.value.trim()) { showError(hostname, 'Введите адрес сервера'); valid=false; }
-            if (!isValidPort(sshPort.value)) { showError(sshPort, 'Некорректный SSH порт'); valid=false; }
-            if (!isValidPort(apiPort.value)) { showError(apiPort, 'Некорректный API порт'); valid=false; }
-            return valid;
-        }
-
-        function isValidHostname(host) {
-            const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-            const domainPattern = /^(?!:\/\/)([a-zA-Z0-9-_]+\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\.[a-zA-Z]{2,11}?$/;
-            return ipPattern.test(host) || domainPattern.test(host) || host === 'localhost';
-        }
-
-        function isValidPort(p) { let n = parseInt(p); return !isNaN(n) && n>=1 && n<=65535; }
-        function showError(field, msg) {
-            let err = document.createElement('div');
-            err.className = 'field-error';
-            err.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
-            field.parentNode.appendChild(err);
-            field.style.borderColor = 'var(--node-danger)';
-            setTimeout(() => { if (err.parentNode) err.remove(); field.style.borderColor = ''; }, 3000);
-        }
-        function clearFieldErrors() { document.querySelectorAll('.field-error').forEach(el=>el.remove()); document.querySelectorAll('.form-input').forEach(inp=>inp.style.borderColor=''); }
-
-        async function startVerification() {
-            if (verificationInProgress) return;
-            if (!validateBasicFields()) return;
-            verificationInProgress = true;
-            resetVerificationStatus();
-            loadingOverlay.classList.add('active');
-            verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
-            verifyBtn.disabled = true;
-
-            try {
-                const start = Date.now();
-                const response = await fetch('check_node_availability.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        hostname: hostname.value.trim(),
-                        ssh_port: parseInt(sshPort.value),
-                        api_port: parseInt(apiPort.value),
-                        ignore_ssl: ignoreSSL.checked
-                    })
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const result = await response.json();
-                console.log('Результат проверки:', result);
-
-                if (result.checks && result.checks.ping) updateStatusText(pingStatusText, result.checks.ping.success ? 'success' : 'error', result.checks.ping.success ? 'доступен' : 'не доступен');
-                if (result.checks && result.checks.ssh) updateStatusText(sshStatusText, result.checks.ssh.success ? 'success' : 'error', result.checks.ssh.success ? 'доступен' : 'не доступен');
-                if (result.checks && result.checks.api) updateStatusText(apiStatusText, result.checks.api.success ? 'success' : 'error', result.checks.api.success ? 'доступен' : 'не доступен');
-                if (result.checks && result.checks.https) updateStatusText(httpsStatusText, result.checks.https.success ? 'success' : 'error', result.checks.https.success ? 'доступен' : 'не доступен');
-
-                const elapsed = Date.now() - start;
-                totalTimeSpan.textContent = `${elapsed} мс`;
-                verificationResults.style.display = 'block';
-
-                const allChecksOk = (result.checks?.ping?.success && result.checks?.ssh?.success && result.checks?.api?.success && result.checks?.https?.success);
-                const explicitOk = (result.success === true || result.success === 'true' || result.success === 1);
-                const isSuccess = allChecksOk || explicitOk;
-
-                if (isSuccess) {
-                    overallStatusSpan.textContent = 'Пройдена';
-                    overallStatusSpan.className = 'result-value status-success';
-                    verificationCompleted = true;
-                    submitBtn.disabled = false;
-                } else {
-                    overallStatusSpan.textContent = 'Не пройдена';
-                    overallStatusSpan.className = 'result-value status-error';
-                    verificationCompleted = false;
-                    if (!skipVerification.checked) submitBtn.disabled = true;
-                }
-            } catch (err) {
-                console.error('Ошибка проверки:', err);
-                overallStatusSpan.textContent = 'Ошибка проверки';
-                overallStatusSpan.className = 'result-value status-error';
-                verificationResults.style.display = 'block';
-                updateStatusText(pingStatusText, 'error', 'ошибка');
-                updateStatusText(sshStatusText, 'error', 'ошибка');
-                updateStatusText(apiStatusText, 'error', 'ошибка');
-                updateStatusText(httpsStatusText, 'error', 'ошибка');
-            } finally {
-                verificationInProgress = false;
-                loadingOverlay.classList.remove('active');
-                verifyBtn.innerHTML = '<i class="fas fa-redo"></i> Проверить снова';
-                verifyBtn.disabled = false;
-            }
-        }
-
-        verifyBtn.addEventListener('click', startVerification);
-
-        skipVerification.addEventListener('change', function() {
-            if (this.checked) {
-                submitBtn.disabled = false;
-                verifyBtn.disabled = true;
-                verifyBtn.innerHTML = '<i class="fas fa-forward"></i> Проверка пропущена';
-            } else {
-                verifyBtn.disabled = false;
-                verifyBtn.innerHTML = verificationCompleted ? '<i class="fas fa-redo"></i> Проверить снова' : '<i class="fas fa-play"></i> Запустить проверку';
-                submitBtn.disabled = !verificationCompleted;
-            }
-        });
-
-        document.getElementById('nodeForm').addEventListener('submit', function(e) {
-            let valid = true;
-            clearFieldErrors();
-            if (!clusterSelect.value) { showError(clusterSelect, 'Выберите кластер'); valid=false; }
-            if (!nodeName.value.trim()) { showError(nodeName, 'Введите имя ноды'); valid=false; }
-            if (!hostname.value.trim()) { showError(hostname, 'Введите адрес сервера'); valid=false; }
-            if (!isValidPort(sshPort.value)) { showError(sshPort, 'Некорректный SSH порт'); valid=false; }
-            if (!isValidPort(apiPort.value)) { showError(apiPort, 'Некорректный API порт'); valid=false; }
-            if (!valid) { e.preventDefault(); return; }
-            if (!verificationCompleted && !skipVerification.checked) {
-                if (!confirm('Проверка доступности ноды не пройдена. Вы уверены, что хотите добавить ноду без проверки?')) {
-                    e.preventDefault();
-                    return;
-                }
-            }
-            loadingOverlay.classList.add('active');
-        });
-
-        let timeout;
-        [hostname, sshPort, apiPort].forEach(f => {
-            f.addEventListener('input', () => {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    if (hostname.value.trim() && !verificationInProgress) resetVerificationStatus();
-                }, 1000);
-            });
-        });
-    });
-    </script>
     <?php require 'admin_footer.php'; ?>
 </body>
 </html>

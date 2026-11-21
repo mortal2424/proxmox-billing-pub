@@ -1149,7 +1149,7 @@ function renderNodeVms(nodeId, vms) {
                         <div class="dashboard-user-avatar"><i class="fas fa-server"></i></div>
                         <div class="dashboard-user-info">
                             <div class="dashboard-user-name">${escapeHtml(vm.name)}</div>
-                            <div class="dashboard-user-email">ID: ${vm.vmid}</div>
+                            <div class="dashboard-user-email">ID: ${vm.vmid} · ${vm.type === 'lxc' ? 'LXC' : 'QEMU'}</div>
                         </div>
                     </div>
                 </td>
@@ -1159,13 +1159,15 @@ function renderNodeVms(nodeId, vms) {
                 <td>${vm.disk} GB</td>
                 <td>
                     <div class="vm-actions">
+                        <button class="dashboard-mini-action-btn" onclick="openVncConsoleProxmox(${nodeId}, ${vm.vmid})" title="Консоль"><i class="fas fa-terminal"></i></button>
+                        ${vm.type !== 'lxc' ? `
                         <button class="dashboard-mini-action-btn" onclick="showVmInfo(${nodeId}, ${vm.vmid})" title="Информация"><i class="fas fa-info-circle"></i></button>
-                        <button class="dashboard-mini-action-btn" onclick="openVncConsoleProxmox(${nodeId}, ${vm.vmid}, '${escapeHtml(vm.name)}')" title="Консоль"><i class="fas fa-terminal"></i></button>
                         ${vm.status === 'running' ?
                             `<button class="dashboard-mini-action-btn" onclick="vmActions.stop(${nodeId}, ${vm.vmid})" style="background: rgba(239,68,68,0.1); color: var(--admin-danger);" title="Остановить"><i class="fas fa-stop"></i></button>` :
                             `<button class="dashboard-mini-action-btn" onclick="vmActions.start(${nodeId}, ${vm.vmid})" style="background: rgba(16,185,129,0.1); color: var(--admin-success);" title="Запустить"><i class="fas fa-play"></i></button>`
                         }
                         <button class="dashboard-mini-action-btn" onclick="vmActions.reboot(${nodeId}, ${vm.vmid})" style="background: rgba(245,158,11,0.1); color: var(--admin-warning);" title="Перезагрузить"><i class="fas fa-redo"></i></button>
+                        ` : ''}
                     </div>
                 </td>
             </tr>
