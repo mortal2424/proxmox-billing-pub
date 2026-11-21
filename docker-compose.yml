@@ -62,6 +62,7 @@ services:
       PROXMOX_TOKEN_CANDIDATE_DIR: /var/www/html/backups/token-candidates
       PROXMOX_GUEST_LOCK_DIR: /var/www/html/backups/guest-locks
       DB_HOST: db
+      HOMEVLAD_BACKUP_DB_LOCAL: ${HOMEVLAD_BACKUP_DB_LOCAL:-1}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}

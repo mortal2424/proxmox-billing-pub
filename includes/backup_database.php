@@ -19,6 +19,11 @@ function backupDatabaseCommand(string $mode, string $sqlFile): void
         if (file_put_contents($settings, $config) === false) throw new RuntimeException('Не удалось записать конфигурацию клиента БД');
         file_put_contents($errorFile, ''); chmod($errorFile, 0600);
         $args = [$binary, '--defaults-file=' . $settings, '--default-character-set=utf8mb4'];
+        // Match the bundled MariaDB service, which is reachable only on the Compose network.
+        if (getenv('HOMEVLAD_BACKUP_DB_LOCAL') === '1' && DB_HOST === 'db' &&
+            str_starts_with(basename($binary), 'mariadb')) {
+            $args[] = '--ssl=0';
+        }
         if ($mode === 'export') {
             $args = array_merge($args, ['--single-transaction', '--skip-lock-tables', '--no-tablespaces', '--hex-blob', '--', DB_NAME]);
             $descriptors = [0 => ['file', '/dev/null', 'r'], 1 => ['file', $sqlFile, 'w'], 2 => ['file', $errorFile, 'w']];
