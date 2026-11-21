@@ -23,7 +23,7 @@ try {
         echo json_encode(['error' => 'Учётная запись недоступна']);
         exit;
     }
-    $query = $pdo->prepare("SELECT id, vm_id, node_id, hostname, vm_type, status, cpu, ram, disk
+    $query = $pdo->prepare("SELECT id, vm_id, node_id, hostname, vm_type, status, cpu, ram, disk, ip_address
         FROM vms WHERE user_id = ? AND status <> 'deleted' ORDER BY created_at DESC, id DESC");
     $query->execute([$userId]);
     $guests = [];
@@ -32,6 +32,7 @@ try {
             'id' => (int) $guest['id'], 'vmId' => (int) $guest['vm_id'],
             'nodeId' => (int) $guest['node_id'], 'name' => (string) $guest['hostname'],
             'type' => $guest['vm_type'], 'status' => $guest['status'],
+            'ipAddress' => $guest['ip_address'],
             'cpu' => (int) $guest['cpu'], 'ramMiB' => (int) $guest['ram'], 'diskGiB' => (int) $guest['disk'],
         ];
     }

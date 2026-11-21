@@ -29,6 +29,7 @@ struct CloudGuest: Decodable, Identifiable {
     let cpu: Int
     let ramMiB: Int
     let diskGiB: Int
+    let ipAddress: String?
 
 
 }

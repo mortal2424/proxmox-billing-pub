@@ -13,6 +13,7 @@ struct NativeGuestDetail: View {
             Section("Конфигурация") {
                 LabeledContent("Тип", value: guest.type.uppercased())
                 LabeledContent("Идентификатор", value: String(guest.vmId))
+                LabeledContent("Последний известный IP", value: guest.ipAddress ?? "Пока не определён")
                 LabeledContent("CPU", value: "\(guest.cpu) vCPU")
                 LabeledContent("Память", value: "\(guest.ramMiB) МБ")
                 LabeledContent("Диск", value: "\(guest.diskGiB) ГБ")

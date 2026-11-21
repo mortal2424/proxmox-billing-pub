@@ -425,6 +425,8 @@ private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int) {
         Text(guest.getString("name"), style = MaterialTheme.typography.headlineSmall)
         Text("№${guest.getInt("vmId")} · ${guest.getString("type").uppercase()}")
         Text(status(live?.optString("status") ?: guest.getString("status")))
+        val ip = guest.takeUnless { it.isNull("ipAddress") }?.optString("ipAddress").orEmpty()
+        Text("Последний известный IP: ${ip.ifBlank { "Пока не определён" }}")
         Text("${guest.getInt("cpu")} vCPU · ${guest.getInt("ramMiB")} МБ RAM · ${guest.getInt("diskGiB")} ГБ")
         live?.let {
             if (!it.isNull("cpu")) Text("CPU ${it.getDouble("cpu")}%")
