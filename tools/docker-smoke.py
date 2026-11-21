@@ -6,7 +6,7 @@ import ssl
 import sys
 from urllib.parse import parse_qs
 
-from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
+from aiohttp import ClientSession, ClientTimeout, DummyCookieJar, WSMsgType, web
 
 CERT = '/etc/proxmox-tls/smoke.pem'
 KINDS = {501: 'qemu', 502: 'lxc', 503: 'qemu'}
@@ -78,11 +78,11 @@ async def smoke():
     origin = 'https://nginx'
     tls = ssl.create_default_context(cafile=CERT)
 
-    async with ClientSession(timeout=ClientTimeout(total=15)) as browser:
+    async with ClientSession(timeout=ClientTimeout(total=15), cookie_jar=DummyCookieJar()) as browser:
         async def launch(route, vmid, role, expected=200):
-            cookies = {'PHPSESSID': config['sessions'][role]['id']} if role else None
+            headers = {'Cookie': 'PHPSESSID=' + config['sessions'][role]['id']} if role else {}
             params = {'node_id': node, 'vm_id': vmid}
-            async with browser.get(origin + route, params=params, cookies=cookies, ssl=tls) as response:
+            async with browser.get(origin + route, params=params, headers=headers, ssl=tls) as response:
                 assert response.status == expected, (route, vmid, response.status, await response.text())
                 return await response.json()
 
@@ -109,8 +109,8 @@ async def smoke():
                 assert await ws.receive_bytes() == b'fixture-input:typed'
             actions = ('start', 'reboot', 'shutdown', 'start', 'stop')
             for action in actions:
-                with_cookie = {'PHPSESSID': config['sessions'][role]['id']}
-                async with browser.post(origin + '/console/control.php', ssl=tls, cookies=with_cookie,
+                with_cookie = {'Cookie': 'PHPSESSID=' + config['sessions'][role]['id']}
+                async with browser.post(origin + '/console/control.php', ssl=tls, headers=with_cookie,
                                         json={'control': control, 'action': action, 'type': kind}) as response:
                     assert response.status == 200 and (await response.json())['success'], (
                         route, kind, action, response.status, await response.text())

@@ -10,6 +10,8 @@ if (getenv('HOMEVLAD_DOCKER_SMOKE') !== '1' || getenv('DB_NAME') !== 'homevlad_s
     exit(1);
 }
 
+$_SERVER['HTTP_HOST'] = 'nginx';
+ini_set('session.use_cookies', '0');
 require '/var/www/html/includes/db.php';
 require '/var/www/html/includes/node_credentials.php';
 
@@ -38,7 +40,7 @@ $managed->execute([$accounts['admin'],$node]);
 $sessionFiles = [];
 foreach ($accounts as $label=>$id) {
     session_id(bin2hex(random_bytes(24)));
-    session_start();
+    if (!session_start()) throw new RuntimeException("Could not start fixture session");
     $_SESSION = [
         'user'=>['id'=>$id,'is_admin'=>(int)($label==='admin'),'email'=>"$label@example.invalid"],
         'update_csrf'=>bin2hex(random_bytes(32)),

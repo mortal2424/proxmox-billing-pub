@@ -15,6 +15,8 @@ compose=(docker compose)
 cleanup() {
     code=$?
     if (( code != 0 )); then "${compose[@]}" logs --tail=85 apache nginx db init-ssl || true; fi
+    "${compose[@]}" exec -T apache chown -R "$(id -u):$(id -g)" \
+        /var/www/html/uploads /var/www/html/logs /var/www/html/backups || true
     "${compose[@]}" down --volumes --remove-orphans || true
     rm -rf -- "$qa"
 }
