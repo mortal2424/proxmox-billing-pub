@@ -26,12 +26,13 @@
             expire();
             throw new Error('Период показа истёк');
         }
-        const response = await fetch('/console/credential.php', {
+        const response = await fetch('/api/guest_credentials.php', {
             method: 'POST', credentials: 'same-origin', cache: 'no-store',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({action: 'password', id: Number(group.dataset.guestId), csrf: group.dataset.csrf}),
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => null);
+        if (!data) throw new Error('Сервис просмотра пароля временно недоступен');
         if (response.status === 404) expire();
         if (!response.ok || typeof data.value !== 'string') throw new Error(data.error || 'Пароль недоступен');
         if (Date.now() >= expires) {

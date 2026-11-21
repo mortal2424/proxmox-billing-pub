@@ -39,12 +39,13 @@ if (/^[a-f0-9]{48}$/.test(control)) {
     });
 }
 async function requestCredential(action) {
-    const response = await fetch('/console/credential.php', {
+    const response = await fetch('/api/guest_credentials.php', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({control, action}),
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
+    if (!data) throw new Error('Сервис данных гостя временно недоступен');
     if (!response.ok) throw new Error(data.error || 'Данные недоступны');
     return data;
 }

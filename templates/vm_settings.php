@@ -1229,6 +1229,6 @@ try {
         return form;
     }
     </script>
-    <script defer src="/js/guest-password.js?v=1"></script>
+    <script defer src="/js/guest-password.js?v=2"></script>
 </body>
 </html>
