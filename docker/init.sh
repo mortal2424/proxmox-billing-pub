@@ -2,6 +2,13 @@
 
 set -e
 
+# Cron does not inherit the container environment. Share only this non-secret setting.
+backup_db_local=0
+if [ "${HOMEVLAD_BACKUP_DB_LOCAL:-0}" = 1 ]; then
+    backup_db_local=1
+fi
+sed -i "s/^HOMEVLAD_BACKUP_DB_LOCAL=.*/HOMEVLAD_BACKUP_DB_LOCAL=$backup_db_local/" /etc/crontab
+
 # Apply safe permissions to bind-mounted runtime directories as well as image layers.
 mkdir -p /var/www/html/uploads /var/www/html/logs /var/www/html/backups
 mkdir -p /var/www/html/admin/backups

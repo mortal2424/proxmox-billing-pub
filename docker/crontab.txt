@@ -1,3 +1,4 @@
+HOMEVLAD_BACKUP_DB_LOCAL=0
 0 * * * * root /usr/local/bin/php /var/www/html/admin/cron_charge.php >> /var/log/cron.log 2>&1
 */5 * * * * root /usr/local/bin/php /var/www/html/admin/update_node_stats.php >> /var/log/cron.log 2>&1
 */5 * * * * root /usr/local/bin/php /var/www/html/api/collect_lxc_metrics.php >> /var/log/cron.log 2>&1
