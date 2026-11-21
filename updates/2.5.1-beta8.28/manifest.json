@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "version": "2.5.1-beta8.28",
+  "from": "2.5.1-beta8.27",
+  "source_commit": "28ff4573d0411596adc58899d792dd1ad8f180ee",
+  "changelog": "Копирование пароля оформлено иконкой. Число звёздочек соответствует длине пароля.\nРаздел «Мои сети» временно скрыт.\n",
+  "files": {
+    "includes/version.php": {
+      "before": "3969f11f2a3dcb14950664a34254d928e90714ab912d1be016d76e76ee588089",
+      "sha256": "77ffd1bd28d91fcbdb518217eb6b519d56d738c5d4e4d747ed357654276ebce8"
+    },
+    "js/guest-password.js": {
+      "before": "f537f1a9f139966e744051ec3668ac501beae26df1955efc7b7eb5a5d9fb63da",
+      "sha256": "09c72cd0dc2590d5e9404ae0d292a1ef5735d2abe0f22e0b56493f5302e7e19a"
+    },
+    "templates/headers/user_header.php": {
+      "before": "bf21ef50f55a51ce1debab9eab3e422ce5053ba0d6920014c0acddcde69f0cc0",
+      "sha256": "e6c3433ea8efaeee2be6fb7e1cf7f1285b0b5b5ccf26fcbe4acd18a033246eac"
+    },
+    "templates/headers/workspace_nav.php": {
+      "before": "de2852f83e8df8801ea98de8adc137cc4a46b5091f975b2d565d324cb6d35f9f",
+      "sha256": "2983334d981f7a7bc537d17c08544d0289f988ae610e87532fe916d8640389eb"
+    },
+    "templates/my_networks.php": {
+      "before": "fb329befeff708d03317cc5fc391682ff10d3970e89fa19e014425cc13936d9c",
+      "sha256": "ab008a644b6ac44f4b01c8de38e3558562d44dd9676fea859688fec6a88849a5"
+    },
+    "templates/vm_settings.php": {
+      "before": "7f35dad93f8fbf0dbd6a596aeff87699f33cf820700d60cf2f728fd53ac58c2a",
+      "sha256": "571b417dbc51c324932b88203a0afa311c2f69e6bc1246e888c8f9a0a499984d"
+    }
+  }
+}
