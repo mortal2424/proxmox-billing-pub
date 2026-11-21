@@ -55,9 +55,13 @@ if (!$vm) {
 $plans = $pdo->prepare("
     SELECT id, name, cpu, ram, disk
     FROM tariffs
-    WHERE is_active = 1 AND is_custom=0 AND vm_type = ? AND os_type=? AND disk=?
+    WHERE is_active = 1 AND is_custom=0 AND vm_type=? AND os_type=?
+      AND cpu>=? AND ram>=? AND disk>=?
+      AND (cpu>? OR ram>? OR disk>?)
+    ORDER BY cpu, ram, disk, name
 ");
-$plans->execute([$vm['vm_type'],$vm['os_type'],$vm['disk']]);
+$resources = [(int)$vm['cpu'], (int)$vm['ram'], (int)$vm['disk']];
+$plans->execute([$vm['vm_type'], $vm['os_type'], ...$resources, ...$resources]);
 $plans = $plans->fetchAll(PDO::FETCH_ASSOC);
 
 $success_message = '';
@@ -69,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!is_string($_POST['guest_settings_csrf'] ?? null) || !hash_equals($_SESSION['guest_settings_csrf'],$_POST['guest_settings_csrf'])) {
             http_response_code(403); throw new RuntimeException('Сессия формы истекла. Обновите страницу');
         }
-        $actions = array_filter(['change_resources','change_disk','add_network','delete_vm','generate_guest_password'],fn($action)=>isset($_POST[$action]));
+        $actions = array_filter(['change_resources','change_disk','add_network','remove_network','delete_vm','generate_guest_password'],fn($action)=>isset($_POST[$action]));
         if(count($actions)!==1)throw new RuntimeException('Выберите одну операцию');
         if (isset($_POST['generate_guest_password'])) {
             proposeGuestPassword($pdo, $vm_db_id, (int) $user_id);
@@ -149,6 +153,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 throw new Exception($result['message']);
             }
+        }
+
+        if (isset($_POST['remove_network'])) {
+            $key = $_POST['network_id'] ?? '';
+            if (!is_string($key)) throw new RuntimeException('Некорректный интерфейс');
+            $result = $proxmox->removeVmNetwork($vm['vm_id'], $vm['vm_type'], $key);
+            if ($result['status'] !== 'success') throw new RuntimeException($result['message']);
+            $success_message = $result['message'];
         }
 
         // Обработка удаления VM
@@ -808,12 +820,13 @@ try {
                         <form method="POST">
                             <input type="hidden" name="guest_settings_csrf" value="<?= htmlspecialchars($_SESSION['guest_settings_csrf'],ENT_QUOTES) ?>">
                             <div class="form-group">
-                                <p>CPU и RAM меняются у остановленного гостя. Увеличение диска выполняется отдельно на индивидуальном тарифе. Здесь доступны тарифы с текущим объёмом дисков.</p>
-                                <label>Текущий тариф</label>
-                                <select class="tariff-select" name="plan_id" id="planSelect">
-                                    <option value="0" <?= empty($vm['tariff_id']) ? 'selected' : '' ?>>Кастомный</option>
+                                <p>Остановите гостя перед сменой тарифа. Новый тариф увеличивает хотя бы один ресурс. Увеличение диска при смене тарифа доступно для гостя с одним диском.</p>
+                                <label for="planSelect">Новый тариф</label>
+                                <select class="tariff-select" name="plan_id" id="planSelect" required>
+                                    <option value="" selected disabled>Выберите тариф</option>
+                                    <option value="0">Индивидуальные ресурсы</option>
                                     <?php foreach ($plans as $plan): ?>
-                                    <option value="<?= $plan['id'] ?>" <?= ($plan['id'] == $vm['tariff_id']) ? 'selected' : '' ?>>
+                                    <option value="<?= $plan['id'] ?>">
                                         <?= htmlspecialchars($plan['name']) ?>
                                         (CPU: <?= $plan['cpu'] ?>, RAM: <?= $plan['ram'] ?>MB,
                                         Disk: <?= $plan['disk'] ?>GB)
@@ -822,7 +835,7 @@ try {
                                 </select>
                             </div>
 
-                            <div id="custom_resources" style="<?= empty($vm['tariff_id']) ? '' : 'display:none;' ?>">
+                            <div id="custom_resources" style="display:none;">
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label>CPU (ядра)</label>
@@ -865,6 +878,7 @@ try {
                 <div class="settings-card" id="networks-section">
                     <div class="card-header">
                         <h5><i class="fas fa-network-wired"></i> Управление сетями</h5>
+                        <a href="/templates/my_networks.php">Мои сети</a>
                     </div>
                     <div class="card-body">
                         <div class="loading-placeholder">
@@ -1160,6 +1174,26 @@ try {
         }
 
         div.innerHTML = networkContent;
+        const slot = String(net.id ?? '').replace(/^net/, '');
+        if (/^[1-9][0-9]?$/.test(slot)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `
+                <input type="hidden" name="network_id" value="net${slot}">
+                <button type="submit" name="remove_network" class="btn btn-secondary">Удалить интерфейс</button>
+            `;
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'guest_settings_csrf';
+            csrf.value = <?= json_encode($_SESSION['guest_settings_csrf']) ?>;
+            form.appendChild(csrf);
+            form.addEventListener('submit', event => {
+                if (!window.confirm('Удалить дополнительный интерфейс у остановленного гостя?')) {
+                    event.preventDefault();
+                }
+            });
+            div.appendChild(form);
+        }
         return div;
     }
 

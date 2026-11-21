@@ -51,7 +51,7 @@ final class ProxmoxGuestApi
         if(!is_finite($bytes)||$bytes<=0)throw new RuntimeException('Некорректный размер тома');
         return ['volume'=>$volume[1].':'.$volume[2], 'storage'=>$volume[1], 'bytes'=>$bytes];
     }
-    public static function allocatedBytes(array $config,string $type): float
+    public static function allocatedDisks(array $config,string $type): array
     {
         $volumes=[];
         foreach($config as$key=>$value){
@@ -59,10 +59,15 @@ final class ProxmoxGuestApi
             if(!is_string($value)||str_contains($value,'media=cdrom')||$value==='none')continue;
             // LXC bind mounts are host paths, not allocated storage volumes.
             if($type==='lxc'&&str_starts_with($value,'/'))continue;
-            $disk=self::disk($config,$key);$volumes[$disk['volume']]=$disk['bytes'];
+            $disk=self::disk($config,$key);$volumes[$disk['volume']]=['key'=>$key,'bytes'=>$disk['bytes']];
         }
         if(!$volumes)throw new RuntimeException('Не найдены диски для учёта ресурсов');
-        return (float)array_sum($volumes);
+        return array_column($volumes, 'bytes', 'key');
+    }
+
+    public static function allocatedBytes(array $config,string $type): float
+    {
+        return (float)array_sum(self::allocatedDisks($config, $type));
     }
 
     public static function allocatedGiB(array $config,string $type): int
@@ -78,6 +83,29 @@ final class ProxmoxGuestApi
         if(isset($config[$key]))throw new RuntimeException('Сетевой интерфейс уже существует');
         $value=$type==='qemu'?'virtio,bridge='.$bridge:'name=eth'.$slot.',bridge='.$bridge.',ip=dhcp,firewall=1';
         ($this->request)('PUT',$this->base($vmid,$type).'/config',[$key=>$value,'digest'=>$config['digest']]);
+    }
+
+    public function removeNetwork($vmid, string $type, string $key): void
+    {
+        if (!preg_match('/^net[1-9][0-9]?$/D', $key)) {
+            throw new InvalidArgumentException('Можно удалить только дополнительный интерфейс');
+        }
+        $config = $this->config($vmid, $type);
+        if (!isset($config[$key])) {
+            throw new RuntimeException('Интерфейс не найден');
+        }
+        $this->stopped($vmid, $type);
+        $properties = [$key];
+        $ipKey = 'ipconfig' . substr($key, 3);
+        if ($type === 'qemu' && isset($config[$ipKey])) {
+            $properties[] = $ipKey;
+        }
+        ($this->request)('PUT', $this->base($vmid, $type) . '/config', [
+            'delete' => implode(',', $properties), 'digest' => $config['digest'],
+        ]);
+        if (isset($this->config($vmid, $type)[$key])) {
+            throw new RuntimeException('Не удалось подтвердить удаление интерфейса');
+        }
     }
 
     public function resize($vmid,string $type,$disk,$newSize,string $storage=''): array

@@ -78,12 +78,38 @@ trait ProxmoxGuestMutations
                 $cpu=filter_var($custom_cpu,FILTER_VALIDATE_INT);$ram=filter_var($custom_ram,FILTER_VALIDATE_INT);$disk=filter_var($custom_disk,FILTER_VALIDATE_INT);
                 if($cpu===false||$ram===false||$disk===false)throw new InvalidArgumentException('Укажите CPU, RAM и текущий размер дисков');
             }
-            $actual=ProxmoxGuestApi::allocatedGiB($api->config($vmid,$type),$type);
-            if($disk!==$actual)throw new RuntimeException('Размер дисков меняется отдельно в разделе «Диски». Укажите текущий размер');
-            $this->guestQuota($vm,$cpu,$ram,$actual);
-            $api->resources($vmid,$type,$cpu,$ram);
-            $this->saveGuestMutation($vm,'cpu=?,ram=?,disk=?,tariff_id=?,is_custom=?',[$cpu,$ram,$actual,$planId,$planId===0?1:0]);
-            return ['status'=>'success','message'=>'CPU, RAM и тариф обновлены. Гость остаётся остановленным'];
+            $config = $api->config($vmid, $type);
+            $actual = ProxmoxGuestApi::allocatedGiB($config, $type);
+            $currentCpu = (int)($config['cores'] ?? 1) * ($type === 'qemu' ? (int)($config['sockets'] ?? 1) : 1);
+            $currentRam = (int)($config['memory'] ?? $vm['ram']);
+            if ($planId > 0) {
+                if ($cpu < max($currentCpu, (int)$vm['cpu']) || $ram < max($currentRam, (int)$vm['ram']) ||
+                    $disk < max($actual, (int)$vm['disk']) ||
+                    ($cpu === (int)$vm['cpu'] && $ram === (int)$vm['ram'] && $disk === (int)$vm['disk'])) {
+                    throw new RuntimeException('Новый тариф должен увеличивать ресурсы гостя');
+                }
+            } elseif ($disk !== $actual) {
+                throw new RuntimeException('Размер дисков меняется отдельно в разделе «Диски». Укажите текущий размер');
+            }
+            $this->guestQuota($vm, $cpu, $ram, $disk);
+            $api->stopped($vmid, $type);
+            if ($disk > $actual) {
+                $disks = ProxmoxGuestApi::allocatedDisks($config, $type);
+                if (count($disks) !== 1) {
+                    throw new RuntimeException('При смене тарифа можно увеличить диск гостя с одним диском');
+                }
+                $api->resize($vmid, $type, array_key_first($disks), $disk);
+            }
+            try {
+                $api->resources($vmid, $type, $cpu, $ram);
+            } catch (Throwable $error) {
+                if ($disk > $actual) {
+                    throw new RuntimeException('Диск увеличен. CPU и память требуют проверки. Повторите переход на тот же тариф после проверки.', 0, $error);
+                }
+                throw $error;
+            }
+            $this->saveGuestMutation($vm, 'cpu=?,ram=?,disk=?,tariff_id=?,is_custom=?', [$cpu, $ram, $disk, $planId, $planId===0?1:0]);
+            return ['status'=>'success','message'=>'Ресурсы и тариф обновлены. Гость остаётся остановленным'];
         });
     }
     public function changeVmDisk($vmid,$type,$disk_id,$new_size,$new_storage)
@@ -114,6 +140,17 @@ trait ProxmoxGuestMutations
             return ['status'=>'success','message'=>'Сетевой интерфейс добавлен'];
         });
     }
+    public function removeVmNetwork($vmid, string $type, string $key): array
+    {
+        return $this->guestMutation($vmid, $type, static function (array $vm, ProxmoxGuestApi $api) use ($vmid, $type, $key): array {
+            if (in_array($vm['status'], ['creating', 'suspended'], true)) {
+                throw new RuntimeException('Изменение сети сейчас недоступно');
+            }
+            $api->removeNetwork($vmid, $type, $key);
+            return ['status' => 'success', 'message' => 'Дополнительный интерфейс удалён'];
+        });
+    }
+
     public function deleteVm($vmid,$type)
     {
         return $this->guestMutation($vmid,(string)$type,function($vm,$api)use($vmid,$type){
