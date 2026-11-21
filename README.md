@@ -1,6 +1,6 @@
 # HomeVlad Cloud · Proxmox Billing
 
-Панель управления и биллинга для Proxmox VE. Текущая бета-версия — v2.5.1-beta8.37 ([каталог обновлений](updates/index.json)).
+Панель управления и биллинга для Proxmox VE. Текущая бета-версия — v2.5.1-beta8.38 ([каталог обновлений](updates/index.json)).
 
 - Управление узлами и зонами доступности, создание и мониторинг ВМ QEMU и контейнеров LXC.
 - Тарифы, квоты, пополнение баланса и автоматические списания.
@@ -119,7 +119,10 @@ docker compose -f docker-compose.yml -f docker-compose.phpmyadmin.yml up -d phpm
 | Каждый час | `admin/cron_charge.php` | Списания по тарифам. Достаточно одного задания |
 | Каждые 5 минут | `admin/update_node_stats.php` | Статистика узлов |
 | Каждые 5 минут | `cronjobs/check_node_health.php` | Доступность API гипервизоров |
+| Каждые 5 минут | `cronjobs/check_updates.php` | Проверка каталога GitHub при закрытой админке |
 | Каждую минуту | `cronjobs/backup_cron.php` | Запуск резервных копий по сохранённым расписаниям |
+
+В Docker проверка обновлений входит в расписание после пересборки Apache. На обычном сервере добавьте в crontab пользователя PHP строку `*/5 * * * * /usr/bin/php /путь/к/панели/cronjobs/check_updates.php`. Пользователь PHP должен иметь право записи в `backups/updates`. Проверка сохраняет каталог GitHub для страницы и счётчика обновлений. Версию выбирает и устанавливает администратор.
 | Каждые 5 минут | `api/collect_lxc_metrics.php`, `api/collect_vm_metrics.php` | Метрики LXC и ВМ, два задания |
 | Каждые 2 часа | `api/update_proxmox_tickets.php` | Обновление билетов Proxmox |
 | Каждую минуту | `includes/vm_ip_updater.php` | Обновление IP-адресов |
