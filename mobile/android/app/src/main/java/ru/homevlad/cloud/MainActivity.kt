@@ -52,9 +52,9 @@ private val mintBackground = Color(0xFFDCF3E9)
 private val mintGradient = Brush.verticalGradient(listOf(mintBackground, Color(0xFFF7FBF9)))
 private const val orderApi = "/api/mobile_order.php"
 private const val authApi = "/api/mobile_auth.php"
-private class CloudHttpException(val status: Int, message: String) : IllegalStateException(message)
+internal class CloudHttpException(val status: Int, message: String) : IllegalStateException(message)
 private const val api = "/api/mobile_resources.php"
-private fun money(amount: Double) = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("ru-RU")).format(amount)
+internal fun money(amount: Number) = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("ru-RU")).format(amount)
 private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
 
 class CloudModel : ViewModel() {
@@ -440,13 +440,14 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
                 "admin_guest" -> if (inAdmin) selectedGuest?.let { NativeGuest(model, it, revision) { consoleOpen = true } }
                 "admin_guests" -> if (inAdmin) AdminGuestList(model, revision) { selectedGuest = it; page = "admin_guest" }
                 "admin_infrastructure" -> if (inAdmin) AdminInfrastructure(model, revision)
-                "payments", "admin_payments" -> if (page == "payments" || inAdmin) NativePayments(model, inAdmin, revision)
+                "payments" -> NativePayments(model, revision)
+                "admin_payments" -> if (inAdmin) AdminPaymentDirectory(model, revision)
                 "tickets", "admin_tickets" -> if (page == "tickets" || inAdmin) {
                     NativeTickets(model, inAdmin, revision) { id, _ -> selectedTicket = id; page = "ticket" }
                 }
                 "ticket" -> if (selectedTicket > 0) NativeTicket(model, selectedTicket, inAdmin, revision)
                 "admin" -> if (inAdmin) NativeAdminOverview(model, revision) { page = it }
-                "admin_users" -> if (inAdmin) NativeAdminUsers(model, revision)
+                "admin_users" -> if (inAdmin) AdminUserDirectory(model, revision)
             }
         }
     }
@@ -541,16 +542,11 @@ private fun NativeGuest(model: CloudModel, guest: JSONObject, revision: Int, ope
 }
 
 @Composable
-private fun NativePayments(model: CloudModel, admin: Boolean, revision: Int) {
-    val scope = rememberCoroutineScope()
+private fun NativePayments(model: CloudModel, revision: Int) {
     var payments by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var pending by remember { mutableStateOf<JSONObject?>(null) }
-    var approve by remember { mutableStateOf(true) }
-    var busy by remember { mutableStateOf(false) }
-    var updated by remember { mutableIntStateOf(0) }
-    LaunchedEffect(admin, revision, updated) {
-        try { payments = objects(model.request("$api?resource=payments&admin=${if (admin) 1 else 0}").getJSONArray("items")); error = null }
+    LaunchedEffect(revision) {
+        try { payments = objects(model.request("$api?resource=payments").getJSONArray("items")); error = null }
         catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
     }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -561,29 +557,11 @@ private fun NativePayments(model: CloudModel, admin: Boolean, revision: Int) {
                     Text(money(payment.getDouble("amount")), style = MaterialTheme.typography.titleLarge)
                     Text("#${payment.getInt("id")} · ${status(payment.getString("status"))}")
                     Text(payment.getString("createdAt"))
-                    if (admin) Text(payment.getString("userName"))
-                    if (admin && payment.getString("status") == "pending") Row {
-                        TextButton(enabled = !busy, onClick = { approve = true; pending = payment }) { Text("Подтвердить") }
-                        TextButton(enabled = !busy, onClick = { approve = false; pending = payment }) { Text("Отклонить") }
-                    }
                 }
             }
         }
         error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
     }
-    if (pending != null) AlertDialog(onDismissRequest = { pending = null }, title = { Text(if (approve) "Подтвердить платёж?" else "Отклонить платёж?") },
-        text = { Text("#${pending!!.getInt("id")} · ${pending!!.getString("userName")} · ${money(pending!!.getDouble("amount"))}") },
-        confirmButton = { TextButton(onClick = {
-            val id = pending!!.getInt("id")
-            val action = if (approve) "payment_approve" else "payment_reject"
-            pending = null
-            scope.launch {
-                busy = true
-                try { model.request(api, JSONObject().put("action", action).put("id", id)); updated++; model.refresh() }
-                catch (exception: Exception) { if (exception is CancellationException) throw exception; error = exception.message }
-                finally { busy = false }
-            }
-        }) { Text("Подтвердить действие") } }, dismissButton = { TextButton(onClick = { pending = null }) { Text("Отмена") } })
 }
 
 @Composable
@@ -697,7 +675,7 @@ private fun NativeTicket(model: CloudModel, id: Int, admin: Boolean, revision: I
     }
 }
 
-private fun status(value: String): String = when (value) {
+internal fun status(value: String): String = when (value) {
     "running", "online" -> "Работает"
     "offline" -> "Нет ответа"
     "stopped" -> "Остановлен"
@@ -764,58 +742,6 @@ private fun AdminSectionCard(
             }
             Icon(Icons.Default.KeyboardArrowRight, null)
         }
-    }
-}
-
-@Composable
-private fun NativeAdminUsers(model: CloudModel, revision: Int) {
-    val scope = rememberCoroutineScope()
-    var users by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
-    var search by remember { mutableStateOf("") }
-    var next by remember { mutableStateOf<Int?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    suspend fun load(before: Int? = null) {
-        if (busy) return
-        busy = true
-        try {
-            val suffix = before?.let { "&before=$it" }.orEmpty()
-            val result = model.request("$api?resource=admin_users$suffix")
-            val page = objects(result.getJSONArray("items"))
-            users = if (before == null) page else users + page
-            next = if (result.isNull("next")) null else result.getInt("next")
-            error = null
-        } catch (exception: Exception) {
-            if (exception is CancellationException) throw exception
-            error = exception.message
-        } finally { busy = false }
-    }
-    LaunchedEffect(revision) { load() }
-    val visibleUsers = users.filter { user ->
-        val query = search.trim()
-        user.getString("name").contains(query, ignoreCase = true) || user.getString("email").contains(query, ignoreCase = true)
-    }
-    LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Пользователи", style = MaterialTheme.typography.headlineSmall) }
-        item { OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(),
-            label = { Text("Поиск среди загруженных") }, singleLine = true) }
-        if (visibleUsers.isEmpty() && !busy && error == null) item { Text("Пользователи не найдены") }
-        items(visibleUsers, key = { it.getInt("id") }) { user ->
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(user.getString("name"), style = MaterialTheme.typography.titleMedium)
-                    Text(user.getString("email"))
-                    val role = if (user.getBoolean("isAdmin")) "Администратор" else "Пользователь"
-                    val activity = if (user.getBoolean("isActive")) "Активен" else "Неактивен"
-                    Text("$role · $activity", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-        if (busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-        next?.let { cursor -> item {
-            TextButton(onClick = { scope.launch { load(cursor) } }, enabled = !busy) { Text("Загрузить ещё") }
-        } }
-        error?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
     }
 }
 
