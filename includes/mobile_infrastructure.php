@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/license_guard.php';
 require_once __DIR__ . '/guest_operation_lock.php';
 require_once __DIR__ . '/node_health.php';
 require_once __DIR__ . '/proxmox_node_import.php';
@@ -57,6 +58,7 @@ function mobileAdminSaveZone(PDO $pdo, array $input): void
         mobileAdminNumber($input['limit'] ?? null,1,1000),mobileAdminNumber($input['threshold'] ?? null,1,100),
         mobileAdminFlag($input,'maintenance')];
     withGuestOperationLocks(['mobile-zones','placement-zone:' . $id], static function () use ($pdo,$id,$values): void {
+        if (!$id) homevladReserveLicense($pdo, ['zones' => 1]);
         $pdo->beginTransaction();
         try {
             $zones = $pdo->query('SELECT id,name,is_active FROM proxmox_clusters ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);

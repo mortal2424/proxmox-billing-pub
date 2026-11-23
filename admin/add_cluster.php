@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/license_guard.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Выполнение запроса
-            $result = $stmt->execute([$name, $description, $is_active, $allowedUsers]);
+            $result = homevladLicensedMutation($pdo, ['zones' => 1], static fn() => $stmt->execute([$name, $description, $is_active, $allowedUsers]));
 
             if (!$result) {
                 $errorInfo = $stmt->errorInfo();

@@ -78,7 +78,7 @@ try {
         $method = $type === 'lxc' ? 'startContainer' : 'startVM';
         $result = $api->$method((int) $context['vm_id']);
         if (is_array($result) && ($result['success'] ?? true) === false) {
-            throw new RuntimeException('Не удалось запустить машину');
+            throw new RuntimeException($result['error'] ?? 'Не удалось запустить машину');
         }
     } elseif ($action === 'stop') {
         $alreadyStopped = !$api->stopGuestIfRunning((int) $context['vm_id'], $type);

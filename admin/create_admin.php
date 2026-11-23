@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/license_guard.php';
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -118,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Если нет ошибок - сохраняем пользователя
     if (empty($errors)) {
         try {
+            homevladReserveLicense($pdo, ['users' => 1]);
             $pdo->beginTransaction();
 
             // Хэшируем пароль
@@ -200,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } catch (Exception $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) $pdo->rollBack();
             $errors[] = "Ошибка при сохранении: " . $e->getMessage();
         }
     }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/license_guard.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/functions.php';
@@ -285,6 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
 
         if (empty($errors)) {
             try {
+                homevladReserveLicense($db->getConnection(), ['users' => 1]);
                 $db->getConnection()->beginTransaction();
 
                 // Генерация случайного пароля для Telegram-пользователей
@@ -356,8 +358,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 header('Location: registration_success.php');
                 exit;
 
-            } catch (PDOException $e) {
-                $db->getConnection()->rollBack();
+            } catch (PDOException | DomainException $e) {
+                if ($db->getConnection()->inTransaction()) $db->getConnection()->rollBack();
                 $errors[] = "Ошибка при регистрации: " . $e->getMessage();
             }
         }
@@ -393,6 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
 
         if (empty($errors)) {
             try {
+                homevladReserveLicense($db->getConnection(), ['users' => 1]);
                 $db->getConnection()->beginTransaction();
 
                 // Создаем пользователя
@@ -447,8 +450,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 header('Location: registration_success.php');
                 exit;
 
-            } catch (PDOException $e) {
-                $db->getConnection()->rollBack();
+            } catch (PDOException | DomainException $e) {
+                if ($db->getConnection()->inTransaction()) $db->getConnection()->rollBack();
                 $errors[] = "Ошибка при регистрации: " . $e->getMessage();
             }
         }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/license_guard.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
@@ -64,6 +65,8 @@ $nodes = $pdo->query("
 // Обработка формы добавления ВМ
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['selected_vms'])) {
     try {
+        $license = homevladLicenseConfig();
+        if ($license !== null) homevladLicenseAcquire($pdo);
         $pdo->beginTransaction();
 
         foreach ($_POST['selected_vms'] as $vm_data) {
@@ -93,6 +96,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['selected_vms'])) {
                 throw new Exception("ВМ $vm_id не найдена на ноде $node_id");
             }
 
+            if ($license !== null) {
+                $registered = $pdo->prepare("SELECT 1 FROM vms WHERE node_id=? AND vm_id=? AND status<>'deleted'");
+                $registered->execute([$node_id, $vm_id]);
+                if (!$registered->fetchColumn()) {
+                    homevladAssertLicense($pdo, $license, ['vms_created' => 1, 'vms_running' => 1,
+                        'vcpu' => (int)($vm_info['cpu'] ?? 1), 'ram_mib' => (int)($vm_info['memory'] ?? 1024)]);
+                }
+            }
             // Добавляем ВМ в таблицу vms_admin
             $stmt = $pdo->prepare("
                 INSERT INTO vms_admin (
@@ -122,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['selected_vms'])) {
         header("Location: vms.php");
         exit;
     } catch (Exception $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) $pdo->rollBack();
         $errors[] = "Ошибка при добавлении ВМ: " . $e->getMessage();
     }
 }

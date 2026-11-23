@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/license_guard.php';
 require_once __DIR__ . '/node_credentials.php';
 require_once __DIR__ . '/ProxmoxCommandApi.php';
 require_once __DIR__ . '/node_api_credentials.php';
@@ -117,6 +118,8 @@ class ProxmoxAPI {
         $result = ['status' => 'stopped'];
         if (!$start) return $result;
         try {
+            $license = homevladLicenseConfig();
+            if ($license !== null) homevladAssertLicense($this->pdo, $license, ['vms_running' => 1]);
             $this->controlGuest($vmid, $type, 'start');
             $result['status'] = 'running';
             $stmt = $this->pdo->prepare("UPDATE vms SET status='running' WHERE node_id=? AND vm_id=? AND vm_type=? AND status='stopped'");
@@ -144,6 +147,12 @@ class ProxmoxAPI {
     }
 
     public function createVM($params) {
+        return homevladLicensedMutation($this->pdo, [
+            'vms_created' => 1, 'vcpu' => (int)($params['cpu'] ?? 1), 'ram_mib' => (int)($params['ram'] ?? 1024),
+        ], fn() => $this->createLicensedVM($params));
+    }
+
+    private function createLicensedVM($params) {
     // Validate every value that becomes part of a remote shell command.
     $storage = (string)($params['storage'] ?? 'local');
     $network = (string)($params['network'] ?? 'vmbr0');
@@ -479,6 +488,12 @@ public function getLXCTemplates() {
 }
 
 public function createLXC($params) {
+    return homevladLicensedMutation($this->pdo, [
+        'vms_created' => 1, 'vcpu' => (int)($params['cpu'] ?? 1), 'ram_mib' => (int)($params['ram'] ?? 1024),
+    ], fn() => $this->createLicensedLXC($params));
+}
+
+private function createLicensedLXC($params) {
     // Validate all dynamic arguments before constructing pct shell commands.
     $storage = (string)($params['storage'] ?? 'local');
     $template = (string)($params['template'] ?? '');
@@ -975,6 +990,34 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
 }
 
     public function startVM($vmid) {
+        return $this->startLicensedGuest($vmid, 'qemu');
+    }
+
+    private function startLicensedGuest($vmid, string $type): array {
+        try {
+            if (homevladLicenseConfig() === null) return $this->startGuestWithBilling($vmid, $type);
+            $lockPdo = $this->pdo;
+            homevladLicenseAcquire($lockPdo);
+            try {
+                $status = $type === 'qemu' ? $this->getVMStatus($vmid) : $this->getContainerStatus($vmid);
+                if (($status['status'] ?? '') === 'running') return ['success' => true, 'status' => 'running'];
+                homevladAssertLicense($lockPdo, homevladLicenseConfig(), ['vms_running' => 1]);
+                $result = $this->startGuestWithBilling($vmid, $type);
+                if ($result['success'] ?? false) {
+                    $update = $lockPdo->prepare("UPDATE vms_admin SET status='running' WHERE node_id=? AND vm_id=? AND status<>'deleted'");
+                    $update->execute([$this->nodeId, $vmid]);
+                }
+                return $result;
+            } finally {
+                homevladLicenseRelease($lockPdo);
+            }
+        } catch (Exception $error) {
+            return ['success' => false, 'error' => $error->getMessage()];
+        }
+    }
+
+    private function startGuestWithBilling($vmid, string $type): array {
+    if ($type === 'lxc') return $this->startContainerWithBilling($vmid);
     try {
         // Сначала проверяем статус VM
         $status = $this->getVMStatus($vmid);
@@ -1479,6 +1522,10 @@ public function getLxcRRDData($vmId, $timeframe) {
 }
 
 public function startContainer($vmid) {
+    return $this->startLicensedGuest($vmid, 'lxc');
+}
+
+private function startContainerWithBilling($vmid) {
     try {
         // Сначала проверяем статус контейнера
         $status = $this->getContainerStatus($vmid);

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/license_guard.php';
 require_once __DIR__ . '/payment_actions.php';
 
 function mobileAdminAccounts(PDO $pdo, array $input): array
@@ -66,6 +67,7 @@ function mobileAdminSaveAccount(PDO $pdo, array $input, int $actor): int
         $hash = password_hash($password, PASSWORD_DEFAULT);
     }
 
+    if ($id === 0) homevladReserveLicense($pdo, ['users' => 1]);
     $pdo->beginTransaction();
     try {
         $query = $pdo->prepare('SELECT id,is_admin,is_active FROM users WHERE id IN (?,?) ORDER BY id FOR UPDATE');

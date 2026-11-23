@@ -50,7 +50,8 @@ try {
     
     switch ($action) {
         case 'start':
-            $proxmox->startVM($vmid);
+            $result = $proxmox->startVM($vmid);
+            if (!($result['success'] ?? false)) throw new DomainException($result['error'] ?? 'Запуск не выполнен');
             echo json_encode(['success' => true]);
             break;
             

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/license_guard.php';
 require_once __DIR__ . '/ProxmoxApiClient.php';
 
 function discoverProxmoxMembers(ProxmoxApiClient $client, string $entryNode): array
@@ -65,6 +66,9 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): array
         $hosts[$name] = $hostname;
     }
 
+    $license = $hosts ? homevladLicenseConfig() : null;
+    if ($license !== null) homevladLicenseAcquire($db);
+    try {
     $db->beginTransaction();
     try {
         $zones = $db->query('SELECT id,is_active FROM proxmox_clusters ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -107,6 +111,7 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): array
                     }
                 }
             }
+            if ($license !== null) homevladAssertLicense($db, $license, ['nodes' => 1]);
             $insert->execute([$zone,$name,$hostname,$connection['api_port'],$connection['username'],
                 $secret,(int)($connection['is_active'] && $status === 'online'),$connection['description'],(int)$master,
                 $status,(int)(!$refresh && ($connection['available_for_users'] ?? true))]);
@@ -117,5 +122,8 @@ function importProxmoxMembers(PDO $db, array $connection, array $members): array
     } catch (Throwable $error) {
         if ($db->inTransaction()) $db->rollBack();
         throw $error;
+    }
+    } finally {
+        if ($license !== null) homevladLicenseRelease($db);
     }
 }
