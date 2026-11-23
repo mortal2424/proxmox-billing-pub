@@ -18,7 +18,7 @@ $smtp = licenseRequestSmtp($pdo);
 $sent = !empty($_SESSION['license_request_sent']);
 unset($_SESSION['license_request_sent']);
 $status = ['mode' => 'restricted'];
-$csrf = $_SESSION['license_csrf'] ??= bin2hex(random_bytes(32));
+$csrf = $_SESSION['node_csrf'];
 $error = null;
 try {
     $config = homevladLicenseConfig();
@@ -26,10 +26,6 @@ try {
     $request = homevladLicenseRequest($config);
     $force = false;
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (!is_string($_POST['csrf'] ?? null) || !hash_equals($csrf, $_POST['csrf'])) {
-            http_response_code(403);
-            exit('Обновите страницу и повторите действие.');
-        }
         if (($_POST['action'] ?? '') === 'send-request') {
             $reply = $_POST['reply_email'] ?? '';
             if (!$smtp) throw new DomainException('Настройте SMTP в системных настройках.');
@@ -94,7 +90,7 @@ require __DIR__ . '/admin_sidebar.php';
             </tbody>
         </table></div>
         <p>Подтверждение действует до <?= gmdate('d.m.Y H:i', $claims['valid_until']) ?> UTC.</p>
-        <form method="post" class="license-form"><input type="hidden" name="csrf" value="<?= htmlspecialchars($csrf) ?>">
+        <form method="post" class="license-form"><input type="hidden" name="node_csrf" value="<?= htmlspecialchars($csrf) ?>">
             <button type="submit" name="action" value="refresh">Обновить лимиты</button></form>
     <?php endif; ?>
     <?php if ($request): ?>
@@ -103,13 +99,13 @@ require __DIR__ . '/admin_sidebar.php';
         <textarea class="license-input" aria-label="Код установки" readonly rows="4"><?= htmlspecialchars($request) ?></textarea>
         <?php if (!$smtp): ?><p>Почта не настроена. <a href="/admin/settings.php">Настройте SMTP</a> или скопируйте код вручную.</p><?php else: ?>
         <form method="post" class="license-form">
-            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrf) ?>">
+            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($csrf) ?>">
             <label for="license-reply">Email для получения ключа</label>
             <input class="license-input" id="license-reply" name="reply_email" type="email" maxlength="254" required>
             <button type="submit" name="action" value="send-request">Отправить код установки</button>
         </form><?php endif; ?>
         <h2>Активация</h2><form method="post" class="license-form">
-            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrf) ?>">
+            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($csrf) ?>">
             <label for="license-key">Ключ от администратора</label>
             <input class="license-input" id="license-key" name="license_key" type="password" maxlength="128" required autocomplete="off" placeholder="dvl1_…">
             <button type="submit" name="action" value="activate">Активировать</button>

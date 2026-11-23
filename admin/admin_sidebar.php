@@ -884,7 +884,7 @@ try {
                 </div>
 
                 <?php if ($nodes_exists): ?>
-                <li class="sidebar-menu-item <?= $current_page === 'nodes.php' || $current_page === 'add_nodes.php' || $current_page === 'edit_node.php' ? 'active' : '' ?>">
+                <li class="sidebar-menu-item <?= in_array($current_page, ['nodes.php', 'add_node.php', 'add_nodes.php', 'edit_node.php', 'add_cluster.php', 'edit_cluster.php', 'node_placement_pools.php'], true) ? 'active' : '' ?>">
                     <a href="/admin/nodes.php" class="sidebar-menu-link">
                         <div class="menu-icon nodes">
                             <i class="fas fa-network-wired"></i>
@@ -1327,21 +1327,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 250);
     });
 
-    // Добавляем класс активной странице
-    const currentPath = window.location.pathname;
-    const menuItems = document.querySelectorAll('.sidebar-menu-item');
-
-    menuItems.forEach(item => {
-        item.classList.remove('active');
-        const link = item.querySelector('a');
-        if (link) {
-            const href = link.getAttribute('href');
-            if (href === '/admin/' && (currentPath === '/admin/' || currentPath === '/admin/index.php')) {
-                item.classList.add('active');
-            } else if (href && currentPath.includes(href.replace('/admin/', ''))) {
-                item.classList.add('active');
-            }
-        }
-    });
 });
 </script>

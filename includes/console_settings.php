@@ -40,15 +40,42 @@ function consoleSettings(): array
     return json_decode(file_get_contents($path), true, 8, JSON_THROW_ON_ERROR);
 }
 
+function validateConsoleBrokerUrl(string $url): string
+{
+    $url = rtrim(trim($url), '/');
+    if (!preg_match('#^https://[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$#D', $url) ||
+        filter_var($url, FILTER_VALIDATE_URL) === false) {
+        throw new DomainException('Укажите HTTPS-адрес внешнего прокси без пути.');
+    }
+    return $url;
+}
+
+function consoleConnection(): array
+{
+    $settings = consoleSettings();
+    if (isset($settings['connection'])) return $settings['connection'];
+    $url = consoleHostingOption('HOMEVLAD_CONSOLE_BROKER');
+    return $url === '' ? ['url'=>null] : [
+        'url'=>validateConsoleBrokerUrl($url),
+        'secret'=>consoleHostingOption('HOMEVLAD_CONSOLE_BROKER_SECRET'),
+    ];
+}
+
 function consoleRemoteBroker(): ?string
 {
-    $origin = consoleHostingOption('HOMEVLAD_CONSOLE_BROKER') ?: '';
-    if ($origin === '') return null;
-    if (!preg_match('#^https://[a-z0-9]+(?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?$#D', $origin) ||
-        filter_var($origin, FILTER_VALIDATE_URL) === false) {
-        throw new RuntimeException('Укажите HTTPS-адрес внешнего прокси без пути.');
+    return consoleConnection()['url'];
+}
+
+function consoleConnectionForEdit(string $mode, string $url, string $secret, array $current): array
+{
+    if ($mode === 'local') return ['url'=>null];
+    if ($mode !== 'remote') throw new DomainException('Выберите тип подключения.');
+    $url = validateConsoleBrokerUrl($url);
+    if ($secret === '' && $url === $current['url']) $secret = $current['secret'] ?? '';
+    if (!preg_match('/^[a-f0-9]{64}$/D', $secret)) {
+        throw new DomainException('Укажите общий секрет из 64 шестнадцатеричных символов для этого прокси.');
     }
-    return $origin;
+    return ['url'=>$url, 'secret'=>$secret];
 }
 
 function consoleSocketUrl(): string
@@ -57,11 +84,12 @@ function consoleSocketUrl(): string
     return $broker === null ? '/console/socket' : 'wss://' . substr($broker, 8) . '/console/socket';
 }
 
-function consoleBrokerRequest(string $payload): string
+function consoleBrokerRequest(string $payload, ?array $connection = null): string
 {
-    $broker = consoleRemoteBroker();
+    $connection ??= consoleConnection();
+    $broker = $connection['url'];
     if ($broker !== null) {
-        $secret = consoleHostingOption('HOMEVLAD_CONSOLE_BROKER_SECRET') ?: '';
+        $secret = $connection['secret'] ?? '';
         if (!extension_loaded('curl') || !preg_match('/^[a-f0-9]{64}$/D', $secret)) return '';
         $curl = curl_init($broker . '/console/issuer');
         $response = '';
@@ -93,15 +121,20 @@ function consoleBrokerRequest(string $payload): string
     }
 }
 
-function consoleBrokerStatus(): array
+function consoleBrokerStatus(?array $connection = null): array
 {
-    $response = consoleBrokerRequest("{\"operation\":\"status\"}\n");
+    $response = consoleBrokerRequest("{\"operation\":\"status\"}\n", $connection);
     if ($response === '') return ['status'=>'offline'];
     $status = json_decode($response, true);
-    return is_array($status) && ($status['status'] ?? '') === 'ok' ? $status : ['status'=>'legacy'];
+    if (!is_array($status) || ($status['status'] ?? '') !== 'ok' ||
+        !is_array($status['origins'] ?? null) || !is_int($status['ticket_ttl'] ?? null)) {
+        return ['status'=>'legacy'];
+    }
+    $status['origins'] = array_values(array_filter($status['origins'], static fn ($origin): bool => is_string($origin)));
+    return $status['origins'] ? $status : ['status'=>'legacy'];
 }
 
-function saveConsoleSettings(string $origin, int $ttl, array $broker, array $pins = []): void
+function saveConsoleSettings(string $origin, int $ttl, array $broker, array $pins, array $connection): void
 {
     $path = consoleSettingsPath();
     if (!$path || ($broker['status'] ?? '') !== 'ok' || !in_array($origin, $broker['origins'] ?? [], true) ||
@@ -111,7 +144,7 @@ function saveConsoleSettings(string $origin, int $ttl, array $broker, array $pin
     $temporary = tempnam(dirname($path), '.console-');
     if ($temporary === false) throw new RuntimeException('Не удалось сохранить настройки консоли.');
     try {
-        $data = json_encode(['origin'=>$origin, 'ticket_ttl'=>$ttl, 'pins'=>$pins], JSON_THROW_ON_ERROR);
+        $data = json_encode(['origin'=>$origin, 'ticket_ttl'=>$ttl, 'pins'=>$pins, 'connection'=>$connection], JSON_THROW_ON_ERROR);
         if (!chmod($temporary, 0600) || file_put_contents($temporary, $data) !== strlen($data) || !rename($temporary, $path)) {
             throw new RuntimeException('Не удалось сохранить настройки консоли.');
         }

@@ -1460,19 +1460,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Добавляем активный класс к текущей странице
-    const currentPath = window.location.pathname;
-    const currentPage = currentPath.substring(currentPath.lastIndexOf('/') + 1);
-
-    document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-        item.classList.remove('active');
-    });
-
-    const activeItem = document.querySelector(`.sidebar-menu-item a[href*="${currentPage}"]`);
-    if (activeItem) {
-        activeItem.closest('.sidebar-menu-item').classList.add('active');
-    }
-
     // Анимация прогресс-баров
     setTimeout(() => {
         document.querySelectorAll('.progress-fill').forEach(bar => {
