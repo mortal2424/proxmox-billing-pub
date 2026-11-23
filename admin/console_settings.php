@@ -10,7 +10,7 @@ require_once __DIR__ . '/admin_functions.php';
 $pdo = (new Database())->getConnection();
 requireNodeAdministrator($pdo);
 header('Cache-Control: no-store');
-$status = consoleBrokerStatus();
+$connection = consoleConnection();
 $consoleNodes = $pdo->query('SELECT id,node_name FROM proxmox_nodes ORDER BY node_name')->fetchAll(PDO::FETCH_KEY_PAIR);
 $error = null;
 $saved = false;
@@ -28,13 +28,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!preg_match('/^[a-f0-9]{64}$/D', $value)) throw new DomainException('Нужен SHA-256 отпечаток сертификата.');
             $pins[$id] = $value;
         }
-        saveConsoleSettings($origin, $ttl, $status, $pins);
+        $mode = $_POST['broker_mode'] ?? '';
+        $url = $_POST['broker_url'] ?? '';
+        $secret = $_POST['broker_secret'] ?? '';
+        if (!is_string($mode) || !is_string($url) || !is_string($secret)) {
+            throw new DomainException('Некорректные параметры подключения.');
+        }
+        $candidate = consoleConnectionForEdit($mode, $url, trim($secret), $connection);
+        $candidateStatus = consoleBrokerStatus($candidate);
+        if (($candidateStatus['status'] ?? '') !== 'ok') {
+            throw new DomainException('Прокси не ответил. Проверьте адрес и общий секрет подключения.');
+        }
+        saveConsoleSettings($origin, $ttl, $candidateStatus, $pins, $candidate);
+        $connection = $candidate;
         $saved = true;
     } catch (DomainException | RuntimeException $exception) {
         $error = $exception->getMessage();
     }
 }
 $settings = consoleSettings();
+$status = $saved ? $candidateStatus : consoleBrokerStatus($connection);
+$configuredOrigin = $settings['origin'] ?? ($status['origins'][0] ?? '');
 $title = 'Настройки VNC';
 require __DIR__ . '/admin_header.php';
 require __DIR__ . '/admin_sidebar.php';
@@ -63,22 +77,32 @@ require __DIR__ . '/admin_sidebar.php';
 <?php if ($status['status'] === 'ok'): ?><p role="status">Прокси подключён.</p><?php endif ?>
 <?php if ($status['status'] !== 'ok'): ?>
 <p role="status"><?= $status['status'] === 'legacy' ? 'Прокси отвечает. Для настройки из панели требуется обновить его версию.' : 'Прокси не отвечает. Проверьте соединение и конфигурацию выбранного режима.' ?></p>
-<?php elseif (consoleSettingsPath() !== null): ?>
+<?php endif ?>
+<?php if (consoleSettingsPath() !== null): ?>
 <form method="post">
+<h2>Редактирование подключения</h2>
 <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
-<label>HTTPS-адрес панели<select name="origin" required>
-<?php foreach ($status['origins'] as $origin): ?>
-<option value="<?= htmlspecialchars($origin) ?>" <?= ($settings['origin'] ?? '') === $origin ? 'selected' : '' ?>><?= htmlspecialchars($origin) ?></option>
-<?php endforeach ?>
+<label>Тип подключения<select name="broker_mode">
+    <option value="local" <?= $connection['url'] === null ? 'selected' : '' ?>>Локальный сокет</option>
+    <option value="remote" <?= $connection['url'] !== null ? 'selected' : '' ?>>Внешний HTTPS-прокси</option>
 </select></label>
-<label>Срок билета, секунды<input type="number" name="ttl" min="15" max="90" value="<?= (int)($settings['ticket_ttl'] ?? $status['ticket_ttl']) ?>" required></label>
+<label>HTTPS-адрес внешнего прокси<input type="url" name="broker_url" value="<?= htmlspecialchars($connection['url'] ?? '') ?>" placeholder="https://console.example.org"></label>
+<label>Общий секрет внешнего прокси<input type="password" name="broker_secret" autocomplete="new-password" maxlength="64"></label>
+<p>Указывайте только доверенный прокси. Он получает учётные данные Proxmox при открытии консоли. Пустое поле секрета сохраняет текущий секрет при прежнем адресе.</p>
+<label>HTTPS-адрес панели<input type="url" name="origin" list="console-origins" value="<?= htmlspecialchars($configuredOrigin) ?>" required></label>
+<datalist id="console-origins">
+<?php foreach ($status['origins'] ?? [] as $origin): ?>
+<option value="<?= htmlspecialchars($origin) ?>"></option>
+<?php endforeach ?>
+</datalist>
+<label>Срок билета, секунды<input type="number" name="ttl" min="15" max="90" value="<?= (int)($settings['ticket_ttl'] ?? $status['ticket_ttl'] ?? 30) ?>" required></label>
 <?php if ($consoleNodes): ?><fieldset>
 <legend>SHA-256 сертификатов Proxmox</legend>
 <p>Заполняйте после проверки отпечатка. Пустое поле использует настройки TLS прокси.</p>
 <?php foreach ($consoleNodes as $id => $name): ?>
 <label><?= htmlspecialchars($name) ?><input name="pins[<?= (int)$id ?>]" maxlength="95" value="<?= htmlspecialchars($settings['pins'][$id] ?? '') ?>" spellcheck="false"></label>
 <?php endforeach; ?></fieldset><?php endif ?>
-<button>Сохранить</button>
+<button>Проверить и сохранить</button>
 </form>
 <?php else: ?>
 <p>Для сохранения параметров укажите путь <code>HOMEVLAD_CONSOLE_SETTINGS</code> к JSON-файлу вне веб-корня.</p>
