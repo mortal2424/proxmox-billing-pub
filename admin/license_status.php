@@ -4,6 +4,7 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/license_guard.php';
 require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/admin_functions.php';
 
 $pdo = (new Database())->getConnection();
 requireNodeAdministrator($pdo);
