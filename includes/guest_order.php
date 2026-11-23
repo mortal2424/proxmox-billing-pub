@@ -39,12 +39,13 @@ function guestOrderContext(PDO $pdo, int $user_id): array
     return [$resourcePrices, $quota, $usage];
 }
 
-function guestOrderZones(PDO $pdo): array
+function guestOrderZones(PDO $pdo, int $userId): array
 {
-    $zones = $pdo->query("SELECT z.id,z.name FROM proxmox_clusters z WHERE z.is_active=1 AND COALESCE(z.maintenance_mode,0)=0
+    $zones = $pdo->prepare("SELECT z.id,z.name FROM proxmox_clusters z WHERE z.is_active=1 AND COALESCE(z.maintenance_mode,0)=0
     AND EXISTS (SELECT 1 FROM proxmox_nodes n WHERE n.cluster_id=z.id AND n.is_active=1 AND n.available_for_users=1)
-    ORDER BY z.name")->fetchAll(PDO::FETCH_ASSOC);
-    return $zones;
+    AND " . ZONE_ACCESS_FILTER . " ORDER BY z.name");
+    $zones->execute([$userId]);
+    return $zones->fetchAll(PDO::FETCH_ASSOC);
 }
 
 function submitGuestOrder(int $user_id, array $input): array
@@ -226,6 +227,9 @@ function submitGuestOrder(int $user_id, array $input): array
                 $pdo, $zoneId, $vmType, $networkPool, $storagePool, $media, $total_cpu, $total_ram, $total_disk,
                 $osType, $hostname, $password, $generatedPassword, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey
             ) {
+                if (!zoneAllowsUser($pdo, $zoneId, $user_id)) {
+                    throw new Exception('Зона доступности недоступна');
+                }
                 $placement = choosePlacement($pdo, $zoneId, $vmType, $networkPool, $storagePool,
                     $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows', $cloudKey);
                 $node = $placement['node'];

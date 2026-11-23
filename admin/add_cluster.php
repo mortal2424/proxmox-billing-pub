@@ -11,6 +11,9 @@ if (!isAdmin()) {
 
 $db = new Database();
 $pdo = $db->getConnection();
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/../includes/zone_access.php';
+requireNodeAdministrator($pdo);
 
 // Обработка POST запроса
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -20,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = trim($_POST['name']);
             $description = trim($_POST['description'] ?? '');
             $is_active = isset($_POST['is_active']) ? 1 : 0;
+            $allowedUsers = zoneAccessFromForm($pdo, $_POST);
 
             if (empty($name)) {
                 throw new Exception("Имя зоны доступности обязательно");
@@ -43,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Подготовка SQL запроса
-            $sql = "INSERT INTO proxmox_clusters (name, description, is_active, created_at) VALUES (?, ?, ?, NOW())";
+            $sql = "INSERT INTO proxmox_clusters (name, description, is_active, allowed_user_ids, created_at) VALUES (?, ?, ?, ?, NOW())";
             $stmt = $pdo->prepare($sql);
 
             if (!$stmt) {
@@ -51,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Выполнение запроса
-            $result = $stmt->execute([$name, $description, $is_active]);
+            $result = $stmt->execute([$name, $description, $is_active, $allowedUsers]);
 
             if (!$result) {
                 $errorInfo = $stmt->errorInfo();
@@ -699,6 +703,7 @@ require 'admin_header.php';
                 <form method="POST" class="cluster-form" id="clusterForm">
                     <!-- Добавляем скрытое поле для идентификации формы -->
                     <input type="hidden" name="cluster_form" value="1">
+                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
 
                     <div class="form-group">
                         <label class="form-label required">
@@ -744,6 +749,8 @@ require 'admin_header.php';
                             </span>
                         </label>
                     </div>
+
+                    <?php require __DIR__ . '/zone_access_fields.php'; ?>
 
                     <div class="form-actions">
                         <button type="submit"

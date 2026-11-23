@@ -12,11 +12,12 @@ try {
     $databaseAvailable = true;
     $nodes = $pdo->query('SELECT n.id, s.created_at,
         TIMESTAMPDIFF(SECOND, s.created_at, NOW()) AS age_seconds
-        FROM proxmox_nodes n LEFT JOIN node_stats s ON s.id = (
+        FROM proxmox_nodes n JOIN proxmox_clusters z ON z.id = n.cluster_id
+        LEFT JOIN node_stats s ON s.id = (
             SELECT recent.id FROM node_stats recent
             WHERE recent.node_id = n.id ORDER BY recent.created_at DESC, recent.id DESC LIMIT 1
         )
-        WHERE n.is_active = 1 AND n.available_for_users = 1 ORDER BY n.id')->fetchAll();
+        WHERE n.is_active = 1 AND n.available_for_users = 1 AND z.allowed_user_ids IS NULL ORDER BY n.id')->fetchAll();
     $monitoringAvailable = true;
 } catch (Throwable $exception) {
     error_log('Platform status: database or metrics query failed');

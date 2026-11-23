@@ -38,7 +38,7 @@ if ($usage['total_disk'] > $quota['max_disk']) {
 }
 
 // Получаем список нод и тарифов
-$zones = guestOrderZones($pdo);
+$zones = guestOrderZones($pdo, $user_id);
 
 $requestedVmType = $_POST['vm_type'] ?? $_GET['vm_type'] ?? 'qemu';
 $vmType = in_array($requestedVmType, ['qemu', 'lxc'], true) ? $requestedVmType : 'qemu';

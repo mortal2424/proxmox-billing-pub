@@ -19,7 +19,7 @@ try {
                 'os_type'=>$row['os_type'],
             ];
         }
-        $zones = array_map(static fn(array $zone): array => ['id'=>(string)$zone['id'],'label'=>$zone['name']], guestOrderZones($pdo));
+        $zones = array_map(static fn(array $zone): array => ['id'=>(string)$zone['id'],'label'=>$zone['name']], guestOrderZones($pdo, (int)$user['id']));
         mobileRespond(['zones'=>$zones,'tariffs'=>$tariffs]);
     }
 

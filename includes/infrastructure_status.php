@@ -1,17 +1,20 @@
 <?php
 require_once __DIR__ . '/guest_network_probe.php';
+require_once __DIR__ . '/zone_access.php';
 $infrastructureAdmin = $infrastructureAdmin ?? false;
-$infrastructureNodes = $pdo->query("SELECT n.id, n.node_name, c.id AS zone_id, c.name AS zone, n.status, n.last_check,
+$infrastructureQuery = $pdo->prepare("SELECT n.id, n.node_name, z.id AS zone_id, z.name AS zone, n.status, n.last_check,
     TIMESTAMPDIFF(SECOND, n.last_check, NOW()) AS health_age,
     s.cpu_usage, s.ram_usage, s.network_rx_mbits, s.network_tx_mbits, s.created_at,
     TIMESTAMPDIFF(SECOND, s.created_at, NOW()) AS metric_age
-    FROM proxmox_nodes n JOIN proxmox_clusters c ON c.id = n.cluster_id
+    FROM proxmox_nodes n JOIN proxmox_clusters z ON z.id = n.cluster_id
     LEFT JOIN node_stats s ON s.id = (
         SELECT r.id FROM node_stats r WHERE r.node_id = n.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
     )
-    WHERE n.is_active = 1 AND c.is_active = 1"
-    . ($infrastructureAdmin ? '' : ' AND n.available_for_users = 1')
-    . ' ORDER BY c.name, c.id, n.node_name')->fetchAll(PDO::FETCH_ASSOC);
+    WHERE n.is_active = 1 AND z.is_active = 1"
+    . ($infrastructureAdmin ? '' : ' AND n.available_for_users = 1 AND ' . ZONE_ACCESS_FILTER)
+    . ' ORDER BY z.name, z.id, n.node_name');
+$infrastructureQuery->execute($infrastructureAdmin ? [] : [(int)($_SESSION['user']['id'] ?? 0)]);
+$infrastructureNodes = $infrastructureQuery->fetchAll(PDO::FETCH_ASSOC);
 $infrastructureZones = [];
 foreach ($infrastructureNodes as &$infrastructureRow) {
     $healthAge = $infrastructureRow['health_age'];

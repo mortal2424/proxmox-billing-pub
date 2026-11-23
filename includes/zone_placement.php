@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/zone_access.php';
 require_once __DIR__ . '/proxmox_functions.php';
 require_once __DIR__ . '/cloud_images.php';
 

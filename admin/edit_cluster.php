@@ -14,6 +14,7 @@ $pdo = $db->getConnection();
 require_once __DIR__ . '/../includes/node_admin_guard.php';
 require_once __DIR__ . '/../includes/node_health.php';
 require_once __DIR__ . '/../includes/guest_operation_lock.php';
+require_once __DIR__ . '/../includes/zone_access.php';
 requireNodeAdministrator($pdo);
 
 // Получаем данные зоны доступности
@@ -73,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $max_vms_per_node = intval($_POST['max_vms_per_node'] ?? 50);
             $load_balancing_threshold = intval($_POST['load_balancing_threshold'] ?? 80);
             $maintenance_mode = isset($_POST['maintenance_mode']) ? 1 : 0;
+            $allowedUsers = zoneAccessFromForm($pdo, $_POST);
 
             // Валидация
             if (empty($name)) {
@@ -123,11 +125,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             withGuestOperationLocks(['placement-zone:' . (int)$cluster['id']], static function () use (
-                $pdo, $cluster, $name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode
+                $pdo, $cluster, $name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode, $allowedUsers
             ): void {
                 $stmt = $pdo->prepare('UPDATE proxmox_clusters SET name=?, description=?, is_active=?,
-                    max_vms_per_node=?, load_balancing_threshold=?, maintenance_mode=?, updated_at=NOW() WHERE id=?');
-                $stmt->execute([$name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode, $cluster['id']]);
+                    max_vms_per_node=?, load_balancing_threshold=?, maintenance_mode=?, allowed_user_ids=?, updated_at=NOW() WHERE id=?');
+                $stmt->execute([$name, $description, $is_active, $max_vms_per_node, $load_balancing_threshold, $maintenance_mode, $allowedUsers, $cluster['id']]);
             });
 
             try {
@@ -1136,6 +1138,8 @@ require 'admin_header.php';
                                     <span><?= strlen($cluster['description'] ?? '') ?>/500</span>
                                 </div>
                             </div>
+
+                            <?php require __DIR__ . '/zone_access_fields.php'; ?>
 
                             <div class="form-group">
                                 <label class="form-label">

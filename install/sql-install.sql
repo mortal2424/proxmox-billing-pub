@@ -553,6 +553,7 @@ CREATE TABLE `proxmox_clusters` (
   `max_vms_per_node` int(11) DEFAULT 50,
   `load_balancing_threshold` int(11) DEFAULT 80,
   `maintenance_mode` tinyint(1) DEFAULT 0,
+  `allowed_user_ids` text DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -3,6 +3,8 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
 
+require_once __DIR__ . '/../includes/zone_access.php';
+
 header('Content-Type: application/json');
 
 try {
@@ -26,7 +28,7 @@ try {
     $stmt->execute([$nodeId]);
     $node = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$node) {
+    if (!$node || (!isAdmin() && !zoneAllowsUser($pdo, (int)$node['cluster_id'], (int)$_SESSION['user']['id']))) {
         throw new Exception('Нода не найдена', 404);
     }
 

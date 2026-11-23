@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/guest_network_probe.php';
+require_once __DIR__ . '/../includes/zone_access.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 if (!isLoggedIn()) {
@@ -36,17 +37,18 @@ try {
             'cpu' => (int) $guest['cpu'], 'ramMiB' => (int) $guest['ram'], 'diskGiB' => (int) $guest['disk'],
         ];
     }
-    $nodes = $pdo->query("SELECT n.id, n.node_name, c.name AS zone,
+    $nodeQuery = $pdo->prepare("SELECT n.id, n.node_name, z.name AS zone,
         CASE WHEN n.last_check >= NOW() - INTERVAL 15 MINUTE THEN n.status ELSE 'unknown' END AS status,
         s.cpu_usage, s.ram_usage, s.network_rx_mbits, s.network_tx_mbits, TIMESTAMPDIFF(SECOND, s.created_at, NOW()) AS age
-        FROM proxmox_nodes n JOIN proxmox_clusters c ON c.id = n.cluster_id
+        FROM proxmox_nodes n JOIN proxmox_clusters z ON z.id = n.cluster_id
         LEFT JOIN node_stats s ON s.id = (
             SELECT r.id FROM node_stats r WHERE r.node_id = n.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1
         )
-        WHERE n.is_active = 1 AND n.available_for_users = 1 AND c.is_active = 1
-        ORDER BY c.name, n.node_name")->fetchAll(PDO::FETCH_ASSOC);
+        WHERE n.is_active = 1 AND n.available_for_users = 1 AND z.is_active = 1 AND " . ZONE_ACCESS_FILTER . "
+        ORDER BY z.name, n.node_name");
+    $nodeQuery->execute([$userId]);
     $infrastructure = [];
-    foreach ($nodes as $node) {
+    foreach ($nodeQuery as $node) {
         $fresh = $node['age'] !== null && (int) $node['age'] >= 0 && (int) $node['age'] <= 900;
         $infrastructure[] = [
             'id' => (int) $node['id'], 'name' => $node['node_name'], 'zone' => $node['zone'],

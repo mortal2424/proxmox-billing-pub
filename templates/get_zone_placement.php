@@ -7,12 +7,18 @@ ensureSessionStarted();
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 if (!isLoggedIn()) { http_response_code(401); echo '{}'; exit; }
+$userId = (int)$_SESSION['user']['id'];
 session_write_close();
 $zone = filter_input(INPUT_GET, 'zone_id', FILTER_VALIDATE_INT);
 $type = $_GET['vm_type'] ?? '';
 if (!$zone || !in_array($type,['qemu','lxc'],true)) { http_response_code(400); echo '{}'; exit; }
 try {
     $pdo = (new Database())->getConnection();
+    if (!zoneAllowsUser($pdo, $zone, $userId)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Зона доступности недоступна']);
+        exit;
+    }
     $nodes = placementNodes($pdo, $zone);
     $result = ['network'=>[], 'storage'=>[], 'media'=>[], 'cloud'=>[]];
     foreach (placementPoolEntries($pdo, $zone) as $entry) {
