@@ -69,5 +69,6 @@ fi
 php /var/www/html/cronjobs/create_cloud_image_settings.php
 php /var/www/html/cronjobs/create_guest_initial_passwords.php
 php /var/www/html/cronjobs/create_mobile_device_tokens.php
+php /var/www/html/tools/migrate-zone-access.php
 
 echo "✅ Init script finished."
