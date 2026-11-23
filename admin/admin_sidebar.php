@@ -567,12 +567,16 @@ try {
 
 .footer-info {
     display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
     justify-content: space-between;
     align-items: center;
 }
 
-.version-info {
-    display: flex;
+.sidebar-version-info {
+    display: inline-flex;
+    flex: 0 0 auto;
+    white-space: nowrap;
     align-items: center;
     gap: 6px;
     font-size: 10px;
@@ -580,6 +584,7 @@ try {
 }
 
 .version-status {
+    flex-shrink: 0;
     width: 5px;
     height: 5px;
     background: #10b981;
@@ -1062,9 +1067,9 @@ try {
         <!-- Футер -->
         <div class="sidebar-footer">
             <div class="footer-info">
-                <div class="version-info">
+                <div class="sidebar-version-info">
                     <i class="fas fa-code-branch"></i>
-                    <span>v<?= htmlspecialchars($current_version) ?></span>
+                    <span data-system-version>v<?= htmlspecialchars($current_version) ?></span>
                     <span class="version-status"></span>
                 </div>
                 <div class="system-status">

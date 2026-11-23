@@ -413,7 +413,8 @@ function getDiskUsage() {
     text-decoration: underline;
 }
 
-.version-info {
+.footer-version-info {
+    white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -517,6 +518,10 @@ function getDiskUsage() {
     .footer-stats {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
+    }
+
+    .stat-item-version {
+        grid-column: 1 / -1;
     }
 
     .footer-bottom {
@@ -721,13 +726,13 @@ function getDiskUsage() {
                 </div>
             </div>
 
-            <div class="stat-item">
+            <div class="stat-item stat-item-version">
                 <div class="stat-icon server">
                     <i class="fas fa-code-branch"></i>
                 </div>
                 <div class="stat-content">
                     <div class="stat-label">Версия системы</div>
-                    <div class="stat-value">v<?= htmlspecialchars($system_version) ?></div>
+                    <div class="stat-value" data-system-version>v<?= htmlspecialchars($system_version) ?></div>
                 </div>
             </div>
         </div>
@@ -775,7 +780,7 @@ function getDiskUsage() {
                 <div class="copyright">
                     &copy; <?= date('Y') ?> <a href="/">HomeVlad Cloud</a>.
                     <span id="currentYear"><?= date('Y') ?></span>.
-                    Админ панель <span class="version-info">v<?= htmlspecialchars($system_version) ?></span>
+                    Админ панель <span class="footer-version-info" data-system-version>v<?= htmlspecialchars($system_version) ?></span>
                     <br>
                     <small style="color: rgba(255, 255, 255, 0.5);">
                         Время генерации: <span id="pageGenTime"><?= round(microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'], 3) ?> сек.</span>
@@ -850,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Обновляем версию системы
                     if (data.version) {
-                        const versionElements = document.querySelectorAll('.stat-item:nth-child(8) .stat-value, .version-info');
+                        const versionElements = document.querySelectorAll('[data-system-version]');
                         versionElements.forEach(el => {
                             el.textContent = 'v' + data.version;
                         });

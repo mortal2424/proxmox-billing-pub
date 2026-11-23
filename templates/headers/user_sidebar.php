@@ -418,7 +418,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         <!-- Футер сайдбара -->
         <div class="sidebar-footer">
             <div class="footer-info">
-                <div class="version-info">
+                <div class="sidebar-version-info">
                     <i class="fas fa-code-branch"></i>
                     <span>v<?= htmlspecialchars($current_version) ?></span>
                     <span class="version-status"></span>
@@ -1036,13 +1036,17 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 
 .footer-info {
     display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
 }
 
-.version-info {
-    display: flex;
+.sidebar-version-info {
+    display: inline-flex;
+    flex: 0 0 auto;
+    white-space: nowrap;
     align-items: center;
     gap: 8px;
     font-size: 12px;
@@ -1050,6 +1054,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
 }
 
 .version-status {
+    flex-shrink: 0;
     width: 6px;
     height: 6px;
     background: #10b981;
