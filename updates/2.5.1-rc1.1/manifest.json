@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.1",
+  "from": "2.5.1-Pre-release1",
+  "source_commit": "116cc32bdbc158fe0edad4a987149f87bcd2c128",
+  "changelog": "v2.5.1-Pre-release1.1\n\nРедактирование VNC-подключений, инструкции для хостинга без root, исправление навигации и отправки кода установки. Обновляется также обработка номеров выпусков. Техническое имя пакета 2.5.1-rc1.1.\n",
+  "files": {
+    "admin/admin_footer.php": {
+      "before": "42e2fcf2f868cba3273a01fa23c952ccce52d175567f313e75854fa2930fa14b",
+      "sha256": "de9b3cb69e88fc8d74e591b7f628934a4acf641899efc9bb008fed5b55fa8714"
+    },
+    "admin/admin_sidebar.php": {
+      "before": "054085401dd1897fc44087db0f186f97bd74ff5cadbdd70ab8c5a2bc52820167",
+      "sha256": "8088c79cd01a49fb36bd5cf5f1eb80ab43011ed044c35ccf3b8666b35ddc9784"
+    },
+    "admin/check_updates_count.php": {
+      "before": "cde871e294e01e75093ba48d1ef38de8e7c6b456e0b0d8e2ecf8389bb0238a6d",
+      "sha256": "52f8f344dae175c486069ff58566e849a031245ea134adab8955641badab9d53"
+    },
+    "admin/console_settings.php": {
+      "before": "625fb3c473c927fa69ad22edeb96fba785e46ac7fa004fe443b46ded7667ccbd",
+      "sha256": "de5040737c92758e1ad6de947944d0f2647765160e7135d491cf2382f609beb9"
+    },
+    "admin/license_status.php": {
+      "before": "e16a072603ccf46322191a0fca3fca607ae051200dca82193889dd9e5409d2a5",
+      "sha256": "a98d3a787b0ef22a6f1835926c5b15f5883a68e49f274e20f1cfd4cde00326ba"
+    },
+    "admin/settings.php": {
+      "before": "80564d4a7c838437d602a8b5924e2dbd34af014f19aa9b2f9dc0ec40f43804bf",
+      "sha256": "822e4b202c35758dcd38652d085d01b115d21982a906cbd2b9e1ad943611949d"
+    },
+    "admin/update.php": {
+      "before": "f440cbe1e67161126b7a6e262e6e8df589edad326e9db2009cdc09f5726affd9",
+      "sha256": "a33ce7d5d58683a4b24879299946699f588cc32e7e3fba019761194573b50092"
+    },
+    "includes/console_settings.php": {
+      "before": "f313a352c586fba9033f6d4251218a75e8dddc7400336477c4e65c37b1e20330",
+      "sha256": "1f4c8f32e229e0ce8f5da7daa1569507fb95ea693be4663c97bbea70b3c736ea"
+    },
+    "includes/license_guard.php": {
+      "before": "d9fd5edf804a459484096734a828035cf3f31671e3f484b812a271b85678d093",
+      "sha256": "6bef699a442e06ab0092f6980e7e2f1419994231bc1aa8104a7d2e2e8ffa9db1"
+    },
+    "includes/update_catalog.php": {
+      "before": "de6dc771d96949c4a8f342c04bc92a25979ad54881a51274b7fa314a8d44c7cb",
+      "sha256": "836dc3f953ccfd5d1e6d8e03614151b416ceeee2c7a2e781dbdca939b5234e8c"
+    },
+    "includes/version.php": {
+      "before": "9dc02e8a93934e15b49422682f52fc612b56e95a7c7dfa632e73988079eb7dad",
+      "sha256": "f92f16f59402eca18d493692fe1ff54519538c00b510aa43669c2784c4a42ec3"
+    },
+    "templates/headers/user_sidebar.php": {
+      "before": "3d72ca1d41cf350c93afa90e5f7bd847ab25c9cda825fa1289c205882cd85558",
+      "sha256": "911d9e18ba995f104d768b910ab54cbc21cf28f03d2b56f9069468b7f2944e81"
+    }
+  }
+}
