@@ -15,7 +15,7 @@ parser.add_argument("--version", required=True)
 parser.add_argument("--changelog", type=Path, required=True)
 args = parser.parse_args()
 for value in (args.from_version, args.version):
-    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?", value):
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?", value):
         parser.error("Invalid version")
 
 def git(*values):

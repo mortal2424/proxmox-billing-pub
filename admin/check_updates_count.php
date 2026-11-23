@@ -14,7 +14,7 @@ if (!isAdmin()) {
 try {
     $pdo = (new Database())->getConnection();
     $current = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());
-    $count = count(array_filter(updateCatalog(), static fn ($release) => homevladCompareVersions($release['version'], $current) > 0));
+    $count = count(array_filter(updateCatalog(), static fn ($release) => homevladCompareVersions(updateReleaseLabel($release), $current) > 0));
     echo json_encode(['success' => true, 'count' => $count, 'available_updates' => $count]);
 } catch (Throwable $error) {
     http_response_code(502);

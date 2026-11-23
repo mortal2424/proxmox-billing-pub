@@ -46,13 +46,13 @@ require __DIR__ . '/admin_sidebar.php';
 <p>Перед обновлением сохраните резервную копию базы данных. Изменённые файлы требуют ручного слияния. При конфликтах установка всего пакета блокируется.</p>
 <?php if (!$releases && !$error): ?><p>Новых пакетов в каталоге нет.</p><?php endif; ?>
 <?php foreach ($releases as $release): ?>
-<?php if (homevladCompareVersions($release['version'], $currentVersion) <= 0) continue; ?>
+<?php if (homevladCompareVersions(updateReleaseLabel($release), $currentVersion) <= 0) continue; ?>
 <section class="update-release">
-<h2><?= htmlspecialchars($release['version']) ?></h2>
+<h2><?= htmlspecialchars(updateReleaseLabel($release)) ?></h2>
 <p><?= nl2br(htmlspecialchars($release['summary'] ?? '')) ?></p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['update_csrf']) ?>">
-<input type="hidden" name="version" value="<?= htmlspecialchars($release['version']) ?>">
+<input type="hidden" name="version" value="<?= htmlspecialchars(updateReleaseLabel($release)) ?>">
 <button name="action" value="preview">Проверить пакет и изменения</button>
 </form>
 </section>

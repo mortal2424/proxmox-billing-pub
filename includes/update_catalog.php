@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/version.php';
 
 const HOMEVLAD_UPDATE_REPOSITORY = 'https://raw.githubusercontent.com/mortal2424/proxmox-billing-pub/';
 const HOMEVLAD_UPDATE_CATALOG_CACHE = __DIR__ . '/../backups/updates/catalog.json';
@@ -91,26 +92,40 @@ function refreshUpdateCatalogCache(): void
     }
 }
 
+function isUpdateVersion(string $version): bool
+{
+    return preg_match('/^\d+\.\d+\.\d+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?$/D', $version) === 1;
+}
+
+function updateReleaseLabel(array $release): string
+{
+    return $release['display_version'] ?? $release['version'];
+}
+
 function releaseManifest(string $version): array
 {
+    if (str_starts_with($version, 'v') || str_starts_with($version, 'V')) $version = substr($version, 1);
+    if (!isUpdateVersion($version)) throw new RuntimeException('Некорректная версия обновления');
     foreach (updateCatalog(true) as $release) {
-        if (($release['version'] ?? '') !== $version) {
-            continue;
-        }
+        $packageVersion = $release['version'] ?? '';
+        $displayVersion = $release['display_version'] ?? $packageVersion;
+        if ($version !== $packageVersion && $version !== $displayVersion) continue;
         $commit = $release['commit'] ?? '';
         $hash = $release['sha256'] ?? '';
         if (!preg_match('/^[a-f0-9]{40}$/D', $commit) || !preg_match('/^[a-f0-9]{64}$/D', $hash) ||
-            !preg_match('/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$/D', $version)) {
+            !isUpdateVersion($packageVersion) || !isUpdateVersion($displayVersion) ||
+            ($packageVersion !== $displayVersion && homevladCompareVersions($packageVersion, $displayVersion) !== 0)) {
             throw new RuntimeException('Некорректная запись каталога');
         }
-        $raw = fetchUpdateDocument("$commit/updates/$version/manifest.json");
+        $raw = fetchUpdateDocument("$commit/updates/$packageVersion/manifest.json");
         if (!hash_equals($hash, hash('sha256', $raw))) {
             throw new RuntimeException('Контрольная сумма манифеста не совпадает');
         }
         $manifest = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
-        if (($manifest['version'] ?? '') !== $version || ($manifest['format'] ?? null) !== 1) {
+        if (($manifest['version'] ?? '') !== $packageVersion || ($manifest['format'] ?? null) !== 1) {
             throw new RuntimeException('Некорректный манифест');
         }
+        $manifest['version'] = $displayVersion;
         return $manifest;
     }
     throw new RuntimeException('Версия отсутствует в официальном каталоге');
