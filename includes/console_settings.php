@@ -5,8 +5,11 @@ function consoleHostingOption(string $name): string
 {
     static $options;
     if ($options === null) {
-        $path = dirname(__DIR__, 2) . '/homevlad-console.php';
-        $options = is_file($path) ? require $path : [];
+        $site = dirname(__DIR__, 2);
+        $privateConfig = dirname(__DIR__, 4) . '/tmp/homevlad-production-console/config.php';
+        $path = basename($site) === 'homevlad.ru' && @is_file($privateConfig)
+            ? $privateConfig : $site . '/homevlad-console.php';
+        $options = @is_file($path) ? require $path : [];
     }
     $value = getenv($name);
     return $value !== false ? $value : ($options[$name] ?? '');

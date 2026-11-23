@@ -10,11 +10,20 @@ const HOMEVLAD_LICENSE_LABELS = [
 function homevladLicenseConfig(): ?array
 {
     $path = getenv('HOMEVLAD_LICENSE_CONFIG');
-    if (!$path && basename(dirname(__DIR__, 2)) === 'dev.homevlad.ru') {
-        $path = dirname(__DIR__, 4) . '/tmp/homevlad-dev-license/config.php';
+    if (!$path) {
+        $site = basename(dirname(__DIR__, 2));
+        $privateFolder = match ($site) {
+            'homevlad.ru' => 'homevlad-production-license',
+            'dev.homevlad.ru' => 'homevlad-dev-license',
+            default => null,
+        };
+        if ($privateFolder !== null) {
+            $candidate = dirname(__DIR__, 4) . '/tmp/' . $privateFolder . '/config.php';
+            if (@is_file($candidate)) $path = $candidate;
+        }
     }
     $localConfig = dirname(__DIR__, 2) . '/homevlad-license.php';
-    if (!$path && is_file($localConfig)) {
+    if (!$path && @is_file($localConfig)) {
         $path = $localConfig;
     }
     if (!$path) {
