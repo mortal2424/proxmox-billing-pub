@@ -51,11 +51,15 @@ services:
       - ./backups:/var/www/html/backups
       - ./backups/archives:/var/www/html/admin/backups
       - ./docker/proxmox-tls:/etc/proxmox-tls:ro
+      - ${HOMEVLAD_LICENSE_DIR:-./.docker-private/license}:/run/homevlad-license:ro
+      - panel-private:/var/lib/homevlad-private
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
     #  - .:/var/www/html
     environment:
       CONSOLE_ORIGIN: https://${DOMAIN}
       CONSOLE_BIND: 0.0.0.0
+      HOMEVLAD_LICENSE_CONFIG: ${HOMEVLAD_LICENSE_CONFIG:-}
+      HOMEVLAD_CONSOLE_SETTINGS: /var/lib/homevlad-private/console/settings.json
       PROXMOX_CA_FILE: ${PROXMOX_CA_FILE:-}
       PROXMOX_CERT_PINS: ${PROXMOX_CERT_PINS:-}
       PROXMOX_NODE_KEY: ${PROXMOX_NODE_KEY:-}
@@ -111,6 +115,7 @@ services:
 
 volumes:
   db_data:
+  panel-private:
   ssl-certs:
 
 networks:

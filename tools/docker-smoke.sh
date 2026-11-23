@@ -2,8 +2,8 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-base_ref=674b85f
-test_version=2.5.1-beta8.41
+base_ref=v2.5.1-Pre-release1
+test_version=2.5.1-rc1.1
 qa=$(mktemp -d)
 export COMPOSE_PROJECT_NAME=homevlad-docker-smoke
 export DOMAIN=nginx EMAIL=qa@example.invalid DB_NAME=homevlad_smoke DB_USER=homevlad_smoke
@@ -24,7 +24,16 @@ trap cleanup EXIT
 mkdir -p "$qa/checkout"
 git archive HEAD | tar -x --exclude=uploads --exclude=logs --exclude=backups -C "$qa/checkout"
 cd "$qa/checkout"
-mkdir -p logs uploads backups docker/proxmox-tls webroot
+mkdir -p logs uploads backups docker/proxmox-tls webroot .docker-private/license
+cat > .docker-private/license/license.php <<'PHP'
+<?php
+return ['client'=>'/run/homevlad-license/client.php',
+    'key_file'=>'/var/lib/homevlad-private/license/activation.key',
+    'cache'=>'/var/lib/homevlad-private/license/lease.json'];
+PHP
+printf '<?php\n' > .docker-private/license/client.php
+chmod 0755 .docker-private .docker-private/license
+chmod 0644 .docker-private/license/*.php
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=nginx' \
     -addext 'subjectAltName=DNS:nginx,DNS:apache,DNS:localhost' \
     -keyout "$qa/pve.key" -out docker/proxmox-tls/smoke.pem
@@ -69,54 +78,63 @@ sid=$(jq -r '.sessions.admin.id' <<< "$session")
 csrf=$(jq -r '.sessions.admin.csrf' <<< "$session")
 cookie=(--cookie "PHPSESSID=$sid")
 checkout=$(git -C "$OLDPWD" rev-parse --show-toplevel)
-for file in api/mobile_admin.php includes/version.php; do
+manifest="updates/$test_version/manifest.json"
+jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
     git -C "$checkout" show "$base_ref:$file" | "${compose[@]}" exec -T apache tee "$file" >/dev/null
 done
-"${compose[@]}" exec -T apache rm -f includes/mobile_admin_directory.php
 "${compose[@]}" exec -T --user www-data apache php cronjobs/check_updates.php
 "${https[@]}" --fail "${cookie[@]}" "$web/admin/check_updates_count.php" | jq -e '.success and (.count >= 1)'
 
 update=(--data-urlencode "version=$test_version" --data-urlencode "csrf_token=$csrf")
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" -d action=preview "$web/admin/update.php" > "$qa/preview.html"
 grep -q "Пакет $test_version" "$qa/preview.html"
-grep -q 'Нативная админка HomeVlad 1.5' "$qa/preview.html"
+grep -q 'v2.5.1-Pre-release1.1' "$qa/preview.html"
 
-"${compose[@]}" exec -T apache sh -c 'printf "\n// Docker smoke local change\n" >> api/mobile_admin.php'
-changed=$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)
+"${compose[@]}" exec -T apache sh -c 'printf "\n// Docker smoke local change\n" >> admin/admin_footer.php'
+changed=$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" -d action=preview "$web/admin/update.php" > "$qa/conflict.html"
 grep -q 'Требуется ручное слияние' "$qa/conflict.html"
-grep -q 'api/mobile_admin.php' "$qa/conflict.html"
+grep -q 'admin/admin_footer.php' "$qa/conflict.html"
 code=$("${https[@]}" "${cookie[@]}" "${update[@]}" -o "$qa/rejected.json" -w '%{http_code}' "$web/admin/ajax_apply_update.php")
 test "$code" = 400
 jq -e '.success == false' "$qa/rejected.json"
-test "$changed" = "$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)"
-"${compose[@]}" exec -T apache test ! -e includes/mobile_admin_directory.php
+test "$changed" = "$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)"
+"${compose[@]}" exec -T apache grep -Fq "2.5.1-Pre-release1';" includes/version.php
 echo 'Installer refused a modified file without applying the rest of the package'
 
-git -C "$checkout" show "$base_ref:api/mobile_admin.php" | "${compose[@]}" exec -T apache tee api/mobile_admin.php >/dev/null
+git -C "$checkout" show "$base_ref:admin/admin_footer.php" | "${compose[@]}" exec -T apache tee admin/admin_footer.php >/dev/null
 # An ordinary write error must leave the source version usable, including on the first file.
-source_hash=$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)
-for directory in api includes; do
+source_hash=$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)
+for directory in admin includes; do
     "${compose[@]}" exec -T apache chmod 0555 "$directory"
     code=$("${https[@]}" "${cookie[@]}" "${update[@]}" -o "$qa/write-error.json" -w '%{http_code}' "$web/admin/ajax_apply_update.php")
     "${compose[@]}" exec -T apache chmod 0755 "$directory"
     test "$code" = 400
     jq -e '.success == false and (.error | startswith("Не удалось установить "))' "$qa/write-error.json"
-    test "$source_hash" = "$("${compose[@]}" exec -T apache sha256sum api/mobile_admin.php)"
+    test "$source_hash" = "$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)"
     "${compose[@]}" exec -T apache test ! -e backups/updates/recovery.json
 done
 echo 'Failed first and later writes kept the source file and cleared maintenance mode'
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" "$web/admin/ajax_apply_update.php" | jq -e '.success'
-"${https[@]}" --fail "${cookie[@]}" "$web/api/mobile_admin.php?resource=accounts&q=example.invalid" |
+"${https[@]}" --fail "${cookie[@]}" "$web/admin/admin_footer.php?resource=accounts&q=example.invalid" |
     jq -e '.items | any(.email == "admin@example.invalid")'
 verify='require "includes/db.php"; $d=(new Database())->getConnection();
  $v=$d->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1")->fetchColumn();
  $n=$d->query("SELECT COUNT(*) FROM users WHERE email=\x27customer@example.invalid\x27")->fetchColumn();
- if ($v!=="2.5.1-beta8.41" || (int)$n!==1) exit(1); echo "$v and test account confirmed\n";'
+ require "includes/version.php";
+ if ($v!=="2.5.1-rc1.1" || homevladVersion($v)!=="2.5.1-Pre-release1.1" || (int)$n!==1) exit(1); echo "$v and test account confirmed\n";'
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
+"${compose[@]}" exec -T --user www-data apache php -r 'require "includes/console_settings.php"; $status=consoleBrokerStatus(); saveConsoleSettings($status["origins"][0],45,$status,[],["url"=>null]);'
+"${compose[@]}" exec -T --user www-data -e HOMEVLAD_LICENSE_CONFIG=/run/homevlad-license/license.php apache php -r '
+    require "includes/license_guard.php";
+    $c = homevladLicenseConfig();
+    if (!extension_loaded("sodium") || !is_readable($c["client"]) ||
+        is_writable($c["client"]) || file_put_contents($c["cache"], "test lease") === false) exit(1);'
 "${compose[@]}" up -d --no-deps --force-recreate apache nginx
 ready
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
 "${compose[@]}" exec -T --user www-data apache php -l includes/mobile_admin_directory.php
+"${compose[@]}" exec -T --user www-data apache grep -Fqx "test lease" /var/lib/homevlad-private/license/lease.json
+"${compose[@]}" exec -T --user www-data apache php -r 'require "includes/console_settings.php"; $status=consoleBrokerStatus(); if ($status["status"]!=="ok" || consoleSettings()["ticket_ttl"]!==45) exit(1);'
 test "$image_version" = "$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')"
 echo "Recreated the $image_version image and verified the existing database"

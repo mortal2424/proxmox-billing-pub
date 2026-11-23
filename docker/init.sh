@@ -17,6 +17,8 @@ chown -R www-data:www-data /var/www/html/admin/backups
 chmod 0755 /var/www/html/uploads
 chmod 0750 /var/www/html/logs /var/www/html/backups
 chmod 0750 /var/www/html/admin/backups
+install -d -o www-data -g www-data -m 0700 \
+    /var/lib/homevlad-private /var/lib/homevlad-private/license /var/lib/homevlad-private/console
 
 echo "⏳ Waiting for database connection..."
 

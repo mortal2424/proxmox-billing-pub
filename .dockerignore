@@ -15,3 +15,5 @@ docker/ssl
 includes/config.php
 tools/docker-smoke*
 tools/docker-backup-smoke*
+
+.docker-private/
