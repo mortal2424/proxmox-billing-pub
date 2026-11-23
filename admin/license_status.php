@@ -5,6 +5,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/license_guard.php';
 require_once __DIR__ . '/../includes/node_admin_guard.php';
 require_once __DIR__ . '/admin_functions.php';
+require_once __DIR__ . '/../includes/license_request_email.php';
 
 $pdo = (new Database())->getConnection();
 requireNodeAdministrator($pdo);
@@ -13,6 +14,9 @@ $title = 'Лицензия панели';
 $usage = [];
 $claims = null;
 $request = null;
+$smtp = licenseRequestSmtp($pdo);
+$sent = !empty($_SESSION['license_request_sent']);
+unset($_SESSION['license_request_sent']);
 $status = ['mode' => 'restricted'];
 $csrf = $_SESSION['license_csrf'] ??= bin2hex(random_bytes(32));
 $error = null;
@@ -25,6 +29,15 @@ try {
         if (!is_string($_POST['csrf'] ?? null) || !hash_equals($csrf, $_POST['csrf'])) {
             http_response_code(403);
             exit('Обновите страницу и повторите действие.');
+        }
+        if (($_POST['action'] ?? '') === 'send-request') {
+            $reply = $_POST['reply_email'] ?? '';
+            if (!$smtp) throw new DomainException('Настройте SMTP в системных настройках.');
+            if (!$request || !is_string($reply)) throw new DomainException('Проверьте адрес для ответа.');
+            sendLicenseRequestEmail($smtp, $reply, $request, $config['request_recipient'] ?? '');
+            $_SESSION['license_request_sent'] = true;
+            header('Location: /admin/license_status.php', true, 303);
+            exit;
         }
         if (($_POST['action'] ?? '') === 'activate') {
             $key = $_POST['license_key'] ?? '';
@@ -61,6 +74,7 @@ require __DIR__ . '/admin_sidebar.php';
 </style>
 <main class="main-content license-page">
     <h1>Лицензия панели</h1>
+    <?php if ($sent): ?><p role="status">Код запроса отправлен. Ответ придёт на указанный email.</p><?php endif; ?>
     <section class="license-card" aria-label="Статус и лимиты лицензии">
     <?php if ($error): ?>
         <p role="alert"><?= htmlspecialchars($error) ?></p>
@@ -87,6 +101,13 @@ require __DIR__ . '/admin_sidebar.php';
     <div class="license-activation">
         <h2>Код запроса</h2><p>Передайте его администратору центра лицензирования.</p>
         <textarea class="license-input" aria-label="Код установки" readonly rows="4"><?= htmlspecialchars($request) ?></textarea>
+        <?php if (!$smtp): ?><p>Почта не настроена. <a href="/admin/settings.php">Настройте SMTP</a> или скопируйте код вручную.</p><?php else: ?>
+        <form method="post" class="license-form">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrf) ?>">
+            <label for="license-reply">Email для получения ключа</label>
+            <input class="license-input" id="license-reply" name="reply_email" type="email" maxlength="254" required>
+            <button type="submit" name="action" value="send-request">Отправить код установки</button>
+        </form><?php endif; ?>
         <h2>Активация</h2><form method="post" class="license-form">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrf) ?>">
             <label for="license-key">Ключ от администратора</label>
