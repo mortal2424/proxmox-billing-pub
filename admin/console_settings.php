@@ -52,9 +52,14 @@ require __DIR__ . '/admin_sidebar.php';
 <section class="console-settings-card">
 <?php if ($saved): ?><p role="status">Настройки сохранены. Они применятся к новым сеансам.</p><?php endif ?>
 <?php if ($error): ?><p role="alert"><?= htmlspecialchars($error) ?></p><?php endif ?>
-<p>Сокет прокси <code><?= htmlspecialchars(consoleSocketPath()) ?></code></p>
+<?php if (consoleRemoteBroker() !== null): ?>
+<p>Внешний прокси <code><?= htmlspecialchars(consoleRemoteBroker()) ?></code></p>
+<?php else: ?>
+<p>Локальный сокет <code><?= htmlspecialchars(consoleSocketPath()) ?></code></p>
+<?php endif ?>
+<p>Для хостинга без root можно подключить собственный внешний HTTPS-прокси.</p>
 <?php if ($status['status'] !== 'ok'): ?>
-<p role="status"><?= $status['status'] === 'legacy' ? 'Прокси отвечает. Для настройки из панели требуется обновить его версию.' : 'Прокси не отвечает. Проверьте службу и права сокета.' ?></p>
+<p role="status"><?= $status['status'] === 'legacy' ? 'Прокси отвечает. Для настройки из панели требуется обновить его версию.' : 'Прокси не отвечает. Проверьте соединение и конфигурацию выбранного режима.' ?></p>
 <?php elseif (consoleSettingsPath() !== null): ?>
 <form method="post">
 <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">

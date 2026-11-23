@@ -18,6 +18,9 @@ try {
     if (!$guest || !in_array($guest['vm_type'], ['qemu', 'lxc'], true)) {
         mobileRespond(['error' => 'Машина недоступна'], 404);
     }
+    if (consoleRemoteBroker() !== null) {
+        mobileRespond(['error' => 'Для этого хостинга консоль доступна в веб-панели'], 503);
+    }
     session_write_close();
     mobileRespond([
         'ticket' => issueConsoleTicket($guest, (int) $guest['vm_id'], $guest['vm_type']),

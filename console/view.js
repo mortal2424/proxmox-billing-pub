@@ -126,7 +126,8 @@ if (!/^[a-f0-9]{64}$/.test(token)) {
                 document.head.append(script);
             });
         }
-        const socket = new WebSocket('wss://' + location.host + '/console/socket');
+        const endpoint = document.querySelector('meta[name="console-socket"]')?.content;
+        const socket = new WebSocket(endpoint || ('wss://' + location.host + '/console/socket'));
         socket.binaryType = 'arraybuffer';
         socket.addEventListener('open', () => socket.send(token));
         socket.addEventListener('close', disconnected);
