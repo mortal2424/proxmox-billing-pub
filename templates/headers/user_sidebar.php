@@ -9,6 +9,8 @@ $user_id = $_SESSION['user']['id'];
 // Инициализируем подключение ОДИН раз
 $db = new Database();
 $pdo = $db->getConnection();
+require_once __DIR__ . '/../../includes/license_guard.php';
+$sidebarOrderBlock = homevladLicenseBlockReason($pdo, ['vms_created'=>1,'vcpu'=>1,'ram_mib'=>1]);
 
 // Получаем данные пользователя с подготовленным запросом
 $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
@@ -142,10 +144,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         <div class="sidebar-quick-actions">
             <h5 class="quick-actions-title">Быстрые действия</h5>
             <div class="quick-actions-grid">
-                <a href="/templates/order_vm.php" class="quick-action-btn primary">
-                    <i class="fas fa-plus"></i>
-                    <span>Создать ВМ</span>
-                </a>
+                <?= homevladLicenseAction('/templates/order_vm.php', 'quick-action-btn primary', '<i class="fas fa-plus"></i><span>Создать ВМ</span>', $sidebarOrderBlock) ?>
                 <a href="/templates/billing.php?action=deposit" class="quick-action-btn success">
                     <i class="fas fa-wallet"></i>
                     <span>Пополнить</span>
@@ -268,6 +267,9 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 </li>
 
                 <li class="sidebar-menu-item <?= $currentPage == 'order_vm.php' ? 'active' : '' ?>">
+                    <?php if ($sidebarOrderBlock): ?>
+                        <?= homevladLicenseAction('/templates/order_vm.php', 'sidebar-menu-link', '<div class="menu-icon"><i class="fas fa-plus-circle"></i></div><span class="menu-text">Заказать ВМ</span>', $sidebarOrderBlock) ?>
+                    <?php else: ?>
                     <a href="/templates/order_vm.php" class="sidebar-menu-link">
                         <div class="menu-icon">
                             <i class="fas fa-plus-circle"></i>
@@ -278,6 +280,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                         <?php endif; ?>
                         <span class="menu-badge new">Новый</span>
                     </a>
+                    <?php endif; ?>
                 </li>
 
                 <li class="sidebar-menu-item <?= $currentPage == 'my_vms.php' ? 'active' : '' ?>">

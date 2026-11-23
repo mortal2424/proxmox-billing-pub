@@ -2,6 +2,7 @@
 require_once __DIR__ . '/zone_access.php';
 require_once __DIR__ . '/proxmox_functions.php';
 require_once __DIR__ . '/cloud_images.php';
+require_once __DIR__ . '/storage_placement.php';
 
 function placementNodes(PDO $pdo, int $zone): array
 {
@@ -117,16 +118,12 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
                     $image['agent_snippet'] = cloudGuestAgentSnippet([$api, 'request'], $node['node_name'], $stores);
                 }
             }
-            foreach ($stores as $storage) {
-                $content = explode(',', $storage['content'] ?? '');
-                if (empty($storage['active']) || empty($storage['enabled']) ||
-                    !in_array($storage['storage'], $storagePoolMembers, true) ||
-                    !in_array($type === 'qemu' ? 'images' : 'rootdir', $content, true) ||
-                    (float)($storage['avail'] ?? 0) < $disk * 1073741824 + ($type === 'qemu' ? 67108864 : 0)) continue;
+            $storage = bestPlacementStorage($stores, $storagePoolMembers, $type, $disk);
+            if ($storage !== null) {
                 $candidates[] = [
-                    'node' => $node, 'network' => $network, 'sdn' => $selectedSdn, 'storage' => $storage['storage'],
+                    'node' => $node, 'network' => $network, 'sdn' => $selectedSdn, 'storage' => $storage['name'],
                     'cloud_image' => $image,
-                    'score' => [$load, -$freeRam, -(float)$storage['avail'], (int)$node['id'], $storage['storage']],
+                    'score' => [$load, -$freeRam, -$storage['headroom'], -$storage['remaining'], (int)$node['id'], $storage['name']],
                 ];
             }
         } catch (Throwable $error) {

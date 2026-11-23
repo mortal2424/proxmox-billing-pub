@@ -206,6 +206,9 @@ foreach ($query->fetchAll() as $entry) {
 <?php if ($notice !== ''): ?><p role="status"><?= $escape($notice) ?></p><?php endif ?>
 <?php if ($error !== ''): ?><p role="alert"><?= $escape($error) ?></p><?php endif ?>
 <?php foreach (['network' => 'Внешние сети', 'storage' => 'Хранилища'] as $kind => $label): ?>
+<?php if ($kind === 'storage'): ?>
+<p>Для пула отметьте несколько хранилищ одного класса. Панель выбирает подходящее хранилище по запасу свободного места после выделения диска. Все диски нового гостя создаются на выбранной ноде.</p>
+<?php endif; ?>
 <section>
 <h2><?= $escape($label) ?></h2>
 <?php if (!$pools[$kind]): ?><p>Пулов пока нет.</p><?php endif ?>

@@ -726,6 +726,20 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
         }
 
         /* ========== АДАПТИВНОСТЬ ========== */
+        /* Keep the logo, shortcuts and account controls in separate flex items. */
+        @media (max-width: 1500px) {
+            .header-container { gap: 12px; }
+            .header-center {
+                position: static;
+                transform: none;
+                min-width: 0;
+                margin-inline: auto;
+            }
+            .header-center .admin-stats-block { display: none; }
+            .admin-logo-title { font-size: 17px; }
+            .admin-quick-block { flex-shrink: 0; }
+        }
+
         @media (max-width: 1400px) {
             .admin-stat-item {
                 min-width: 100px;

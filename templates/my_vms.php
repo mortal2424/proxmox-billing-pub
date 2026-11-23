@@ -31,6 +31,9 @@ $max_ip = 10; // Можно изменить или взять из настро
 $ip_percent = round(($ip_count + $container_ip_count) / $max_ip * 100);
 
 $title = "Мои виртуальные машины | HomeVlad Cloud";
+require_once __DIR__ . '/../includes/license_guard.php';
+$orderBlock = homevladLicenseBlockReason($pdo, ['vms_created'=>1,'vcpu'=>1,'ram_mib'=>1]);
+$startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 ?>
 
 <!DOCTYPE html>
@@ -1194,9 +1197,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                     <p>Найдите нужную ВМ или контейнер и управляйте им из списка.</p>
                 </div>
                 <div class="header-actions">
-                    <a href="order_vm.php" class="btn-order" style="margin-right: 10px;">
-                        <i class="fas fa-plus"></i> Заказать ВМ
-                    </a>
+                    <?= homevladLicenseAction('order_vm.php', 'btn-order', '<i class="fas fa-plus"></i> Заказать ВМ', $orderBlock) ?>
                     <button class="btn-refresh" onclick="refreshAll()">
                         <i class="fas fa-sync-alt"></i> Обновить
                     </button>
@@ -1293,12 +1294,8 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                 </div>
                 <h3 class="empty-text">У вас пока нет виртуальных серверов</h3>
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">
-                    <a href="order_vm.php" class="btn-order">
-                        <i class="fas fa-plus"></i> Создать ВМ
-                    </a>
-                    <a href="order_vm.php?vm_type=lxc" class="btn-order">
-                        <i class="fas fa-box"></i> Создать контейнер
-                    </a>
+                    <?= homevladLicenseAction('order_vm.php', 'btn-order', '<i class="fas fa-plus"></i> Создать ВМ', $orderBlock) ?>
+                    <?= homevladLicenseAction('order_vm.php?vm_type=lxc', 'btn-order', '<i class="fas fa-box"></i> Создать контейнер', $orderBlock) ?>
                 </div>
             </div>
         </div>
@@ -1762,9 +1759,13 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                                 <div class="vm-actions">
                                     ${vm.status !== 'running' ? `
-                                        <button class="vm-action-btn vm-start" title="Запустить">
+                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+<button class="vm-action-btn vm-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
                                             <i class="fas fa-play"></i> Запустить
-                                        </button>` : `
+                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
+<?php else: ?><button class="vm-action-btn vm-start" title="Запустить">
+                                            <i class="fas fa-play"></i> Запустить
+                                        </button><?php endif; ?>` : `
                                         <button class="vm-action-btn warning vm-reboot" title="Перезагрузить">
                                             <i class="fas fa-sync-alt"></i> Перезагрузить
                                         </button>
@@ -1832,9 +1833,13 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                                 <div class="vm-actions">
                                     ${vm.status !== 'running' ? `
-                                        <button class="vm-action-btn vm-start" title="Запустить">
+                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+<button class="vm-action-btn vm-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
                                             <i class="fas fa-play"></i>
-                                        </button>` : `
+                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
+<?php else: ?><button class="vm-action-btn vm-start" title="Запустить">
+                                            <i class="fas fa-play"></i>
+                                        </button><?php endif; ?>` : `
                                         <button class="vm-action-btn warning vm-reboot" title="Перезагрузить">
                                             <i class="fas fa-sync-alt"></i>
                                         </button>
@@ -1869,9 +1874,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                 <i class="fas fa-cloud"></i>
                             </div>
                             <p class="empty-text">У вас пока нет виртуальных машин</p>
-                            <a href="order_vm.php" class="btn-order">
-                                <i class="fas fa-plus"></i> Создать первую ВМ
-                            </a>
+                            <?= homevladLicenseAction('order_vm.php', 'btn-order', '<i class="fas fa-plus"></i> Создать первую ВМ', $orderBlock) ?>
                         </div>
                     `;
                 }
@@ -2004,9 +2007,13 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                                 <div class="vm-actions">
                                     ${ct.status !== 'running' ? `
-                                        <button class="vm-action-btn container-start" title="Запустить">
+                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+<button class="vm-action-btn container-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
                                             <i class="fas fa-play"></i> Запустить
-                                        </button>` : `
+                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
+<?php else: ?><button class="vm-action-btn container-start" title="Запустить">
+                                            <i class="fas fa-play"></i> Запустить
+                                        </button><?php endif; ?>` : `
                                         <button class="vm-action-btn warning container-reboot" title="Перезагрузить">
                                             <i class="fas fa-sync-alt"></i> Перезагрузить
                                         </button>
@@ -2074,9 +2081,13 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
 
                                 <div class="vm-actions">
                                     ${ct.status !== 'running' ? `
-                                        <button class="vm-action-btn container-start" title="Запустить">
+                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+<button class="vm-action-btn container-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
                                             <i class="fas fa-play"></i>
-                                        </button>` : `
+                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
+<?php else: ?><button class="vm-action-btn container-start" title="Запустить">
+                                            <i class="fas fa-play"></i>
+                                        </button><?php endif; ?>` : `
                                         <button class="vm-action-btn warning container-reboot" title="Перезагрузить">
                                             <i class="fas fa-sync-alt"></i>
                                         </button>
@@ -2111,9 +2122,7 @@ $title = "Мои виртуальные машины | HomeVlad Cloud";
                                 <i class="fas fa-box"></i>
                             </div>
                             <p class="empty-text">У вас пока нет контейнеров</p>
-                            <a href="order_vm.php?vm_type=lxc" class="btn-order">
-                                <i class="fas fa-plus"></i> Создать первый контейнер
-                            </a>
+                            <?= homevladLicenseAction('order_vm.php?vm_type=lxc', 'btn-order', '<i class="fas fa-plus"></i> Создать первый контейнер', $orderBlock) ?>
                         </div>
                     `;
                 }

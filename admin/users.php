@@ -194,6 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $title = "Управление пользователями | HomeVlad Cloud";
 require 'admin_header.php';
+require_once __DIR__ . '/../includes/license_guard.php';
+$userBlock = homevladLicenseBlockReason($pdo, ['users'=>1]);
 ?>
 
 <style>
@@ -766,9 +768,7 @@ require 'admin_header.php';
             <p>Всего пользователей: <?= count($users) ?></p>
         </div>
         <div class="dashboard-quick-actions">
-            <a href="user_add.php" class="dashboard-action-btn dashboard-action-btn-primary">
-                <i class="fas fa-user-plus"></i> Добавить пользователя
-            </a>
+            <?= homevladLicenseAction('user_add.php', 'dashboard-action-btn dashboard-action-btn-primary', '<i class="fas fa-user-plus"></i> Добавить пользователя', $userBlock) ?>
             <a href="#" class="dashboard-action-btn dashboard-action-btn-secondary">
                 <i class="fas fa-file-export"></i> Экспорт
             </a>

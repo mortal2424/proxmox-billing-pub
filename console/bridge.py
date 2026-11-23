@@ -14,22 +14,34 @@ from yarl import URL
 TICKET_TTL = 30
 MAX_PENDING = 256
 MAX_SESSIONS = 32
-SOCKET = Path("/run/homevlad-console/issuer.sock")
+SOCKET = Path(os.environ.get("CONSOLE_SOCKET", "/run/homevlad-console/issuer.sock"))
 pending = {}
 sessions = asyncio.Semaphore(MAX_SESSIONS)
 
 
-async def issue(reader, writer):
+async def issue(reader, writer, origins):
     try:
         data = json.loads(await asyncio.wait_for(reader.readline(), 2))
+        if not isinstance(data, dict):
+            return
+        if data.get("operation") == "status":
+            writer.write((json.dumps({"status": "ok", "origins": sorted(origins), "ticket_ttl": TICKET_TTL}) + "\n").encode())
+            await writer.drain()
+            return
+        origin = data.get("origin")
+        if origin is not None and origin not in origins:
+            return
+        ttl = data.get("ticket_ttl", TICKET_TTL)
+        if not isinstance(ttl, int) or not 15 <= ttl <= 90:
+            return
         now = time.monotonic()
         for token, (expires, _) in list(pending.items()):
             if expires <= now:
                 del pending[token]
         if len(pending) < MAX_PENDING and isinstance(data, dict):
             token = secrets.token_hex(32)
-            pending[token] = (now + TICKET_TTL, data)
-            asyncio.get_running_loop().call_later(TICKET_TTL, pending.pop, token, None)
+            pending[token] = (now + ttl, data)
+            asyncio.get_running_loop().call_later(ttl, pending.pop, token, None)
             writer.write((token + "\n").encode())
             await writer.drain()
     except (ValueError, TimeoutError, ConnectionError):
@@ -50,7 +62,8 @@ async def relay(source, destination):
 
 
 async def proxy(request):
-    if request.headers.get("Origin") != request.app["origin"]:
+    origin = request.headers.get("Origin")
+    if origin not in request.app["origins"]:
         raise web.HTTPForbidden()
     browser = web.WebSocketResponse(heartbeat=25)
     if not browser.can_prepare(request).ok:
@@ -63,7 +76,7 @@ async def proxy(request):
         try:
             token = await browser.receive_str(timeout=5)
             grant = pending.pop(token, None)
-            if not grant or grant[0] <= time.monotonic():
+            if not grant or grant[0] <= time.monotonic() or grant[1].get("origin", request.app["origin"]) != origin:
                 await browser.close(code=1008, message=b"Invalid or expired launch ticket")
                 return browser
             await connect_guest(request.app, browser, grant[1])
@@ -78,7 +91,8 @@ async def connect_guest(app, browser, target):
     base = URL.build(scheme="https", host=target["hostname"], port=int(target["api_port"] or 8006))
     api = base / "api2" / "json"
     client = app["client"]
-    tls = app["pins"].get(base.authority, True)
+    configured_pin = target.get("cert_sha256")
+    tls = Fingerprint(bytes.fromhex(configured_pin)) if configured_pin else app["pins"].get(base.authority, True)
     username = target["username"]
     if "@" not in username:
         username += "@pam"
@@ -164,7 +178,7 @@ async def resources(app):
                              timeout=ClientTimeout(total=15)) as client:
         app["client"] = client
         SOCKET.unlink(missing_ok=True)
-        server = await asyncio.start_unix_server(issue, path=SOCKET, limit=16384)
+        server = await asyncio.start_unix_server(lambda reader, writer: issue(reader, writer, app["origins"]), path=SOCKET, limit=16384)
         SOCKET.chmod(0o660)
         try:
             yield
@@ -177,6 +191,7 @@ async def resources(app):
 if __name__ == "__main__":
     app = web.Application()
     app["origin"] = os.environ["CONSOLE_ORIGIN"]
+    app["origins"] = {app["origin"]} | set(filter(None, os.environ.get("CONSOLE_ADDITIONAL_ORIGINS", "").split(",")))
     app.cleanup_ctx.append(resources)
     app.router.add_get("/console/socket", proxy)
-    web.run_app(app, host=os.environ.get("CONSOLE_BIND", "127.0.0.1"), port=8765, access_log=None)
+    web.run_app(app, host=os.environ.get("CONSOLE_BIND", "127.0.0.1"), port=int(os.environ.get("CONSOLE_PORT", "8765")), access_log=None)

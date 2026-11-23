@@ -941,6 +941,12 @@ try {
                     </a>
                 </li>
                 <?php endif; ?>
+                <li class="sidebar-menu-item <?= $current_page === 'console_settings.php' ? 'active' : '' ?>">
+                    <a href="/admin/console_settings.php" class="sidebar-menu-link">
+                        <div class="menu-icon settings"><i class="fas fa-terminal" aria-hidden="true"></i></div>
+                        <span class="menu-text">Настройки VNC</span>
+                    </a>
+                </li>
                 <li class="sidebar-menu-item <?= $current_page === 'settings.php' ? 'active' : '' ?>">
                     <a href="/admin/settings.php" class="sidebar-menu-link">
                         <div class="menu-icon settings">

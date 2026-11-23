@@ -1,0 +1,78 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/node_admin_guard.php';
+require_once __DIR__ . '/../includes/console_settings.php';
+require_once __DIR__ . '/admin_functions.php';
+
+$pdo = (new Database())->getConnection();
+requireNodeAdministrator($pdo);
+header('Cache-Control: no-store');
+$status = consoleBrokerStatus();
+$consoleNodes = $pdo->query('SELECT id,node_name FROM proxmox_nodes ORDER BY node_name')->fetchAll(PDO::FETCH_KEY_PAIR);
+$error = null;
+$saved = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        $origin = $_POST['origin'] ?? '';
+        $ttl = filter_var($_POST['ttl'] ?? null, FILTER_VALIDATE_INT);
+        if (!is_string($origin) || $ttl === false) throw new DomainException('Некорректные настройки.');
+        $pins = [];
+        foreach ($consoleNodes as $id => $name) {
+            $value = $_POST['pins'][$id] ?? '';
+            if (!is_string($value)) throw new DomainException('Некорректный отпечаток.');
+            $value = strtolower(str_replace(':', '', trim($value)));
+            if ($value === '') continue;
+            if (!preg_match('/^[a-f0-9]{64}$/D', $value)) throw new DomainException('Нужен SHA-256 отпечаток сертификата.');
+            $pins[$id] = $value;
+        }
+        saveConsoleSettings($origin, $ttl, $status, $pins);
+        $saved = true;
+    } catch (DomainException | RuntimeException $exception) {
+        $error = $exception->getMessage();
+    }
+}
+$settings = consoleSettings();
+$title = 'Настройки VNC';
+require __DIR__ . '/admin_header.php';
+require __DIR__ . '/admin_sidebar.php';
+?>
+<style>
+.console-settings-page{margin-inline-start:280px;padding:clamp(1rem,3vw,2rem);color:var(--admin-header-text)}
+.console-settings-card{background:var(--admin-card-bg);border:1px solid var(--admin-header-border);padding:1.25rem;border-radius:12px;max-width:44rem}
+.console-settings-card form,.console-settings-card label{display:grid;gap:.55rem}.console-settings-card form{margin-top:1rem}
+.console-settings-card select,.console-settings-card input,.console-settings-card button{padding:.5rem;color:inherit;background:var(--admin-hover-bg);border:1px solid var(--admin-header-border);border-radius:6px}
+@media(max-width:1200px){.console-settings-page{margin-inline-start:70px}}
+@media(max-width:768px){.console-settings-page{margin-inline-start:0}}
+</style>
+<main class="main-content console-settings-page">
+<h1>Настройки VNC</h1>
+<section class="console-settings-card">
+<?php if ($saved): ?><p role="status">Настройки сохранены. Они применятся к новым сеансам.</p><?php endif ?>
+<?php if ($error): ?><p role="alert"><?= htmlspecialchars($error) ?></p><?php endif ?>
+<p>Сокет прокси <code><?= htmlspecialchars(consoleSocketPath()) ?></code></p>
+<?php if ($status['status'] !== 'ok'): ?>
+<p role="status"><?= $status['status'] === 'legacy' ? 'Прокси отвечает. Для настройки из панели требуется обновить его версию.' : 'Прокси не отвечает. Проверьте службу и права сокета.' ?></p>
+<?php elseif (consoleSettingsPath() !== null): ?>
+<form method="post">
+<input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
+<label>HTTPS-адрес панели<select name="origin" required>
+<?php foreach ($status['origins'] as $origin): ?>
+<option value="<?= htmlspecialchars($origin) ?>" <?= ($settings['origin'] ?? '') === $origin ? 'selected' : '' ?>><?= htmlspecialchars($origin) ?></option>
+<?php endforeach ?>
+</select></label>
+<label>Срок билета, секунды<input type="number" name="ttl" min="15" max="90" value="<?= (int)($settings['ticket_ttl'] ?? $status['ticket_ttl']) ?>" required></label>
+<?php if ($consoleNodes): ?><fieldset>
+<legend>SHA-256 сертификатов Proxmox</legend>
+<p>Заполняйте после проверки отпечатка. Пустое поле использует настройки TLS прокси.</p>
+<?php foreach ($consoleNodes as $id => $name): ?>
+<label><?= htmlspecialchars($name) ?><input name="pins[<?= (int)$id ?>]" maxlength="95" value="<?= htmlspecialchars($settings['pins'][$id] ?? '') ?>" spellcheck="false"></label>
+<?php endforeach; ?></fieldset><?php endif ?>
+<button>Сохранить</button>
+</form>
+<?php endif ?>
+</section>
+</main>
+<?php require __DIR__ . '/admin_footer.php'; ?>
