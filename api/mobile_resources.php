@@ -37,7 +37,7 @@ try {
                 $method = $guest['vm_type'] === 'lxc' ? 'startContainer' : 'startVM';
                 $result = $api->$method((int) $guest['vm_id']);
                 if (is_array($result) && ($result['success'] ?? true) === false) {
-                    throw new RuntimeException('Не удалось подтвердить запуск машины');
+                    throw new RuntimeException($result['error'] ?? 'Не удалось подтвердить запуск машины');
                 }
             } else {
                 $api->controlGuest((int) $guest['vm_id'], $guest['vm_type'], $command);

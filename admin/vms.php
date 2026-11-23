@@ -82,7 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 switch ($action) {
                     case 'start':
-                        $proxmox->startVM($vmId);
+                        $result = $proxmox->startVM($vmId);
+                        if (!($result['success'] ?? false)) throw new DomainException($result['error'] ?? 'Запуск не выполнен');
                         break;
                     case 'stop':
                         $proxmox->stopVM($vmId);

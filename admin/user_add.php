@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/license_guard.php';
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -67,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Создание пользователя
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        homevladReserveLicense($pdo, ['users' => 1]);
         $stmt = $pdo->prepare("INSERT INTO users
             (email, full_name, balance, is_admin, is_active, password_hash, user_type, inn, kpp, company_name, telegram_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/license_guard.php';
 require_once __DIR__.'/ProxmoxGuestApi.php';
 require_once __DIR__.'/guest_operation_lock.php';
 
@@ -93,6 +94,8 @@ trait ProxmoxGuestMutations
             }
             $this->guestQuota($vm, $cpu, $ram, $disk);
             $api->stopped($vmid, $type);
+            return homevladLicensedMutation($this->pdo, ['vcpu' => $cpu - (int)$vm['cpu'], 'ram_mib' => $ram - (int)$vm['ram']],
+                function () use ($api, $vmid, $type, $cpu, $ram, $disk, $actual, $config, $vm, $planId) {
             if ($disk > $actual) {
                 $disks = ProxmoxGuestApi::allocatedDisks($config, $type);
                 if (count($disks) !== 1) {
@@ -110,6 +113,7 @@ trait ProxmoxGuestMutations
             }
             $this->saveGuestMutation($vm, 'cpu=?,ram=?,disk=?,tariff_id=?,is_custom=?', [$cpu, $ram, $disk, $planId, $planId===0?1:0]);
             return ['status'=>'success','message'=>'Ресурсы и тариф обновлены. Гость остаётся остановленным'];
+            });
         });
     }
     public function changeVmDisk($vmid,$type,$disk_id,$new_size,$new_storage)
