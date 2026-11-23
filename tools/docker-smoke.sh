@@ -116,7 +116,7 @@ for directory in admin includes; do
 done
 echo 'Failed first and later writes kept the source file and cleared maintenance mode'
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" "$web/admin/ajax_apply_update.php" | jq -e '.success'
-"${https[@]}" --fail "${cookie[@]}" "$web/admin/admin_footer.php?resource=accounts&q=example.invalid" |
+"${https[@]}" --fail "${cookie[@]}" "$web/api/mobile_admin.php?resource=accounts&q=example.invalid" |
     jq -e '.items | any(.email == "admin@example.invalid")'
 verify='require "includes/db.php"; $d=(new Database())->getConnection();
  $v=$d->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1")->fetchColumn();

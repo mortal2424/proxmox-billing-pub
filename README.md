@@ -87,7 +87,7 @@ docker compose logs --tail=100 apache nginx
 
 ### Приватные настройки в Docker
 
-Для лицензирования разместите `license.php` и PHP-клиент с его зависимостями в `.docker-private/license/` на хосте. Для другого каталога задайте `HOMEVLAD_LICENSE_DIR` в `.env`. Compose подключает каталог только для чтения в `/run/homevlad-license`. Для включения лицензирования укажите `HOMEVLAD_LICENSE_CONFIG=/run/homevlad-license/license.php` в `.env`. Предоставьте пользователю PHP (UID 33) чтение приватных файлов. Укажите в конфиге путь к клиенту внутри контейнера, а файлы ключа и кеша разместите в `/var/lib/homevlad-private/license`.
+Для лицензирования разместите `license.php` и PHP-клиент с его зависимостями в `.docker-private/license/` на хосте. Если конфигурация лежит в другом месте, укажите каталог за пределами репозитория в `HOMEVLAD_LICENSE_DIR` в `.env`. Compose подключает каталог только для чтения в `/run/homevlad-license`. Для включения лицензирования укажите `HOMEVLAD_LICENSE_CONFIG=/run/homevlad-license/license.php` в `.env`. Предоставьте пользователю PHP (UID 33) чтение приватных файлов. Укажите в конфиге путь к клиенту внутри контейнера, а файлы ключа и кеша разместите в `/var/lib/homevlad-private/license`.
 
 У HomeVlad том `panel-private` также хранит `console/settings.json`, который панель записывает из раздела «Настройки VNC». После изменения конфигурации пересоздайте контейнеры через `docker compose up -d --build`. Сохраняйте приватный каталог и именованные тома при обновлении, переносе или резервном копировании.
 
