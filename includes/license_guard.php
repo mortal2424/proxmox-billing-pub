@@ -201,5 +201,5 @@ function homevladLicenseAction(string $url, string $class, string $labelHtml, ?s
     if ($reason === null) return '<a class="' . $class . '" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . $labelHtml . '</a>';
     $reason = htmlspecialchars($reason, ENT_QUOTES, 'UTF-8');
     return '<span class="' . $class . '" aria-disabled="true" tabindex="0" title="' . $reason .
-        '" style="opacity:.55;cursor:not-allowed">' . $labelHtml . '</span><small role="status">' . $reason . '</small>';
+        '" aria-description="' . $reason . '" style="opacity:.55;cursor:not-allowed">' . $labelHtml . '</span>';
 }
