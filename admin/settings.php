@@ -1257,6 +1257,9 @@ require 'admin_header.php';
             <a href="/admin/license_status.php" class="btn btn-primary">
                 <i class="fas fa-key" aria-hidden="true"></i> Лицензия
             </a>
+            <a href="/admin/console_settings.php" class="btn btn-primary">
+                <i class="fas fa-terminal" aria-hidden="true"></i> Настройки VNC
+            </a>
             <a href="/admin/" class="btn btn-primary">
                 <i class="fas fa-arrow-left"></i> Назад в дашборд
             </a>
