@@ -931,7 +931,6 @@ try {
                     </div>
                 </div>
 
-                <?php if (basename(dirname(__DIR__, 2)) === 'dev.homevlad.ru' || getenv('HOMEVLAD_LICENSE_CONFIG')): ?>
                 <li class="sidebar-menu-item <?= $current_page === 'license_status.php' ? 'active' : '' ?>">
                     <a href="/admin/license_status.php" class="sidebar-menu-link">
                         <div class="menu-icon settings">
@@ -940,7 +939,6 @@ try {
                         <span class="menu-text">Лицензия</span>
                     </a>
                 </li>
-                <?php endif; ?>
                 <li class="sidebar-menu-item <?= $current_page === 'console_settings.php' ? 'active' : '' ?>">
                     <a href="/admin/console_settings.php" class="sidebar-menu-link">
                         <div class="menu-icon settings"><i class="fas fa-terminal" aria-hidden="true"></i></div>

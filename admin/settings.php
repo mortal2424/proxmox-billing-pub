@@ -1254,6 +1254,9 @@ require 'admin_header.php';
             <p>Управление всными настройками системы в одном месте</p>
         </div>
         <div class="dashboard-quick-actions">
+            <a href="/admin/license_status.php" class="btn btn-primary">
+                <i class="fas fa-key" aria-hidden="true"></i> Лицензия
+            </a>
             <a href="/admin/" class="btn btn-primary">
                 <i class="fas fa-arrow-left"></i> Назад в дашборд
             </a>
