@@ -39,6 +39,9 @@ $inactiveNodes = $totalNodes - $activeNodes;
 
 $title = "Управление нодами и зоны доступностими | HomeVlad Cloud";
 require 'admin_header.php';
+require_once __DIR__ . '/../includes/license_guard.php';
+$zoneBlock = homevladLicenseBlockReason($pdo, ['zones'=>1]);
+$nodeBlock = homevladLicenseBlockReason($pdo, ['nodes'=>1]);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -784,12 +787,8 @@ require 'admin_header.php';
                 <p>Мониторинг и управление серверами Proxmox</p>
             </div>
             <div class="section-actions">
-                <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary">
-                    <i class="fas fa-plus-circle"></i> Новая зона доступности
-                </a>
-                <a href="add_node.php" class="nodes-action-btn nodes-action-btn-secondary">
-                    <i class="fas fa-server"></i> Добавить ноду
-                </a>
+                <?= homevladLicenseAction('add_cluster.php', 'nodes-action-btn nodes-action-btn-primary', '<i class="fas fa-plus-circle"></i> Новая зона доступности', $zoneBlock) ?>
+                <?= homevladLicenseAction('add_node.php', 'nodes-action-btn nodes-action-btn-secondary', '<i class="fas fa-server"></i> Добавить ноду', $nodeBlock) ?>
             </div>
         </div>
 
@@ -876,9 +875,7 @@ require 'admin_header.php';
             <div class="section-header">
                 <h2><i class="fas fa-network-wired"></i> Список зон доступности</h2>
                 <div class="section-actions">
-                    <a href="add_cluster.php" class="btn-icon btn-edit">
-                        <i class="fas fa-plus"></i>
-                    </a>
+                    <?= homevladLicenseAction('add_cluster.php', 'btn-icon btn-edit', '<i class="fas fa-plus"></i>', $zoneBlock) ?>
                 </div>
             </div>
 
@@ -936,9 +933,7 @@ require 'admin_header.php';
                         <i class="fas fa-network-wired"></i>
                         <h3>Нет созданных зон доступности</h3>
                         <p>Создайте первый зона доступности для управления нодами</p>
-                        <a href="add_cluster.php" class="nodes-action-btn nodes-action-btn-primary" style="margin-top: 15px;">
-                            <i class="fas fa-plus-circle"></i> Создать зону доступности
-                        </a>
+                        <?= homevladLicenseAction('add_cluster.php', 'nodes-action-btn nodes-action-btn-primary', '<i class="fas fa-plus-circle"></i> Создать зону доступности', $zoneBlock) ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -949,9 +944,7 @@ require 'admin_header.php';
             <div class="section-header">
                 <h2><i class="fas fa-server"></i> Список нод</h2>
                 <div class="section-actions">
-                    <a href="add_node.php" class="btn-icon btn-edit">
-                        <i class="fas fa-plus"></i>
-                    </a>
+                    <?= homevladLicenseAction('add_node.php', 'btn-icon btn-edit', '<i class="fas fa-plus"></i>', $nodeBlock) ?>
                 </div>
             </div>
 
@@ -1019,9 +1012,7 @@ require 'admin_header.php';
                         <i class="fas fa-server"></i>
                         <h3>Нет добавленных нод</h3>
                         <p>Добавьте первую ноду для начала работы</p>
-                        <a href="add_node.php" class="nodes-action-btn nodes-action-btn-primary" style="margin-top: 15px;">
-                            <i class="fas fa-plus-circle"></i> Добавить ноду
-                        </a>
+                        <?= homevladLicenseAction('add_node.php', 'nodes-action-btn nodes-action-btn-primary', '<i class="fas fa-plus-circle"></i> Добавить ноду', $nodeBlock) ?>
                     </div>
                 <?php endif; ?>
             </div>

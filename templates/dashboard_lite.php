@@ -54,6 +54,8 @@ $resources = [
 $money = static fn ($value) => number_format((float) $value, 2, ',', ' ') . ' ₽';
 $running = (int) $usage['running'];
 $total = (int) $usage['guests'];
+require_once __DIR__ . '/../includes/license_guard.php';
+$orderBlock = homevladLicenseBlockReason($pdo, ['vms_created'=>1,'vcpu'=>1,'ram_mib'=>1]);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -76,7 +78,7 @@ $total = (int) $usage['guests'];
                     <p class="cloud-kicker">HOMEVLAD CLOUD / ЛИЧНЫЙ КАБИНЕТ</p>
                     <h1 id="cloud-title">Инфраструктура</h1>
                     <p>Виртуальные машины, контейнеры и ресурсы аккаунта.</p>
-                    <a class="cloud-button" href="/templates/order_vm.php"><i class="fas fa-plus" aria-hidden="true"></i> Заказать сервер</a>
+                    <?= homevladLicenseAction('/templates/order_vm.php', 'cloud-button', '<i class="fas fa-plus" aria-hidden="true"></i> Заказать сервер', $orderBlock) ?>
                 </div>
                 <dl class="cloud-fleet">
                     <div><dt>Всего серверов</dt><dd><?= $total ?></dd></div>
@@ -121,7 +123,7 @@ $total = (int) $usage['guests'];
                         <div class="cloud-empty">
                             <i class="fas fa-server" aria-hidden="true"></i>
                             <p>На аккаунте пока нет серверов.</p>
-                            <a href="/templates/order_vm.php">Выбрать конфигурацию →</a>
+                            <?= homevladLicenseAction('/templates/order_vm.php', '', 'Выбрать конфигурацию →', $orderBlock) ?>
                         </div>
                     <?php endif; ?>
                 </section>

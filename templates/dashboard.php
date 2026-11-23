@@ -51,6 +51,8 @@ $cpu_percent = $quota['max_cpu'] > 0 ? round(($usage['total_cpu'] / $quota['max_
 $ram_percent = $quota['max_ram'] > 0 ? round(($usage['total_ram'] / $quota['max_ram']) * 100) : 0;
 $disk_percent = $quota['max_disk'] > 0 ? round(($usage['total_disk'] / $quota['max_disk']) * 100) : 0;
 $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_vms']) * 100) : 0;
+require_once __DIR__ . '/../includes/license_guard.php';
+$orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1,'vcpu'=>1,'ram_mib'=>1]);
 ?>
 
 <!DOCTYPE html>
@@ -1221,9 +1223,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     <i class="fas fa-bolt"></i> Быстрые действия
                 </h2>
                 <div class="quick-actions-gridd">
-                    <a href="/templates/order_vm.php" class="quick-action-btnn">
-                        <i class="fas fa-plus"></i> Создать ВМ
-                    </a>
+                    <?= homevladLicenseAction('/templates/order_vm.php', 'quick-action-btnn', '<i class="fas fa-plus"></i> Создать ВМ', $orderBlock) ?>
                     <a href="/templates/billing.php" class="quick-action-btnn">
                         <i class="fas fa-credit-card"></i> Пополнить баланс
                     </a>
@@ -1305,9 +1305,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                             <i class="fas fa-cloud"></i>
                         </div>
                         <p class="empty-text">У вас пока нет виртуальных машин</p>
-                        <a href="/templates/order_vm.php" class="quick-action-btnn">
-                            <i class="fas fa-plus"></i> Заказать ВМ
-                        </a>
+                        <?= homevladLicenseAction('/templates/order_vm.php', 'quick-action-btnn', '<i class="fas fa-plus"></i> Заказать ВМ', $orderBlock) ?>
                     </div>
                 <?php endif; ?>
             </div>

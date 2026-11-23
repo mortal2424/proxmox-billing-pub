@@ -62,7 +62,7 @@ function homevladLicenseLease(array $config, array $usage, bool $force = false):
     if ($key === '') throw new DomainException('Лицензия не активирована.');
     try {
         return currentLease($key, $config['public_key'], 'homevlad', $installation,
-            $usage, $config['cache'], $config['domain'], $config['server_address'] ?? null, $force);
+            $usage, $config['cache'], $config['domain'], $config['server_address'] ?? null, $force, $config['endpoint'] ?? null);
     } catch (Throwable $error) {
         error_log('HomeVlad license refresh failed: ' . get_class($error));
         throw new DomainException('Не удалось подтвердить лицензию панели.');
@@ -97,7 +97,7 @@ function homevladActivateLicense(PDO $pdo, array $config, string $key): void
         $pair = readPairingRequest($request);
         try {
             currentLease($key, $config['public_key'], 'homevlad', $pair['installation'],
-                homevladLicenseUsage($pdo), $tmp . '.lease', $config['domain'], $config['server_address'] ?? null, true);
+                homevladLicenseUsage($pdo), $tmp . '.lease', $config['domain'], $config['server_address'] ?? null, true, $config['endpoint'] ?? null);
         } catch (Throwable) {
             throw new DomainException('Ключ не подтверждён для этой установки.');
         }
@@ -180,4 +180,26 @@ function homevladReserveLicense(PDO $pdo, array $increase): void
         homevladLicenseRelease($pdo);
         throw $error;
     }
+}
+
+function homevladLicenseBlockReason(PDO $pdo, array $increase): ?string
+{
+    try {
+        $config = homevladLicenseConfig();
+        if ($config !== null) homevladAssertLicense($pdo, $config, $increase);
+        return null;
+    } catch (DomainException $error) {
+        return $error->getMessage();
+    } catch (Throwable) {
+        return 'Лицензия недоступна. Проверьте её состояние в панели.';
+    }
+}
+
+function homevladLicenseAction(string $url, string $class, string $labelHtml, ?string $reason): string
+{
+    $class = htmlspecialchars($class, ENT_QUOTES, 'UTF-8');
+    if ($reason === null) return '<a class="' . $class . '" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . $labelHtml . '</a>';
+    $reason = htmlspecialchars($reason, ENT_QUOTES, 'UTF-8');
+    return '<span class="' . $class . '" aria-disabled="true" tabindex="0" title="' . $reason .
+        '" style="opacity:.55;cursor:not-allowed">' . $labelHtml . '</span><small role="status">' . $reason . '</small>';
 }

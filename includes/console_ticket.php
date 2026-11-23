@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/node_api_credentials.php';
+require_once __DIR__ . '/console_settings.php';
 
 final class ConsoleBrokerUnavailable extends RuntimeException {}
 
@@ -15,8 +16,12 @@ function issueConsoleTicket(array $node, int $vmId, string $type): string
         'vmid' => $vmId,
         'type' => $type,
     ];
+    $settings = consoleSettings();
+    $target += array_intersect_key($settings, ['origin'=>true, 'ticket_ttl'=>true]);
+    $pin = $settings['pins'][(int)($node['id'] ?? 0)] ?? null;
+    if ($pin !== null) $target['cert_sha256'] = $pin;
     $payload = json_encode($target, JSON_THROW_ON_ERROR) . "\n";
-    $socket = @stream_socket_client('unix:///run/homevlad-console/issuer.sock', $errno, $error, 2);
+    $socket = @stream_socket_client('unix://' . consoleSocketPath(), $errno, $error, 2);
     if (!$socket) {
         throw new ConsoleBrokerUnavailable('Сервис консоли недоступен');
     }
