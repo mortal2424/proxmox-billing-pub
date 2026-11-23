@@ -13,6 +13,10 @@ function homevladLicenseConfig(): ?array
     if (!$path && basename(dirname(__DIR__, 2)) === 'dev.homevlad.ru') {
         $path = dirname(__DIR__, 4) . '/tmp/homevlad-dev-license/config.php';
     }
+    $localConfig = dirname(__DIR__, 2) . '/homevlad-license.php';
+    if (!$path && is_file($localConfig)) {
+        $path = $localConfig;
+    }
     if (!$path) {
         return null;
     }

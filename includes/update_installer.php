@@ -86,7 +86,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
             throw new RuntimeException('Предыдущее обновление прервано. Требуется восстановление по журналу');
         }
         $current = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());
-        if (version_compare($manifest['version'], $current, '<=') || ($manifest['from'] ?? '') !== $current) {
+        if (homevladCompareVersions($manifest['version'], $current) <= 0 || ($manifest['from'] ?? '') !== $current) {
             throw new RuntimeException('Обновление не соответствует установленной версии');
         }
         if (previewUpdate($root, $manifest)) {

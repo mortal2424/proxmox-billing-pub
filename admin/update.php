@@ -46,7 +46,7 @@ require __DIR__ . '/admin_sidebar.php';
 <p>Перед обновлением сохраните резервную копию базы данных. Изменённые файлы требуют ручного слияния. При конфликтах установка всего пакета блокируется.</p>
 <?php if (!$releases && !$error): ?><p>Новых пакетов в каталоге нет.</p><?php endif; ?>
 <?php foreach ($releases as $release): ?>
-<?php if (version_compare($release['version'], $currentVersion, '<=')) continue; ?>
+<?php if (homevladCompareVersions($release['version'], $currentVersion) <= 0) continue; ?>
 <section class="update-release">
 <h2><?= htmlspecialchars($release['version']) ?></h2>
 <p><?= nl2br(htmlspecialchars($release['summary'] ?? '')) ?></p>
@@ -66,7 +66,7 @@ require __DIR__ . '/admin_sidebar.php';
 <h3>Требуется ручное слияние</h3>
 <ul><?php foreach ($conflicts as $file): ?><li><?= htmlspecialchars($file) ?></li><?php endforeach; ?></ul>
 <p>Сохраните свои изменения и перенесите в них изменения пакета. Затем выполните проверку повторно.</p>
-<?php elseif (version_compare($manifest['version'], $currentVersion, '>')): ?>
+<?php elseif (homevladCompareVersions($manifest['version'], $currentVersion) > 0): ?>
 <form method="post">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['update_csrf']) ?>">
 <input type="hidden" name="version" value="<?= htmlspecialchars($manifest['version']) ?>">
