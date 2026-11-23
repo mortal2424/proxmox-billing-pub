@@ -70,7 +70,8 @@ try {
         'scope' => $consoleScope, 'type' => $type, 'expires' => time() + 28800,
     ];
     session_write_close();
-    $url = '/console/view.html#' . $token . '&control=' . $control . ($consoleScope === 'customer' ? '&owner=1' : '');
+    $view = consoleRemoteBroker() === null ? '/console/view.html' : '/console/view.php';
+    $url = $view . '#' . $token . '&control=' . $control . ($consoleScope === 'customer' ? '&owner=1' : '');
     if (($_GET['redirect'] ?? '') === '1') {
         header('Location: ' . $url, true, 303);
         exit;

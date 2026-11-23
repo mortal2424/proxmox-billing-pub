@@ -21,18 +21,9 @@ function issueConsoleTicket(array $node, int $vmId, string $type): string
     $pin = $settings['pins'][(int)($node['id'] ?? 0)] ?? null;
     if ($pin !== null) $target['cert_sha256'] = $pin;
     $payload = json_encode($target, JSON_THROW_ON_ERROR) . "\n";
-    $socket = @stream_socket_client('unix://' . consoleSocketPath(), $errno, $error, 2);
-    if (!$socket) {
+    $token = consoleBrokerRequest($payload);
+    if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
         throw new ConsoleBrokerUnavailable('Сервис консоли недоступен');
     }
-    try {
-        stream_set_timeout($socket, 3);
-        $token = fwrite($socket, $payload) === strlen($payload) ? trim((string) fgets($socket, 66)) : '';
-        if (!preg_match('/^[a-f0-9]{64}$/D', $token)) {
-            throw new ConsoleBrokerUnavailable('Не удалось открыть консоль');
-        }
-        return $token;
-    } finally {
-        fclose($socket);
-    }
+    return $token;
 }

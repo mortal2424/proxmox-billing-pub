@@ -19,36 +19,56 @@ pending = {}
 sessions = asyncio.Semaphore(MAX_SESSIONS)
 
 
+def issue_grant(data, origins):
+    if not isinstance(data, dict):
+        return None
+    if data.get("operation") == "status":
+        return json.dumps({"status": "ok", "origins": sorted(origins), "ticket_ttl": TICKET_TTL})
+    origin = data.get("origin")
+    if origin is not None and origin not in origins:
+        return None
+    ttl = data.get("ticket_ttl", TICKET_TTL)
+    if not isinstance(ttl, int) or not 15 <= ttl <= 90:
+        return None
+    now = time.monotonic()
+    for token, (expires, _) in list(pending.items()):
+        if expires <= now:
+            del pending[token]
+    if len(pending) >= MAX_PENDING:
+        return None
+    token = secrets.token_hex(32)
+    pending[token] = (now + ttl, data)
+    asyncio.get_running_loop().call_later(ttl, pending.pop, token, None)
+    return token
+
+
 async def issue(reader, writer, origins):
     try:
         data = json.loads(await asyncio.wait_for(reader.readline(), 2))
-        if not isinstance(data, dict):
-            return
-        if data.get("operation") == "status":
-            writer.write((json.dumps({"status": "ok", "origins": sorted(origins), "ticket_ttl": TICKET_TTL}) + "\n").encode())
+        result = issue_grant(data, origins)
+        if result is not None:
+            writer.write((result + "\n").encode())
             await writer.drain()
-            return
-        origin = data.get("origin")
-        if origin is not None and origin not in origins:
-            return
-        ttl = data.get("ticket_ttl", TICKET_TTL)
-        if not isinstance(ttl, int) or not 15 <= ttl <= 90:
-            return
-        now = time.monotonic()
-        for token, (expires, _) in list(pending.items()):
-            if expires <= now:
-                del pending[token]
-        if len(pending) < MAX_PENDING and isinstance(data, dict):
-            token = secrets.token_hex(32)
-            pending[token] = (now + ttl, data)
-            asyncio.get_running_loop().call_later(ttl, pending.pop, token, None)
-            writer.write((token + "\n").encode())
-            await writer.drain()
-    except (ValueError, TimeoutError, ConnectionError):
+    except (ValueError, asyncio.TimeoutError, ConnectionError):
         pass
     finally:
         writer.close()
         await writer.wait_closed()
+
+
+async def issue_https(request):
+    secret = request.app["issuer_secret"]
+    supplied = request.headers.get("Authorization", "")
+    if not secrets.compare_digest(supplied.encode(), ("Bearer " + secret).encode()):
+        raise web.HTTPUnauthorized()
+    try:
+        data = await asyncio.wait_for(request.json(), 3)
+    except (ValueError, asyncio.TimeoutError):
+        raise web.HTTPBadRequest() from None
+    result = issue_grant(data, request.app["origins"])
+    if result is None:
+        raise web.HTTPBadRequest()
+    return web.Response(text=result, headers={"Cache-Control": "no-store"})
 
 
 async def relay(source, destination):
@@ -177,6 +197,9 @@ async def resources(app):
     async with ClientSession(trace_configs=[trace], connector=TCPConnector(ssl=tls), cookie_jar=DummyCookieJar(),
                              timeout=ClientTimeout(total=15)) as client:
         app["client"] = client
+        if "issuer_secret" in app:
+            yield
+            return
         SOCKET.unlink(missing_ok=True)
         server = await asyncio.start_unix_server(lambda reader, writer: issue(reader, writer, app["origins"]), path=SOCKET, limit=16384)
         SOCKET.chmod(0o660)
@@ -189,9 +212,15 @@ async def resources(app):
 
 
 if __name__ == "__main__":
-    app = web.Application()
+    app = web.Application(client_max_size=16384)
     app["origin"] = os.environ["CONSOLE_ORIGIN"]
     app["origins"] = {app["origin"]} | set(filter(None, os.environ.get("CONSOLE_ADDITIONAL_ORIGINS", "").split(",")))
     app.cleanup_ctx.append(resources)
+    secret = os.environ.get("CONSOLE_ISSUER_SECRET", "")
+    if secret:
+        if len(secret) != 64 or any(c not in "0123456789abcdef" for c in secret):
+            raise ValueError("CONSOLE_ISSUER_SECRET must be 64 lowercase hex characters")
+        app["issuer_secret"] = secret
+        app.router.add_post("/console/issuer", issue_https)
     app.router.add_get("/console/socket", proxy)
     web.run_app(app, host=os.environ.get("CONSOLE_BIND", "127.0.0.1"), port=int(os.environ.get("CONSOLE_PORT", "8765")), access_log=None)
