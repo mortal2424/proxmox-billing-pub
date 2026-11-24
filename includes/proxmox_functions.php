@@ -67,6 +67,15 @@ class ProxmoxAPI {
         );
     }
 
+    public function startBillingGuest(int $vmid, string $type): void
+    {
+        if ($vmid < 1 || !in_array($type, ['qemu','lxc'], true)) {
+            throw new InvalidArgumentException('Некорректный гость Proxmox');
+        }
+        $node = rawurlencode($this->nodeName);
+        $this->apiClient->requestAndWait('POST', "/nodes/$node/$type/$vmid/status/start", []);
+    }
+
     public function stopGuestIfRunning(int $vmid, string $type): bool {
         if ($vmid < 1 || !in_array($type, ['qemu', 'lxc'], true)) {
             throw new InvalidArgumentException('Некорректный гость Proxmox');

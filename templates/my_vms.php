@@ -1636,7 +1636,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 
                     // Загружаем метрики для всех VM
                     const metricsPromises = vmsData.vms.map(vm =>
-                        fetch(`/api/get_latest_metrics.php?vm_id=${vm.vm_id}&type=qemu`)
+                        fetch(`/api/get_latest_metrics.php?guest_id=${vm.id}&type=qemu`)
                             .then(res => res.json())
                     );
                     const metricsResults = await Promise.all(metricsPromises);
@@ -1884,7 +1884,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 
                     // Загружаем метрики для всех контейнеров
                     const metricsPromises = containersData.containers.map(ct =>
-                        fetch(`/api/get_latest_metrics.php?vm_id=${ct.vm_id}&type=lxc`)
+                        fetch(`/api/get_latest_metrics.php?guest_id=${ct.id}&type=lxc`)
                             .then(res => res.json())
                     );
                     const metricsResults = await Promise.all(metricsPromises);
@@ -2194,7 +2194,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                     const card = this.closest('.vm-card');
                     const vm_id = card.dataset.vmid;
                     const vm_name = card.querySelector('.vm-name').textContent;
-                    openMetricsModal(vm_id, vm_name, 'qemu');
+                    openMetricsModal(card.dataset.id, vm_name, 'qemu');
                 });
             });
         }
@@ -2236,7 +2236,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                     const card = this.closest('.vm-card');
                     const vm_id = card.dataset.vmid;
                     const vm_name = card.querySelector('.vm-name').textContent;
-                    openMetricsModal(vm_id, vm_name, 'lxc');
+                    openMetricsModal(card.dataset.id, vm_name, 'lxc');
                 });
             });
         }
@@ -2340,7 +2340,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             try {
                 updateMetricsProgress(10);
 
-                const response = await fetch(`/api/${vm_type === 'lxc' ? 'get_lxc_metrics' : 'get_vm_metrics'}.php?vm_id=${vm_id}&timeframe=${timeframe}`);
+                const response = await fetch(`/api/${vm_type === 'lxc' ? 'get_lxc_metrics' : 'get_vm_metrics'}.php?guest_id=${vm_id}&timeframe=${timeframe}`);
                 if (!response.ok) throw new Error('Ошибка сервера');
 
                 const data = await response.json();
@@ -2657,10 +2657,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                 const vmCards = document.querySelectorAll('#vm-list .vm-card:not(.skeleton)');
 
                 for (const card of vmCards) {
-                    const vmId = card.dataset.vmid;
+                    const vmId = card.dataset.id;
 
                     try {
-                        const response = await fetch(`/api/get_latest_metrics.php?vm_id=${vmId}&type=qemu`);
+                        const response = await fetch(`/api/get_latest_metrics.php?guest_id=${vmId}&type=qemu`);
                         const data = await response.json();
 
                         if (data.success) {
@@ -2677,10 +2677,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                 const containerCards = document.querySelectorAll('#container-list .vm-card:not(.skeleton)');
 
                 for (const card of containerCards) {
-                    const vmId = card.dataset.vmid;
+                    const vmId = card.dataset.id;
 
                     try {
-                        const response = await fetch(`/api/get_latest_metrics.php?vm_id=${vmId}&type=lxc`);
+                        const response = await fetch(`/api/get_latest_metrics.php?guest_id=${vmId}&type=lxc`);
                         const data = await response.json();
 
                         if (data.success) {

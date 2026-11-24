@@ -17,6 +17,7 @@ $users = $pdo->query("SELECT id, email, full_name, balance, is_admin, user_type,
 
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     if (isset($_POST['delete_user'])) {
         $userId = (int)$_POST['user_id'];
         try {
@@ -916,6 +917,7 @@ $userBlock = homevladLicenseBlockReason($pdo, ['users'=>1]);
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <form method="POST" class="user-action-form" onsubmit="return confirmDelete(<?= $user['id'] ?>, '<?= htmlspecialchars($user['email']) ?>')">
+                                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                     <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
                                     <button type="submit" name="delete_user" class="user-action-btn user-action-delete" title="Удалить">
                                         <i class="fas fa-trash"></i>

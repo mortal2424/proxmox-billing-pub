@@ -7,6 +7,7 @@ session_start();
 checkAuth();
 
 header('Content-Type: application/json');
+requirePostCsrf();
 
 // Проверяем права администратора
 $db = new Database();

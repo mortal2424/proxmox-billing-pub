@@ -107,6 +107,7 @@ function getCategoriesTree($pdo, $parent_id = null, $level = 0) {
 
 // Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     $title = trim($_POST['title'] ?? '');
     $slug = trim($_POST['slug'] ?? '');
     $content = $_POST['content'] ?? '';
@@ -683,6 +684,7 @@ require 'admin_header.php';
     <?php endif; ?>
 
     <form method="POST" class="editor-form" id="docForm">
+        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
         <div class="form-grid">
             <div class="form-main">
                 <div class="form-group">

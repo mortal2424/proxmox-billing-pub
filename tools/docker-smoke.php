@@ -42,7 +42,7 @@ foreach ($accounts as $label=>$id) {
     session_id(bin2hex(random_bytes(24)));
     if (!session_start()) throw new RuntimeException("Could not start fixture session");
     $_SESSION = [
-        'user'=>['id'=>$id,'is_admin'=>(int)($label==='admin'),'email'=>"$label@example.invalid"],
+        'user'=>['auth_generation'=>1,'id'=>$id,'is_admin'=>(int)($label==='admin'),'email'=>"$label@example.invalid"],
         'update_csrf'=>bin2hex(random_bytes(32)),
     ];
     $sessionFiles[$label] = ['id'=>session_id(),'csrf'=>$_SESSION['update_csrf']];

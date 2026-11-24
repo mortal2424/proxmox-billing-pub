@@ -917,6 +917,7 @@ $nodeBlock = homevladLicenseBlockReason($pdo, ['nodes'=>1]);
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <form method="POST" action="delete_cluster.php" class="inline-form" onsubmit="return confirmDeleteCluster()">
+                                            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                             <input type="hidden" name="id" value="<?= $cluster['id'] ?>">
                                             <button type="submit" class="btn-icon btn-delete" title="Удалить">
                                                 <i class="fas fa-trash"></i>
@@ -996,6 +997,7 @@ $nodeBlock = homevladLicenseBlockReason($pdo, ['nodes'=>1]);
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <form method="POST" action="delete_node.php" class="inline-form" onsubmit="return confirmDeleteNode()">
+                                            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                             <input type="hidden" name="id" value="<?= $node['id'] ?>">
                                             <button type="submit" class="btn-icon btn-delete" title="Удалить">
                                                 <i class="fas fa-trash"></i>

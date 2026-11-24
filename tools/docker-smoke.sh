@@ -45,8 +45,8 @@ chmod 644 docker/proxmox-tls/smoke.pem
     'cp /work/cert /etc/nginx/ssl/fullchain.pem; cp /work/key /etc/nginx/ssl/privkey.pem'
 "${compose[@]}" up -d db apache nginx
 
-https=(curl --silent --show-error --max-time 50 --cacert "$PWD/docker/proxmox-tls/smoke.pem")
-web=https://localhost
+https=(curl --silent --show-error --max-time 50 --resolve nginx:443:127.0.0.1 --cacert "$PWD/docker/proxmox-tls/smoke.pem")
+web=https://nginx
 ready() {
     for attempt in {1..70}; do
         if "${https[@]}" --max-time 3 --fail "$web/console/view.html" >/dev/null 2>&1; then
@@ -60,6 +60,8 @@ ready() {
 ready
 image_version=$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')
 echo "Built Docker image for $image_version"
+wrong_host=$("${https[@]}" -H 'Host: unknown.example.invalid' -o /dev/null -w '%{http_code}' "$web/")
+test "$wrong_host" = 421
 "${compose[@]}" exec -T nginx nginx -t
 "${compose[@]}" exec -T apache apache2ctl -t
 if [[ ${1:-} == backup ]]; then
@@ -89,42 +91,15 @@ update=(--data-urlencode "version=$test_version" --data-urlencode "csrf_token=$c
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" -d action=preview "$web/admin/update.php" > "$qa/preview.html"
 grep -q "Пакет $test_version" "$qa/preview.html"
 grep -q 'v2.5.1-Pre-release1.1' "$qa/preview.html"
-
-"${compose[@]}" exec -T apache sh -c 'printf "\n// Docker smoke local change\n" >> admin/admin_footer.php'
-changed=$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)
-"${https[@]}" --fail "${cookie[@]}" "${update[@]}" -d action=preview "$web/admin/update.php" > "$qa/conflict.html"
-grep -q 'Требуется ручное слияние' "$qa/conflict.html"
-grep -q 'admin/admin_footer.php' "$qa/conflict.html"
+if grep -q 'Требуется ручное слияние' "$qa/preview.html"; then exit 1; fi
 code=$("${https[@]}" "${cookie[@]}" "${update[@]}" -o "$qa/rejected.json" -w '%{http_code}' "$web/admin/ajax_apply_update.php")
-test "$code" = 400
+test "$code" = 403
 jq -e '.success == false' "$qa/rejected.json"
-test "$changed" = "$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)"
-"${compose[@]}" exec -T apache grep -Fq "2.5.1-Pre-release1';" includes/version.php
-echo 'Installer refused a modified file without applying the rest of the package'
-
-git -C "$checkout" show "$base_ref:admin/admin_footer.php" | "${compose[@]}" exec -T apache tee admin/admin_footer.php >/dev/null
-# An ordinary write error must leave the source version usable, including on the first file.
-source_hash=$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)
-for directory in admin includes; do
-    "${compose[@]}" exec -T apache chmod 0555 "$directory"
-    code=$("${https[@]}" "${cookie[@]}" "${update[@]}" -o "$qa/write-error.json" -w '%{http_code}' "$web/admin/ajax_apply_update.php")
-    "${compose[@]}" exec -T apache chmod 0755 "$directory"
-    test "$code" = 400
-    jq -e '.success == false and (.error | startswith("Не удалось установить "))' "$qa/write-error.json"
-    test "$source_hash" = "$("${compose[@]}" exec -T apache sha256sum admin/admin_footer.php)"
-    "${compose[@]}" exec -T apache test ! -e backups/updates/recovery.json
-done
-echo 'Failed first and later writes kept the source file and cleared maintenance mode'
-"${https[@]}" --fail "${cookie[@]}" "${update[@]}" "$web/admin/ajax_apply_update.php" | jq -e '.success'
-"${https[@]}" --fail "${cookie[@]}" "$web/api/mobile_admin.php?resource=accounts&q=example.invalid" |
-    jq -e '.items | any(.email == "admin@example.invalid")'
+"${compose[@]}" exec -T --user www-data apache sh -c 'test ! -w . && test ! -w includes && test ! -w vendor && test -w backups'
 verify='require "includes/db.php"; $d=(new Database())->getConnection();
- $v=$d->query("SELECT version FROM system_versions ORDER BY id DESC LIMIT 1")->fetchColumn();
  $n=$d->query("SELECT COUNT(*) FROM users WHERE email=\x27customer@example.invalid\x27")->fetchColumn();
- require "includes/version.php";
- if ($v!=="2.5.1-rc1.1" || homevladVersion($v)!=="2.5.1-Pre-release1.1" || (int)$n!==1) exit(1); echo "$v and test account confirmed\n";'
+ if ((int)$n!==1) exit(1);'
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
-"${compose[@]}" exec -T --user www-data apache php -r 'require "includes/console_settings.php"; $status=consoleBrokerStatus(); saveConsoleSettings($status["origins"][0],45,$status,[],["url"=>null]);'
 "${compose[@]}" exec -T --user www-data -e HOMEVLAD_LICENSE_CONFIG=/run/homevlad-license/license.php apache php -r '
     require "includes/license_guard.php";
     $c = homevladLicenseConfig();

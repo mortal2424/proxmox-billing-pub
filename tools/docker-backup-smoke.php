@@ -43,7 +43,7 @@ switch ($argv[1] ?? '') {
         requireSmoke($id > 0, 'Disposable administrator missing');
         session_id(bin2hex(random_bytes(24)));
         requireSmoke(session_start(), 'Could not create smoke session');
-        $_SESSION = ['user'=>['id'=>$id,'is_admin'=>1,'email'=>$fixtureEmail],'backup_csrf'=>bin2hex(random_bytes(32))];
+        $_SESSION = ['user'=>['auth_generation'=>1,'id'=>$id,'is_admin'=>1,'email'=>$fixtureEmail],'backup_csrf'=>bin2hex(random_bytes(32))];
         echo json_encode(['sid'=>session_id(),'csrf'=>$_SESSION['backup_csrf']],JSON_THROW_ON_ERROR);
         session_write_close();
         break;

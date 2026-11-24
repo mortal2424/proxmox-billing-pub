@@ -60,6 +60,10 @@ function replaceUpdateFile(string $source, string $target, int $mode): void
 
 function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null): void
 {
+    if (getenv('HOMEVLAD_IMMUTABLE_IMAGE') === '1') {
+        http_response_code(403);
+        throw new RuntimeException('Обновите Docker-образ и пересоздайте контейнер, сохранив тома.');
+    }
     if ($connect) {
         $pdo = $connect();
     }

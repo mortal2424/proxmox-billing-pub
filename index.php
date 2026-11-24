@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/auth.php';
 session_start();
 require_once __DIR__ . '/includes/db.php';
 
@@ -34,7 +35,7 @@ try {
     error_log("Database error: " . $e->getMessage());
 }
 
-$loggedIn = isset($_SESSION['user']);
+$loggedIn = isLoggedIn();
 $accountUrl = $loggedIn ? '/templates/dashboard.php' : '/login/login.php';
 $startUrl = $loggedIn ? '/templates/order_vm.php' : '/login/register.php';
 $accountLabel = $loggedIn ? 'Личный кабинет' : 'Войти';

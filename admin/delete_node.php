@@ -9,6 +9,8 @@ if (!isAdmin()) {
     exit;
 }
 
+requirePostCsrf();
+
 $db = new Database();
 $pdo = $db->getConnection();
 

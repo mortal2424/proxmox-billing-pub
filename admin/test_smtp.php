@@ -11,6 +11,7 @@ if (!isAdmin()) {
 }
 
 header('Content-Type: application/json');
+requirePostCsrf();
 
 try {
     $db = new Database();

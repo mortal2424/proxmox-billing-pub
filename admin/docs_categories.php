@@ -18,6 +18,7 @@ $category_id = $_GET['id'] ?? 0;
 
 // Обработка форм
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     $name = trim($_POST['name'] ?? '');
     $slug = trim($_POST['slug'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -642,6 +643,7 @@ require 'admin_header.php';
         ?>
         
         <form method="POST" class="category-form">
+        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label required">Название категории</label>
@@ -756,6 +758,7 @@ function deleteCategory(id, name) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': <?= json_encode(formCsrfToken()) ?>,
             },
             body: JSON.stringify({ id: id })
         })

@@ -15,6 +15,7 @@ $pdo = $db->getConnection();
 
 // Обработка формы добавления пользователя
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     try {
         $email = trim($_POST['email']);
         $full_name = trim($_POST['full_name']);
@@ -903,6 +904,7 @@ require 'admin_header.php';
     <!-- Форма добавления пользователя -->
     <div class="user-form-container">
         <form method="POST" id="userAddForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <!-- Основная информация -->
             <div class="form-section">
                 <h3 class="form-section-title">

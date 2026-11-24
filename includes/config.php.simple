@@ -10,8 +10,8 @@ define('DB_PASS', '');
 
 // === БАЗОВЫЕ НАСТРОЙКИ СИСТЕМЫ ===
 // URL вашего сайта без слеша в конце
-$site_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
-define('SITE_URL', $site_url);
+define('HOMEVLAD_CANONICAL_URL', '');
+define('SITE_URL', getenv('HOMEVLAD_PUBLIC_URL') ?: HOMEVLAD_CANONICAL_URL);
 
 define('ENVIRONMENT', 'production');     // production, development
 define('TIMEZONE', 'Europe/Moscow');

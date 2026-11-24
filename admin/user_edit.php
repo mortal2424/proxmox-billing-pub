@@ -29,7 +29,9 @@ if ($user_id > 0) {
 
 // Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     try {
+        $pdo->beginTransaction();
         $email = trim($_POST['email']);
         $full_name = trim($_POST['full_name']);
         $balance = (float)$_POST['balance'];
@@ -64,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($user_id > 0) {
+            $before = $pdo->prepare('SELECT balance,is_admin,is_active FROM users WHERE id=? FOR UPDATE');
+            $before->execute([$user_id]);
+            $old = $before->fetch(PDO::FETCH_ASSOC);
+            if (!$old) throw new DomainException('Пользователь не найден');
             // Обновление существующего пользователя
             $stmt = $pdo->prepare("UPDATE users SET
                 email = ?,
@@ -139,10 +145,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $changes = [];
+        foreach (['is_admin'=>$is_admin,'is_active'=>$is_active,'balance'=>$balance] as $field=>$value) {
+            if ($old[$field] != $value) $changes[$field] = ['before'=>$old[$field], 'after'=>$value];
+        }
+        $pdo->commit();
+        auditAccountEdit((int) $_SESSION['user']['id'], $user_id, $changes);
         $_SESSION['success'] = $message;
         header("Location: users.php");
         exit;
     } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         $_SESSION['error'] = $e->getMessage();
     }
 }
@@ -1195,6 +1208,7 @@ if (!$user && $user_id > 0) {
     <!-- Форма редактирования пользователя -->
     <div class="user-form-container">
         <form method="POST" id="userEditForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <!-- Основная информация -->
             <div class="form-section">
                 <h3 class="form-section-title">

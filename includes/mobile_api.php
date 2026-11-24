@@ -40,7 +40,7 @@ function mobileInput(): array
 
 function mobileUser(PDO $pdo): array
 {
-    if (!isLoggedIn()) mobileRespond(['error' => 'Требуется вход'], 401);
+    if (currentSessionAccount($pdo) === null) mobileRespond(['error' => 'Требуется вход'], 401);
     $query = $pdo->prepare('SELECT id, full_name, balance, bonus_balance, is_admin, is_active FROM users WHERE id = ?');
     $query->execute([(int) $_SESSION['user']['id']]);
     $user = $query->fetch(PDO::FETCH_ASSOC);

@@ -17,3 +17,8 @@ tools/docker-smoke*
 tools/docker-backup-smoke*
 
 .docker-private/
+admin/test/
+test_*.php
+**/*.log
+**/*.zip
+tools/test-*

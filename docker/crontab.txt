@@ -1,11 +1,11 @@
 HOMEVLAD_BACKUP_DB_LOCAL=0
-0 * * * * root /usr/local/bin/php /var/www/html/admin/cron_charge.php >> /var/log/cron.log 2>&1
-*/5 * * * * root /usr/local/bin/php /var/www/html/admin/update_node_stats.php >> /var/log/cron.log 2>&1
-*/5 * * * * root /usr/local/bin/php /var/www/html/api/collect_lxc_metrics.php >> /var/log/cron.log 2>&1
-0 */2 * * * root /usr/local/bin/php /var/www/html/api/update_proxmox_tickets.php >> /var/log/cron.log 2>&1
-* * * * * root /usr/local/bin/php /var/www/html/includes/vm_ip_updater.php >> /var/log/cron.log 2>&1
-*/5 * * * * root /usr/local/bin/php /var/www/html/api/collect_vm_metrics.php >> /var/log/cron.log 2>&1
-0 3 * * * root /usr/local/bin/php /var/www/html/api/clean_old_metrics.php >> /var/log/cron.log 2>&1
-*/5 * * * * root /usr/local/bin/php /var/www/html/cronjobs/check_node_health.php >> /var/log/cron.log 2>&1
+0 * * * * www-data /usr/local/bin/php /var/www/html/admin/cron_charge.php >> /var/www/html/logs/cron.log 2>&1
+*/5 * * * * www-data /usr/local/bin/php /var/www/html/admin/update_node_stats.php >> /var/www/html/logs/cron.log 2>&1
+*/5 * * * * www-data /usr/local/bin/php /var/www/html/api/collect_lxc_metrics.php >> /var/www/html/logs/cron.log 2>&1
+0 */2 * * * www-data /usr/local/bin/php /var/www/html/api/update_proxmox_tickets.php >> /var/www/html/logs/cron.log 2>&1
+* * * * * www-data /usr/local/bin/php /var/www/html/includes/vm_ip_updater.php >> /var/www/html/logs/cron.log 2>&1
+*/5 * * * * www-data /usr/local/bin/php /var/www/html/api/collect_vm_metrics.php >> /var/www/html/logs/cron.log 2>&1
+0 3 * * * www-data /usr/local/bin/php /var/www/html/api/clean_old_metrics.php >> /var/www/html/logs/cron.log 2>&1
+*/5 * * * * www-data /usr/local/bin/php /var/www/html/cronjobs/check_node_health.php >> /var/www/html/logs/cron.log 2>&1
 */5 * * * * www-data /usr/local/bin/php /var/www/html/cronjobs/check_updates.php
 * * * * * www-data /usr/local/bin/php /var/www/html/cronjobs/backup_cron.php

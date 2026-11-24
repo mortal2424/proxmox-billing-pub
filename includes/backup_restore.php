@@ -13,7 +13,7 @@ function backupRestoreProtected(string $path): bool
 {
     $parts = explode('/', strtolower($path));
     foreach ($parts as $part) {
-        if (in_array($part, ['.git', 'backups', 'logs', 'node_modules', 'vendor', 'cache', 'tmp'], true) ||
+        if (in_array($part, ['.git', '.docker-private', 'backups', 'logs', 'node_modules', 'vendor', 'cache', 'tmp'], true) ||
             str_starts_with($part, '.env') || preg_match('/(?:^config\.php$|\.(?:pem|key|cnf)$)/', $part)) return true;
     }
     return in_array(strtolower($path), ['includes/db.php', 'includes/maintenance.php', 'includes/backup_database.php',
@@ -52,7 +52,7 @@ function inspectBackupArchive(string $filename): array
                 $database = true; continue;
             }
             if (str_starts_with($name, 'database/')) throw new RuntimeException('Неизвестный файл в разделе базы данных');
-            if (backupRestoreProtected($name)) { $skipped++; continue; }
+            if (backupRestoreProtected($name) || (getenv('HOMEVLAD_IMMUTABLE_IMAGE') === '1' && !str_starts_with($name, 'uploads/'))) { $skipped++; continue; }
             // Uploaded data must never add a PHP executable to the uploads directory.
             if (str_starts_with(strtolower($name), 'uploads/') && preg_match('/\.(?:php\d*|phtml|phar|htaccess)$/i', $name)) throw new RuntimeException('Исполняемый файл в uploads запрещён');
             $files[] = $name;

@@ -24,17 +24,8 @@ $username = $_POST['ftp_username'] ?? '';
 $password = $_POST['ftp_password'] ?? '';
 
 try {
-    $conn = ftp_connect($host);
-    if (!$conn) {
-        throw new Exception("Не удалось подключиться к FTP серверу");
-    }
-    
-    if (!ftp_login($conn, $username, $password)) {
-        throw new Exception("Неверные учетные данные FTP");
-    }
-    
-    ftp_close($conn);
-    
+    require_once __DIR__ . '/../../includes/backup_ftps.php';
+    transferBackupFtps($host, $username, $password);
     echo json_encode(['success' => true, 'message' => 'Подключение успешно']);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

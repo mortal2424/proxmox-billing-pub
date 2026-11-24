@@ -52,6 +52,7 @@ try {
 
 // Обработка действий с ВМ
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     try {
         if (isset($_POST['delete_vm'])) {
             $vmId = (int)$_POST['vm_id'];
@@ -1071,6 +1072,7 @@ require 'admin_header.php';
                             <div class="vm-actions">
                                 <?php if ($vm['status'] === 'running'): ?>
                                     <form method="POST" class="vm-action-form" onsubmit="return showActionConfirmation('stop', <?= $vm['vm_id'] ?>)">
+                                        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                         <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
                                         <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
                                         <input type="hidden" name="vm_action" value="stop">
@@ -1079,6 +1081,7 @@ require 'admin_header.php';
                                         </button>
                                     </form>
                                     <form method="POST" class="vm-action-form" onsubmit="return showActionConfirmation('reboot', <?= $vm['vm_id'] ?>)">
+                                        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                         <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
                                         <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
                                         <input type="hidden" name="vm_action" value="reboot">
@@ -1093,6 +1096,7 @@ require 'admin_header.php';
                                     </button>
                                 <?php else: ?>
                                     <form method="POST" class="vm-action-form" onsubmit="return showActionConfirmation('start', <?= $vm['vm_id'] ?>)">
+                                        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                         <input type="hidden" name="vm_id" value="<?= $vm['vm_id'] ?>">
                                         <input type="hidden" name="node_id" value="<?= $vm['node_id'] ?>">
                                         <input type="hidden" name="vm_action" value="start">
@@ -1108,6 +1112,7 @@ require 'admin_header.php';
                                 </a>
 
                                 <form method="POST" class="vm-action-form" onsubmit="return confirmDelete(<?= $vm['id'] ?>, '<?= htmlspecialchars($vm['hostname']) ?>')">
+                                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                     <input type="hidden" name="vm_id" value="<?= $vm['id'] ?>">
                                     <button type="submit" name="delete_vm" class="vm-action-btn vm-action-delete" title="Удалить">
                                         <i class="fas fa-trash"></i>

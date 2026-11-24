@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
@@ -10,7 +11,7 @@ header('Content-Type: application/json');
 try {
     session_start();
 
-    if (!isset($_SESSION['user'])) {
+    if (!isLoggedIn()) {
         throw new Exception('Доступ запрещен: требуется авторизация', 403);
     }
 

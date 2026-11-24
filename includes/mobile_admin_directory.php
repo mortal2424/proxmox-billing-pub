@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/license_guard.php';
 require_once __DIR__ . '/payment_actions.php';
 
@@ -92,6 +93,15 @@ function mobileAdminSaveAccount(PDO $pdo, array $input, int $actor): int
             $id = (int)$pdo->lastInsertId();
         }
         $pdo->commit();
+        if (isset($accounts[$id])) {
+            $changes = [];
+            foreach (['is_admin'=>$admin,'is_active'=>$active] as $field=>$value) {
+                if ((int) $accounts[$id][$field] !== (int) $value) {
+                    $changes[$field] = ['before'=>(int)$accounts[$id][$field],'after'=>(int)$value];
+                }
+            }
+            auditAccountEdit($actor, $id, $changes);
+        }
         return $id;
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) $pdo->rollBack();

@@ -1185,7 +1185,10 @@ const vmActions = {
         this.pending[`${nodeId}-${vmid}`] = true;
         Swal.fire({ title: 'Запуск VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
         try {
-            const response = await fetch(`vm_action.php?action=start&node_id=${nodeId}&vmid=${vmid}`);
+            const response = await fetch('vm_action.php', {
+                method: 'POST',
+                body: new URLSearchParams({action: 'start', node_id: nodeId, vmid, form_csrf: <?= json_encode(formCsrfToken()) ?>})
+            });
             const data = await response.json();
             delete this.pending[`${nodeId}-${vmid}`];
             if (data.error) throw new Error(data.error);
@@ -1205,7 +1208,10 @@ const vmActions = {
         this.pending[`${nodeId}-${vmid}`] = true;
         Swal.fire({ title: 'Остановка VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
         try {
-            const response = await fetch(`vm_action.php?action=stop&node_id=${nodeId}&vmid=${vmid}`);
+            const response = await fetch('vm_action.php', {
+                method: 'POST',
+                body: new URLSearchParams({action: 'stop', node_id: nodeId, vmid, form_csrf: <?= json_encode(formCsrfToken()) ?>})
+            });
             const data = await response.json();
             delete this.pending[`${nodeId}-${vmid}`];
             if (data.error) throw new Error(data.error);
@@ -1225,7 +1231,10 @@ const vmActions = {
         this.pending[`${nodeId}-${vmid}`] = true;
         Swal.fire({ title: 'Перезагрузка VM...', html: '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Пожалуйста, подождите</div>', showConfirmButton: false, allowOutsideClick: false });
         try {
-            const response = await fetch(`vm_action.php?action=reboot&node_id=${nodeId}&vmid=${vmid}`);
+            const response = await fetch('vm_action.php', {
+                method: 'POST',
+                body: new URLSearchParams({action: 'reboot', node_id: nodeId, vmid, form_csrf: <?= json_encode(formCsrfToken()) ?>})
+            });
             const data = await response.json();
             delete this.pending[`${nodeId}-${vmid}`];
             if (data.error) throw new Error(data.error);

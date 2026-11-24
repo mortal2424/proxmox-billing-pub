@@ -1,4 +1,17 @@
 server {
+    listen 80 default_server;
+    server_name _;
+    return 421;
+}
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
+    return 421;
+}
+
+server {
     listen 80;
     server_name ${DOMAIN};
 
@@ -6,7 +19,7 @@ server {
         root /var/www/html;
     }
 
-    return 301 https://$host$request_uri;
+    location / { return 301 https://${DOMAIN}$request_uri; }
 }
 
 server {
@@ -21,8 +34,13 @@ server {
     # Cloud image orders can wait up to 600 seconds for Proxmox to import a disk.
     proxy_read_timeout 720s;
 
+    location ~* ^/(?:admin/(?:test(?:/|$)|(?:node_monitor|metrics_debug|backup_debug)\.php(?:/|$))|test_[^/]*\.php(?:/|$)) { return 403; }
+    location = /templates/vm_metrics.php { return 404; }
+    location ^~ /.docker-private/ { return 403; }
     location ^~ /uploads/tickets/ { return 403; }
     location ^~ /backups/ { return 403; }
+    location ^~ /cache/ { return 403; }
+    location ^~ /temp/ { return 403; }
     location ^~ /logs/ { return 403; }
     location ^~ /bots/logs/ { return 403; }
 
@@ -37,7 +55,7 @@ server {
 
     location / {
         proxy_pass http://apache:80;
-        proxy_set_header Host $host;
+        proxy_set_header Host ${DOMAIN};
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;

@@ -24,7 +24,7 @@ try {
                t.vm_type as tariff_vm_type
         FROM vms v
         LEFT JOIN tariffs t ON v.tariff_id = t.id
-        WHERE v.id = ? AND v.user_id = ?
+        WHERE v.id = ? AND v.user_id = ? AND v.status<>'deleted'
     ");
     $stmt->execute([$vm_id, $user_id]);
     $vm = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -58,31 +58,8 @@ try {
         $lastCharge = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Получаем метрики за последний час
-    $table_name = $vm['vm_type'] === 'lxc' ? 'lxc_metrics' : 'vm_metrics';
-    $metrics = [];
-    
-    // Проверяем существование таблицы
-    $stmt = $db->getConnection()->query("SHOW TABLES LIKE '$table_name'");
-    $table_exists = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($table_exists) {
-        $stmt = $db->getConnection()->prepare("
-            SELECT * FROM $table_name 
-            WHERE vm_id = ? AND timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ORDER BY timestamp ASC
-            LIMIT 60
-        ");
-        $stmt->execute([$vm['vm_id']]);
-        $metrics = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (empty($metrics)) {
-            // Если метрик нет, создаем демо-данные
-            $metrics = generateDemoMetrics($vm['vm_type'] === 'lxc', $vm['ram'], $vm['disk']);
-        }
-    } else {
-        $metrics = generateDemoMetrics($vm['vm_type'] === 'lxc', $vm['ram'], $vm['disk']);
-    }
+    require_once __DIR__ . '/../../includes/guest_metrics.php';
+    $metrics = array_slice(guestMetricRows($db->getConnection(), (int)$vm['id'], $vm['vm_type'], 3600), -60);
 
     // Получаем информацию о ноде
     $node_info = [];
@@ -107,40 +84,4 @@ try {
 } catch (Exception $e) {
     error_log("Error in get_vm_details.php: " . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Ошибка сервера']);
-}
-
-// Функция для генерации демо-метрик
-function generateDemoMetrics($isLxc = false, $ram_mb = 1024, $disk_gb = 20) {
-    $metrics = [];
-    $now = new DateTime();
-    
-    // Преобразуем RAM в GB для демо-данных
-    $ram_gb = $ram_mb / 1024;
-    
-    for ($i = 59; $i >= 0; $i--) {
-        $timestamp = clone $now;
-        $timestamp->modify("-$i minutes");
-        
-        // Генерация реалистичных данных на основе характеристик ВМ
-        $cpu_usage = rand(5, 45) + rand(0, 100) / 100; // 5-45%
-        $mem_usage = rand($ram_gb * 0.2, $ram_gb * 0.8) + rand(0, 100) / 100; // 20-80% от доступной RAM
-        $mem_total = $ram_gb; // GB
-        $net_in = rand(0, 100) / 10; // Mbit/s
-        $net_out = rand(0, 80) / 10; // Mbit/s
-        $disk_read = rand(0, 50) / 10; // MB/s
-        $disk_write = rand(0, 30) / 10; // MB/s
-        
-        $metrics[] = [
-            'timestamp' => $timestamp->format('Y-m-d H:i:s'),
-            'cpu_usage' => (float)$cpu_usage,
-            'mem_usage' => (float)$mem_usage,
-            'mem_total' => (float)$mem_total,
-            'net_in' => (float)$net_in,
-            'net_out' => (float)$net_out,
-            'disk_read' => (float)$disk_read,
-            'disk_write' => (float)$disk_write
-        ];
-    }
-    
-    return $metrics;
 }

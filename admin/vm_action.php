@@ -11,9 +11,11 @@ if (!isAdmin()) {
     exit;
 }
 
-$action = $_GET['action'] ?? null;
-$nodeId = $_GET['node_id'] ?? null;
-$vmid = $_GET['vmid'] ?? null;
+requirePostCsrf();
+
+$action = $_POST['action'] ?? null;
+$nodeId = filter_var($_POST['node_id'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+$vmid = filter_var($_POST['vmid'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
 
 if (!$action || !$nodeId || !$vmid) {
     http_response_code(400);

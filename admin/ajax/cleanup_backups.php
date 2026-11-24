@@ -6,9 +6,7 @@ require_once __DIR__ . '/../../includes/backup_functions.php';
 header('Content-Type: application/json; charset=utf-8');
 try {
     $pdo = (new Database())->getConnection();
-    $query = $pdo->prepare('SELECT is_admin,is_active FROM users WHERE id=?');
-    $query->execute([(int)($_SESSION['user']['id'] ?? 0)]);
-    $user = $query->fetch(PDO::FETCH_ASSOC);
+    $user = currentSessionAccount($pdo);
     if (!$user || !$user['is_admin'] || !$user['is_active'] || $_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(403);
         throw new RuntimeException('Доступ запрещён');

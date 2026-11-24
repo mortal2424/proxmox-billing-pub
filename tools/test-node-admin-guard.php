@@ -12,10 +12,10 @@ final class GuardDatabase extends PDO{
 }
 $mode=$argv[2]??'get';$expected=in_array($mode,['get','valid-post'],true)?200:403;
 $_SERVER['REQUEST_METHOD']=str_contains($mode,'post')?'POST':'GET';
-session_start();$_SESSION=['user'=>['id'=>1,'is_admin'=>1],'node_csrf'=>str_repeat('a',64)];
+session_start();$_SESSION=['user'=>['auth_generation'=>1,'id'=>1,'is_admin'=>1],'node_csrf'=>str_repeat('a',64)];
 if($mode==='valid-post')$_POST['node_csrf']=str_repeat('a',64);
 if($mode==='bad-post')$_POST['node_csrf']='wrong';
 http_response_code(200);
 ob_start(function($output)use($mode,$expected){if(http_response_code()!==$expected){fwrite(STDERR,"FAIL $mode\n");return '';}return "PASS node guard $mode HTTP $expected\n";});
-requireNodeAdministrator(new GuardDatabase(['is_admin'=>$mode==='forged'?0:1,'is_active'=>$mode==='inactive'?0:1]));
+requireNodeAdministrator(new GuardDatabase(['auth_generation'=>1,'is_admin'=>$mode==='forged'?0:1,'is_active'=>$mode==='inactive'?0:1]));
 echo 'allowed';

@@ -1,6 +1,17 @@
 <?php
-// install/install.php
+// Enable the web installer only while initializing a private instance.
+if (getenv('HOMEVLAD_ENABLE_INSTALL') !== '1') {
+    http_response_code(404);
+    exit;
+}
+require_once __DIR__ . '/../includes/account_security_schema.php';
 session_start();
+$_SESSION['install_csrf'] ??= bin2hex(random_bytes(32));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
+    (!is_string($_POST['install_csrf'] ?? null) || !hash_equals($_SESSION['install_csrf'], $_POST['install_csrf']))) {
+    http_response_code(403);
+    exit('Invalid form session');
+}
 
 // Проверяем, установлена ли уже система
 if (file_exists('../includes/config.php')) {
@@ -327,7 +338,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             'telegram_chat_bot_name' => trim($_POST['telegram_chat_bot_name'] ?? 'Chat Bot'),
             // SMTP settings
             'smtp_host' => trim($_POST['smtp_host'] ?? ''),
-            'smtp_port' => trim($_POST['smtp_port'] ?? '465'),
+            'smtp_port' => filter_var($_POST['smtp_port'] ?? '465', FILTER_VALIDATE_INT, ['options'=>['min_range'=>1,'max_range'=>65535]]),
             'smtp_user' => trim($_POST['smtp_user'] ?? ''),
             'smtp_pass' => $_POST['smtp_pass'] ?? '',
             'smtp_from' => trim($_POST['smtp_from'] ?? ''),
@@ -352,7 +363,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             $errors[] = "Введите имя и фамилию администратора";
         }
 
-        if (empty($form_data['step4']['site_url'])) {
+        if ($form_data['step4']['smtp_port'] === false) $errors[] = 'Некорректный порт SMTP';
+        $site = parse_url($form_data['step4']['site_url']);
+        if (!filter_var($form_data['step4']['site_url'], FILTER_VALIDATE_URL) || ($site['scheme'] ?? '') !== 'https'
+            || empty($site['host']) || array_intersect(['user','pass','path','fragment','query'], array_keys($site))) {
             $errors[] = "Введите URL сайта";
         }
 
@@ -372,12 +386,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
         try {
             $db_config = $_SESSION['install_db'];
             $sys_config = $_SESSION['install_config'];
+            $sys_config['smtp_port'] = filter_var($sys_config['smtp_port'] ?? null, FILTER_VALIDATE_INT,
+                ['options'=>['min_range'=>1,'max_range'=>65535]]);
+            if ($sys_config['smtp_port'] === false) throw new RuntimeException('Некорректный порт SMTP');
 
             // 1. Создаем администратора
             try {
                 $dsn = "mysql:host={$db_config['db_host']};port={$db_config['db_port']};dbname={$db_config['db_name']};charset=utf8mb4";
                 $pdo = new PDO($dsn, $db_config['db_user'], $db_config['db_pass']);
                 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                if ((int) $pdo->query("SELECT GET_LOCK(CONCAT('homevlad:first-admin:',LEFT(SHA2(DATABASE(),256),32)),5)")->fetchColumn() !== 1) {
+                    throw new RuntimeException('Не удалось заблокировать установку');
+                }
+                $installLock = true;
+                if ((int) $pdo->query('SELECT COUNT(*) FROM users WHERE is_admin=1')->fetchColumn() !== 0) {
+                    throw new RuntimeException('Первый администратор уже существует');
+                }
+                migrateAccountSecurity($pdo);
+                $pdo->beginTransaction();
 
                 $hashed_password = password_hash($sys_config['admin_password'], PASSWORD_DEFAULT);
                 $verification_code = substr(md5(uniqid()), 0, 10);
@@ -478,6 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
             $config_template = file_get_contents('../includes/config.php.simple');
 
             $replacements = [
+                "define('HOMEVLAD_CANONICAL_URL', '')" => "define('HOMEVLAD_CANONICAL_URL', " . var_export($sys_config['site_url'], true) . ")",
                 'define(\'DB_HOST\', \'\')' => "define('DB_HOST', '" . addslashes($db_config['db_host']) . "')",
                 'define(\'DB_NAME\', \'\')' => "define('DB_NAME', '" . addslashes($db_config['db_name']) . "')",
                 'define(\'DB_USER\', \'\')' => "define('DB_USER', '" . addslashes($db_config['db_user']) . "')",
@@ -501,9 +528,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 $config_template
             );
 
-            // Создаем config.php
-            if (file_put_contents('../includes/config.php', $config_content) === false) {
-                throw new Exception("Не удалось создать файл includes/config.php");
+            $configFile = __DIR__ . '/../includes/config.php';
+            $configDraft = tempnam(dirname($configFile), '.install-');
+            if ($configDraft === false || !chmod($configDraft, 0600) ||
+                file_put_contents($configDraft, $config_content) !== strlen($config_content)) {
+                throw new RuntimeException('Не удалось подготовить конфигурацию');
             }
 
             // 3. Создаем необходимые директории
@@ -514,54 +543,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
                 }
             }
 
-            // 4. Создаем .htaccess
-            $htaccess_content = <<<HTACCESS
-# Запрет прямого доступа к файлам
-<FilesMatch "\.(sql|log|tpl|inc|bak|old|simple)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Запрет доступа к скрытым файлам
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Защита установочного файла
-<Files install.php>
-    Order allow,deny
-    Deny from all
-</Files>
-
-# Защита конфигурационных файлов
-<FilesMatch "config\.(php|php\.simple)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Запрет листинга директорий
-Options -Indexes
-
-# Базовые настройки
-AddDefaultCharset UTF-8
-
-# Перенаправление на index.php
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php?route=$1 [L,QSA]
-HTACCESS;
-
-            file_put_contents('../.htaccess', $htaccess_content);
-
             // 5. Создаем файл версии
             file_put_contents('../version.txt', date('Y-m-d H:i:s') . ' - Установка завершена');
 
+            if (!@link($configDraft, $configFile)) throw new RuntimeException('Конфигурация уже существует или недоступна');
+            $installedConfig = true;
+            $pdo->commit();
             $current_step = 6;
 
         } catch (Exception $e) {
-            $errors[] = "Ошибка при создании конфигурации: " . $e->getMessage();
+            if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+            if (!empty($installedConfig)) unlink($configFile);
+            error_log('Installer finalization failed: ' . $e::class);
+            $errors[] = 'Не удалось завершить установку.';
+        } finally {
+            if (!empty($configDraft) && is_file($configDraft)) unlink($configDraft);
+            if (!empty($installLock)) $pdo->query("SELECT RELEASE_LOCK(CONCAT('homevlad:first-admin:',LEFT(SHA2(DATABASE(),256),32)))");
         }
     }
 }
@@ -1198,7 +1195,7 @@ foreach ($requirements as $req) {
 
             <!-- Шаг 1: Проверка требований -->
             <?php if ($current_step == 1): ?>
-                <form method="POST">
+                <form method="POST"><input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <input type="hidden" name="step" value="1">
 
                     <h3 style="margin-bottom: 20px; color: var(--text-primary);">Проверка требований системы</h3>
@@ -1272,7 +1269,7 @@ foreach ($requirements as $req) {
 
             <!-- Шаг 2: Настройка базы данных -->
             <?php elseif ($current_step == 2): ?>
-                <form method="POST">
+                <form method="POST"><input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <input type="hidden" name="step" value="2">
 
                     <h3 style="margin-bottom: 20px; color: var(--text-primary);">Настройка базы данных</h3>
@@ -1372,7 +1369,7 @@ foreach ($requirements as $req) {
 
             <!-- Шаг 3: Импорт SQL -->
             <?php elseif ($current_step == 3): ?>
-                <form method="POST">
+                <form method="POST"><input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <input type="hidden" name="step" value="3">
 
                     <h3 style="margin-bottom: 20px; color: var(--text-primary);">Импорт структуры базы данных</h3>
@@ -1463,7 +1460,7 @@ foreach ($requirements as $req) {
 
             <!-- Шаг 4: Настройки системы -->
             <?php elseif ($current_step == 4): ?>
-                <form method="POST">
+                <form method="POST"><input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <input type="hidden" name="step" value="4">
 
                     <h3 style="margin-bottom: 20px; color: var(--text-primary);">Настройки системы</h3>
@@ -1734,7 +1731,7 @@ foreach ($requirements as $req) {
 
             <!-- Шаг 5: Конфигурация -->
             <?php elseif ($current_step == 5): ?>
-                <form method="POST">
+                <form method="POST"><input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <input type="hidden" name="step" value="5">
 
                     <h3 style="margin-bottom: 20px; color: var(--text-primary);">Создание конфигурации</h3>

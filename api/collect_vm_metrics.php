@@ -20,7 +20,7 @@ try {
     $pdo = $db->getConnection();
 
     // Получаем ВМ с сортировкой по ID
-    $stmt = $pdo->query("SELECT vm_id, node_id FROM vms WHERE vm_type = 'qemu' AND status = 'running' ORDER BY vm_id");
+    $stmt = $pdo->query("SELECT id, vm_id, node_id FROM vms WHERE vm_type = 'qemu' AND status = 'running' ORDER BY vm_id");
     $vms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($vms as $index => $vm) {
@@ -74,8 +74,8 @@ try {
 
             $insertStmt = $pdo->prepare("
                 INSERT INTO vm_metrics
-                (vm_id, timestamp, cpu_usage, mem_usage, mem_total, net_in, net_out, disk_read, disk_write)
-                VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?)
+                (guest_id, vm_id, timestamp, cpu_usage, mem_usage, mem_total, net_in, net_out, disk_read, disk_write)
+                VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                 cpu_usage = VALUES(cpu_usage),
                 mem_usage = VALUES(mem_usage),
@@ -86,7 +86,8 @@ try {
             ");
 
             $insertStmt->execute([
-                $vm['vm_id'],
+            $vm['id'],
+            $vm['vm_id'],
                 round($lastPoint['cpu'] * 100, 2),
                 round($lastPoint['mem'] / (1024 * 1024 * 1024), 2),
                 round($vmInfo['maxmem'] / (1024 * 1024 * 1024), 2),

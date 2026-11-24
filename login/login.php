@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/telegram_auth.php';
 $isSecureRequest = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 ini_set('session.use_strict_mode', '1');
 ini_set('session.use_only_cookies', '1');
@@ -42,45 +43,7 @@ function getTelegramBotData() {
 }
 
 // Функция для проверки Telegram авторизации
-function verifyTelegramAuthorization($auth_data) {
-    // Получаем данные бота из базы данных
-    $bot_data = getTelegramBotData();
 
-    if (!$bot_data || empty($bot_data['token'])) {
-        error_log("Telegram bot token is not available");
-        return false;
-    }
-
-    $bot_token = $bot_data['token'];
-    $check_hash = $auth_data['hash'];
-    unset($auth_data['hash']);
-
-    $data_check_arr = [];
-    foreach ($auth_data as $key => $value) {
-        if (!empty($value)) {
-            $data_check_arr[] = $key . '=' . $value;
-        }
-    }
-
-    sort($data_check_arr);
-    $data_check_string = implode("\n", $data_check_arr);
-
-    $secret_key = hash('sha256', $bot_token, true);
-    $hash = hash_hmac('sha256', $data_check_string, $secret_key);
-
-    if (!is_string($check_hash) || !hash_equals($hash, $check_hash)) {
-        error_log("Telegram hash verification failed");
-        return false;
-    }
-
-    $authTimestamp = filter_var($auth_data['auth_date'] ?? null, FILTER_VALIDATE_INT);
-    if ($authTimestamp === false || $authTimestamp > time() + 60 || (time() - $authTimestamp) > 86400) {
-        error_log("Telegram auth data expired");
-        return false;
-    }
-
-    return true;
-}
 
 // Получаем данные бота
 $bot_data = getTelegramBotData();
@@ -104,7 +67,7 @@ if (isset($_POST['auth_date'])) {
         ];
 
         // Проверяем подлинность данных Telegram
-        if (verifyTelegramAuthorization($telegram_data)) {
+        if (consumeTelegramAuthorization((new Database())->getConnection(), $telegram_data, $bot_token ?? '')) {
             try {
                 $db = new Database();
                 $stmt = $db->getConnection()->prepare("SELECT * FROM users WHERE telegram_id = ?");
@@ -116,9 +79,7 @@ if (isset($_POST['auth_date'])) {
                     if ($user['is_active'] == 0) {
                         $_SESSION['error'] = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
                     } else {
-                        session_regenerate_id(true);
-                        unset($user['password_hash']);
-                        $_SESSION['user'] = $user;
+                        openAccountSession($user);
                         header('Location: /templates/dashboard.php');
                         exit;
                     }

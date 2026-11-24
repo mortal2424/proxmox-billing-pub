@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/auth.php';
 
 const MOBILE_DEVICE_LOGIN_LIFETIME = 30 * 86400;
 
@@ -7,18 +8,24 @@ function mobileDeviceTokenHash(string $token): ?string
     return preg_match('/^[a-f0-9]{64}$/D', $token) ? hash('sha256', $token, true) : null;
 }
 
+function mobileAccountFingerprint(array $account): string
+{
+    return hash('sha256', $account['auth_generation'] . ':' . $account['password_hash'], true);
+}
+
 function issueMobileDeviceToken(PDO $pdo, int $userId): string
 {
-    $query = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? AND is_active = 1');
+    $query = $pdo->prepare('SELECT password_hash,auth_generation FROM users WHERE id = ? AND is_active = 1');
     $query->execute([$userId]);
-    $passwordHash = $query->fetchColumn();
-    if (!is_string($passwordHash)) throw new RuntimeException('Учётная запись недоступна');
+    $account = $query->fetch(PDO::FETCH_ASSOC);
+    if (!$account || (int) ($_SESSION['user']['id'] ?? 0) !== $userId ||
+        (string) ($_SESSION['user']['auth_generation'] ?? '') !== (string) $account['auth_generation']) throw new RuntimeException('Учётная запись недоступна');
 
     $token = bin2hex(random_bytes(32));
     $hash = mobileDeviceTokenHash($token);
     $query = $pdo->prepare('INSERT INTO mobile_device_tokens (token_hash, user_id, password_fingerprint, expires_at)
         VALUES (?, ?, ?, ?)');
-    $query->execute([$hash, $userId, hash('sha256', $passwordHash, true), time() + MOBILE_DEVICE_LOGIN_LIFETIME]);
+    $query->execute([$hash, $userId, mobileAccountFingerprint($account), time() + MOBILE_DEVICE_LOGIN_LIFETIME]);
     $_SESSION['mobile_device_token'] = bin2hex($hash);
     return $token;
 }
@@ -31,10 +38,10 @@ function resumeMobileDeviceLogin(PDO $pdo, string $token): bool
         JOIN users u ON u.id = t.user_id WHERE t.token_hash = ? AND t.expires_at > ? AND u.is_active = 1');
     $query->execute([$hash, time()]);
     $user = $query->fetch(PDO::FETCH_ASSOC);
-    if (!$user || !hash_equals($user['password_fingerprint'], hash('sha256', $user['password_hash'], true))) return false;
-    if (!session_regenerate_id(true)) throw new RuntimeException('Не удалось открыть сессию');
-    unset($user['password_hash'], $user['password_fingerprint'], $user['verification_code']);
-    $_SESSION = ['user' => $user, 'mobile_csrf' => bin2hex(random_bytes(32)), 'mobile_device_token' => bin2hex($hash)];
+    if (!$user || !hash_equals($user['password_fingerprint'], mobileAccountFingerprint($user))) return false;
+    openAccountSession($user);
+    $_SESSION['mobile_csrf'] = bin2hex(random_bytes(32));
+    $_SESSION['mobile_device_token'] = bin2hex($hash);
     return true;
 }
 

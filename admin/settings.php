@@ -121,6 +121,7 @@ $smtpSettings = safeQuery($pdo, "SELECT * FROM smtp_settings ORDER BY id DESC LI
 
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     try {
         // Обработка тарифов
         if (isset($_POST['add_tariff'])) {
@@ -1293,6 +1294,7 @@ require 'admin_header.php';
             </div>
             <div class="card-body">
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Токен бота</label>
@@ -1343,6 +1345,7 @@ require 'admin_header.php';
             </div>
             <div class="card-body">
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Токен бота</label>
@@ -1393,6 +1396,7 @@ require 'admin_header.php';
             </div>
             <div class="card-body">
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">SMTP сервер</label>
@@ -1469,6 +1473,7 @@ require 'admin_header.php';
             </div>
             <div class="card-body">
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <!-- Цены для QEMU (KVM) -->
                         <div class="form-group">
@@ -1539,6 +1544,7 @@ require 'admin_header.php';
                     <i class="fas fa-plus-circle"></i> Добавить новый тариф
                 </h4>
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Название тарифа*</label>
@@ -1695,6 +1701,7 @@ require 'admin_header.php';
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display:inline;">
+                                        <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                         <input type="hidden" name="id" value="<?= $tariff['id'] ?>">
                                         <button type="submit" name="delete_tariff" class="action-btn action-btn-delete"
                                                 onclick="return confirm('Удалить этот тариф?')">
@@ -1730,6 +1737,7 @@ require 'admin_header.php';
                     <i class="fas fa-plus-circle"></i> Добавить новую возможность
                 </h4>
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Заголовок*</label>
@@ -1790,6 +1798,7 @@ require 'admin_header.php';
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                     <input type="hidden" name="id" value="<?= $feature['id'] ?>">
                                     <button type="submit" name="delete_feature" class="action-btn action-btn-delete"
                                             onclick="return confirm('Удалить эту возможность?')">
@@ -1824,6 +1833,7 @@ require 'admin_header.php';
                     <i class="fas fa-plus-circle"></i> Добавить новую акцию
                 </h4>
                 <form method="POST" class="setting-form">
+                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Заголовок*</label>
@@ -1902,6 +1912,7 @@ require 'admin_header.php';
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                     <input type="hidden" name="id" value="<?= $promo['id'] ?>">
                                     <button type="submit" name="delete_promotion" class="action-btn action-btn-delete"
                                             onclick="return confirm('Удалить эту акцию?')">
@@ -2011,6 +2022,7 @@ require 'admin_header.php';
             <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
         </div>
         <form method="POST" action="settings.php" id="editTariffForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <input type="hidden" name="id" id="editTariffId">
             <input type="hidden" name="update_tariff" value="1">
 
@@ -2133,6 +2145,7 @@ require 'admin_header.php';
             <button class="modal-close" onclick="closeEditModal()">&times;</button>
         </div>
         <form method="POST" id="editFeatureForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <input type="hidden" name="id" id="editFeatureId">
             <input type="hidden" name="update_feature" value="1">
 
@@ -2178,6 +2191,7 @@ require 'admin_header.php';
             <button class="modal-close" onclick="closeEditModal()">&times;</button>
         </div>
         <form method="POST" id="editPromotionForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <input type="hidden" name="id" id="editPromotionId">
             <input type="hidden" name="update_promotion" value="1">
 
@@ -2233,6 +2247,7 @@ require 'admin_header.php';
             <button class="modal-close" onclick="closeEditModal()">&times;</button>
         </div>
         <form method="POST" id="editCustomForm">
+            <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
             <input type="hidden" name="id" id="editCustomId">
             <input type="hidden" name="update_custom_prices" value="1">
 
@@ -2432,6 +2447,7 @@ function testSmtpSettings() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': <?= json_encode(formCsrfToken()) ?>,
         },
         body: 'test_smtp=true'
     })
@@ -2463,6 +2479,7 @@ function testTelegramBot(botType) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': <?= json_encode(formCsrfToken()) ?>,
         },
         body: 'test_telegram=true&bot_type=' + botType
     })

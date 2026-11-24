@@ -40,6 +40,9 @@ require __DIR__ . '/admin_sidebar.php';
 ?>
 <main class="updates-main">
 <h1>Обновления</h1>
+<?php if (getenv('HOMEVLAD_IMMUTABLE_IMAGE') === '1'): ?>
+<p>Для установки обновления пересоберите Docker-образ и пересоздайте контейнер, сохранив тома.</p>
+<?php endif; ?>
 <p>Установлена версия <?= htmlspecialchars($currentVersion) ?></p>
 <?php if ($message): ?><p role="status"><?= htmlspecialchars($message) ?></p><?php endif; ?>
 <?php if ($error): ?><p role="alert"><?= htmlspecialchars($error) ?></p><?php endif; ?>
@@ -66,7 +69,7 @@ require __DIR__ . '/admin_sidebar.php';
 <h3>Требуется ручное слияние</h3>
 <ul><?php foreach ($conflicts as $file): ?><li><?= htmlspecialchars($file) ?></li><?php endforeach; ?></ul>
 <p>Сохраните свои изменения и перенесите в них изменения пакета. Затем выполните проверку повторно.</p>
-<?php elseif (homevladCompareVersions($manifest['version'], $currentVersion) > 0): ?>
+<?php elseif (getenv('HOMEVLAD_IMMUTABLE_IMAGE') !== '1' && homevladCompareVersions($manifest['version'], $currentVersion) > 0): ?>
 <form method="post">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['update_csrf']) ?>">
 <input type="hidden" name="version" value="<?= htmlspecialchars($manifest['version']) ?>">

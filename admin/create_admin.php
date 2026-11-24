@@ -1,21 +1,21 @@
 <?php
 require_once __DIR__ . '/../includes/license_guard.php';
+if (getenv('HOMEVLAD_ENABLE_INSTALL') !== '1') {
+    http_response_code(404);
+    exit;
+}
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 // Проверяем, есть ли уже администраторы
-$db = new Database();
-$pdo = $db->getConnection();
-
-$adminCount = 0;
 try {
-    $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE is_admin = 1");
-    $result = $stmt->fetch();
-    $adminCount = $result['count'] ?? 0;
-} catch (Exception $e) {
-    // Если таблица не существует, продолжаем
+    $pdo = (new Database())->getConnection();
+    $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM users WHERE is_admin=1')->fetchColumn();
+} catch (Throwable $error) {
+    http_response_code(503);
+    exit('Installer database unavailable');
 }
 
 // Если администраторы уже есть, перенаправляем на страницу входа
@@ -49,6 +49,7 @@ $formData = [];
 
 // Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     // Собираем данные формы
     $formData = [
         'email' => trim($_POST['email'] ?? ''),
@@ -118,6 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Если нет ошибок - сохраняем пользователя
     if (empty($errors)) {
         try {
+            if ((int) $pdo->query("SELECT GET_LOCK(CONCAT('homevlad:first-admin:',LEFT(SHA2(DATABASE(),256),32)),5)")->fetchColumn() !== 1) {
+                throw new RuntimeException('Не удалось заблокировать создание администратора');
+            }
+            $firstAdminLock = true;
+            if ((int) $pdo->query('SELECT COUNT(*) FROM users WHERE is_admin=1')->fetchColumn() !== 0) {
+                throw new DomainException('Первый администратор уже существует');
+            }
             homevladReserveLicense($pdo, ['users' => 1]);
             $pdo->beginTransaction();
 
@@ -201,7 +209,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            $errors[] = "Ошибка при сохранении: " . $e->getMessage();
+            $errors[] = 'Не удалось создать администратора.';
+        } finally {
+            if (!empty($firstAdminLock)) $pdo->query("SELECT RELEASE_LOCK(CONCAT('homevlad:first-admin:',LEFT(SHA2(DATABASE(),256),32)))");
         }
     }
 }
@@ -940,6 +950,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- Форма создания администратора -->
             <form method="POST" id="create-admin-form">
+                <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                 <!-- Заголовок формы -->
                 <div class="form-header">
                     <h2><i class="fas fa-user-shield"></i> Учетная запись администратора</h2>

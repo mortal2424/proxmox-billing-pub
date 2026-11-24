@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/version.php';
+require_once __DIR__ . '/update_signature.php';
 
 const HOMEVLAD_UPDATE_REPOSITORY = 'https://raw.githubusercontent.com/mortal2424/proxmox-billing-pub/';
 const HOMEVLAD_UPDATE_CATALOG_CACHE = __DIR__ . '/../backups/updates/catalog.json';
@@ -120,6 +121,13 @@ function releaseManifest(string $version): array
         $raw = fetchUpdateDocument("$commit/updates/$packageVersion/manifest.json");
         if (!hash_equals($hash, hash('sha256', $raw))) {
             throw new RuntimeException('Контрольная сумма манифеста не совпадает');
+        }
+        $keyPath = getenv('HOMEVLAD_UPDATE_PUBLIC_KEY');
+        if ($keyPath !== false && $keyPath !== '') {
+            $publicKey = @file_get_contents($keyPath, false, null, 0, 256);
+            if ($publicKey === false) throw new RuntimeException('Доверенный ключ обновлений недоступен');
+            $signature = fetchUpdateDocument("$commit/updates/$packageVersion/manifest.json.sig", 256);
+            verifyUpdateManifestSignature($raw, $signature, $publicKey);
         }
         $manifest = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
         if (($manifest['version'] ?? '') !== $packageVersion || ($manifest['format'] ?? null) !== 1) {

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
@@ -6,7 +7,7 @@ session_start();
 header('Content-Type: application/json');
 
 // Проверяем авторизацию (если нужно)
-if (!isset($_SESSION['user'])) {
+if (!isLoggedIn()) {
     echo json_encode(['error' => 'Не авторизован']);
     exit;
 }

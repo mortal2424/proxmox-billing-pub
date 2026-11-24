@@ -3,11 +3,7 @@ require_once __DIR__ . '/auth.php';
 
 function requireNodeAdministrator(PDO $pdo): void
 {
-    ensureSessionStarted();
-    $query = $pdo->prepare('SELECT is_admin,is_active FROM users WHERE id=?');
-    $query->execute([(int)($_SESSION['user']['id'] ?? 0)]);
-    $user = $query->fetch(PDO::FETCH_ASSOC);
-    if (!$user || !$user['is_admin'] || !$user['is_active']) {
+    if (empty(currentSessionAccount($pdo)['is_admin'])) {
         http_response_code(403); exit('Доступ запрещён');
     }
     $_SESSION['node_csrf'] ??= bin2hex(random_bytes(32));

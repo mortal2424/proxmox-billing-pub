@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/backup_ftps.php';
 session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -511,7 +512,7 @@ function downloadBackup() {
 }
 
 /**
- * Синхронизация с FTP
+ * Синхронизация с FTPS
  */
 function syncWithFTP() {
     global $backup_dir, $message, $message_type, $pdo, $user_id;
@@ -529,56 +530,24 @@ function syncWithFTP() {
     }
 
     $local_file = $backup_dir . basename($filename);
-    if (!file_exists($local_file)) {
+    if (!is_file($local_file) || is_link($local_file)) {
         $message = 'Локальный файл не найден';
         $message_type = 'error';
         return;
     }
 
     try {
-        $conn = ftp_connect($host);
-        if (!$conn) {
-            throw new Exception("Не удалось подключиться к FTP серверу");
-        }
+        transferBackupFtps($host, $username, $password, $remote_dir, $local_file);
 
-        if (!ftp_login($conn, $username, $password)) {
-            throw new Exception("Неверные учетные данные FTP");
-        }
-
-        ftp_pasv($conn, true);
-
-        $remote_path = rtrim($remote_dir, '/') . '/' . basename($filename);
-        $dir_path = dirname($remote_path);
-
-        if (!@ftp_chdir($conn, $dir_path)) {
-            $dirs = explode('/', trim($dir_path, '/'));
-            $current_path = '';
-            foreach ($dirs as $dir) {
-                $current_path .= '/' . $dir;
-                if (!@ftp_chdir($conn, $current_path)) {
-                    @ftp_mkdir($conn, $current_path);
-                    @ftp_chdir($conn, $current_path);
-                }
-            }
-        }
-
-        if (!ftp_put($conn, $remote_path, $local_file, FTP_BINARY)) {
-            throw new Exception("Ошибка при загрузке файла на FTP");
-        }
-
-        ftp_close($conn);
-
-        $message = "Бэкап успешно загружен на FTP сервер";
+        $message = "Бэкап успешно загружен на FTPS сервер";
         $message_type = 'success';
         logBackupAction($pdo, $user_id, 'ftp_upload', $filename, $host);
 
     } catch (Exception $e) {
-        $message = "Ошибка FTP: " . $e->getMessage();
+        $message = "Ошибка FTPS: " . $e->getMessage();
         $message_type = 'error';
 
-        if (isset($conn)) {
-            @ftp_close($conn);
-        }
+
     }
 }
 
@@ -1768,10 +1737,10 @@ require 'admin_header.php';
             </form>
         </div>
 
-        <!-- Форма синхронизации с FTP -->
+        <!-- Форма синхронизации с FTPS -->
         <div class="backup-form-section">
             <h3 class="section-title">
-                <i class="fas fa-cloud-upload-alt"></i> Синхронизация с FTP
+                <i class="fas fa-cloud-upload-alt"></i> Синхронизация с FTPS
             </h3>
 
             <form method="POST" action="?action=sync_ftp">
@@ -1789,7 +1758,7 @@ require 'admin_header.php';
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">FTP Хост *</label>
+                    <label class="form-label">FTPS Хост *</label>
                     <input type="text" name="ftp_host" class="form-input"
                            placeholder="ftp.example.com" required>
                 </div>
@@ -1814,7 +1783,7 @@ require 'admin_header.php';
 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-success">
-                        <i class="fas fa-upload"></i> Загрузить на FTP
+                        <i class="fas fa-upload"></i> Загрузить на FTPS
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="testFTPConnection()">
                         <i class="fas fa-plug"></i> Проверить подключение
@@ -2402,7 +2371,7 @@ function testFTPConnection() {
     // Убираем файл бэкапа из проверки
     formData.delete('backup_file');
 
-    showNotification('Проверка подключения к FTP...', 'info');
+    showNotification('Проверка подключения к FTPS...', 'info');
 
     fetch('/admin/ajax/test_ftp.php', {
         method: 'POST',
@@ -2411,7 +2380,7 @@ function testFTPConnection() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Подключение к FTP успешно установлено!', 'success');
+            showNotification('Подключение к FTPS успешно установлено!', 'success');
         } else {
             showNotification('Ошибка подключения: ' + data.error, 'error');
         }
@@ -2675,7 +2644,7 @@ function updateOperationsUI() {
                 break;
             case 'ftp_sync':
                 icon = 'fa-exchange-alt';
-                title = 'Синхронизация с FTP';
+                title = 'Синхронизация с FTPS';
                 break;
         }
 

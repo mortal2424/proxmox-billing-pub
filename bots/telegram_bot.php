@@ -301,9 +301,10 @@ class TelegramBot {
             FROM vms v
             JOIN users u ON u.id = v.user_id
             JOIN proxmox_nodes n ON n.id = v.node_id
-            WHERE u.telegram_id = ? AND u.is_active = 1 AND v.vm_id = ?
+            WHERE u.telegram_id = ? AND u.is_active = 1 AND v.vm_id = ? AND v.status<>'deleted' LIMIT 2
         ", [$chatId, $vmId]);
-        $vm = $stmt->fetch(PDO::FETCH_ASSOC);
+        $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $vm = count($matches) === 1 ? $matches[0] : null;
 
         if (!$vm) {
             throw new Exception("Виртуальная машина #{$vmId} не найдена или у вас нет к ней доступа");
@@ -323,7 +324,7 @@ class TelegramBot {
         );
 
         // Получаем метрики напрямую из Proxmox API
-        $rrdData = $proxmoxApi->getRRDData($vmId, 'hour');
+        $rrdData = $vm['vm_type'] === 'lxc' ? $proxmoxApi->getLxcRRDData($vmId, 'hour') : $proxmoxApi->getRRDData($vmId, 'hour');
 
         if (!$rrdData || !is_array($rrdData)) {
             throw new Exception("Не удалось получить метрики: пустой ответ от API");

@@ -4,7 +4,8 @@ require_once '../../includes/db.php';
 
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+require_once __DIR__ . '/../../includes/auth.php';
+if (!isAdmin()) {
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }

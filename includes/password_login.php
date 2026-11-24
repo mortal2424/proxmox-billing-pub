@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/auth.php';
 
 function completePasswordLogin(PDO $pdo, string $email, string $password): void
 {
@@ -11,9 +12,5 @@ function completePasswordLogin(PDO $pdo, string $email, string $password): void
     if (!$user['is_active']) {
         throw new RuntimeException('Ваш аккаунт деактивирован. Обратитесь к администратору');
     }
-    if (!session_regenerate_id(true)) throw new RuntimeException('Не удалось открыть сессию');
-    unset($user['password_hash'], $user['verification_code']);
-    $_SESSION['user'] = $user;
-    unset($_SESSION['captcha'], $_SESSION['captcha_question'], $_SESSION['login_error'],
-        $_SESSION['error'], $_SESSION['mobile_captcha_expires']);
+    openAccountSession($user);
 }

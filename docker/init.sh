@@ -45,11 +45,6 @@ else
     echo "ℹ️ Database already has tables, skipping import."
 fi
 
-if [ -f /var/www/html/composer.json ]; then
-    echo "📦 Installing Composer dependencies..."
-    cd /var/www/html && composer install --no-interaction --no-dev --optimize-autoloader
-fi
-
 CONFIG_FILE=/var/www/html/includes/config.php
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "⚙️ Generating includes/config.php from config.php.simple..."
@@ -62,7 +57,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
         -e "s|define('DB_PASS', '')|define('DB_PASS', '${DB_PASSWORD}')|" \
         -e "s|define('ENCRYPTION_KEY', '')|define('ENCRYPTION_KEY', '${ENCRYPTION_KEY}')|" \
         "$CONFIG_FILE"
-    chown www-data:www-data "$CONFIG_FILE"
+    chown root:www-data "$CONFIG_FILE"
+    chmod 0640 "$CONFIG_FILE"
     echo "✅ includes/config.php created."
 else
     echo "ℹ️ includes/config.php already exists, skipping generation."
@@ -72,5 +68,6 @@ php /var/www/html/cronjobs/create_cloud_image_settings.php
 php /var/www/html/cronjobs/create_guest_initial_passwords.php
 php /var/www/html/cronjobs/create_mobile_device_tokens.php
 php /var/www/html/tools/migrate-zone-access.php
+php /var/www/html/tools/migrate-account-security.php
 
 echo "✅ Init script finished."

@@ -7,7 +7,7 @@ $db = new Database();
 $pdo = $db->getConnection();
 
 // Получаем список всех активных LXC контейнеров
-$stmt = $pdo->query("SELECT vm_id, node_id FROM vms WHERE vm_type = 'lxc' AND status = 'running'");
+$stmt = $pdo->query("SELECT id, vm_id, node_id FROM vms WHERE vm_type = 'lxc' AND status = 'running'");
 $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 foreach ($containers as $container) {
@@ -39,11 +39,12 @@ foreach ($containers as $container) {
         // Вставляем данные в БД
         $insertStmt = $pdo->prepare("
             INSERT INTO lxc_metrics 
-            (vm_id, timestamp, cpu_usage, mem_usage, mem_total, net_in, net_out, disk_read, disk_write)
-            VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?)
+            (guest_id, vm_id, timestamp, cpu_usage, mem_usage, mem_total, net_in, net_out, disk_read, disk_write)
+            VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $insertStmt->execute([
+            $container['id'],
             $container['vm_id'],
             round($lastPoint['cpu'] * 100, 2),
             round($lastPoint['mem'] / (1024 * 1024 * 1024), 2),

@@ -2,6 +2,15 @@
 session_start();
 require_once '../includes/db.php';
 require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/password_reset.php';
+header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store');
+$_SESSION['reset_csrf'] ??= bin2hex(random_bytes(32));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
+    (!is_string($_POST['reset_csrf'] ?? null) || !hash_equals($_SESSION['reset_csrf'], $_POST['reset_csrf']))) {
+    http_response_code(403);
+    exit('Invalid form session');
+}
 
 $db = new Database();
 $pdo = $db->getConnection();
@@ -14,7 +23,7 @@ $token_valid = true;
 
 // Обработка первого шага (ввод email)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
-    $email = trim($_POST['email']);
+    $email = trim(is_string($_POST['email'] ?? null) ? $_POST['email'] : '');
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = "Некорректный email адрес!";
@@ -24,23 +33,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
         $stmt->execute([$email]);
 
         if ($stmt->fetch()) {
+            try {
+                $origin = canonicalPanelOrigin();
+            } catch (RuntimeException $error) {
+                error_log('Password reset canonical origin is missing or invalid');
+                http_response_code(503);
+                exit('Password reset is temporarily unavailable');
+            }
             // Генерируем токен для сброса пароля
             $token = bin2hex(random_bytes(32));
-            $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
             // Сохраняем токен в базе
             $stmt = $pdo->prepare("
-                INSERT INTO password_resets (email, token, expires_at)
-                VALUES (?, ?, ?)
+                INSERT INTO password_resets (email, token, token_digest, expires_at)
+                VALUES (?, '', ?, NOW() + INTERVAL 1 HOUR)
                 ON DUPLICATE KEY UPDATE
                     token = VALUES(token),
+                    token_digest = VALUES(token_digest),
                     expires_at = VALUES(expires_at)
             ");
-            $stmt->execute([$email, $token, $expires]);
+            $stmt->execute([$email, passwordResetDigest($token)]);
 
             // Отправляем email с ссылкой для сброса через PHPMailer
-            $reset_link = "https://" . $_SERVER['HTTP_HOST'] . "/login/reset-password.php?step=2&token=$token&email=" . urlencode($email);
+            $reset_link = $origin . '/login/reset-password.php?' . http_build_query(['step'=>2,'token'=>$token,'email'=>$email]);
 
+            $reset_link = htmlspecialchars($reset_link, ENT_QUOTES, 'UTF-8');
             $mail_subject = "Сброс пароля на HomeVlad Cloud";
             $mail_body = "
                 <!DOCTYPE html>
@@ -98,36 +115,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 1) {
 
 // Обработка второго шага (ввод нового пароля)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
-    $token = $_POST['token'];
-    $email = $_POST['email'];
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
+    $token = is_string($_POST['token'] ?? null) ? $_POST['token'] : '';
+    $email = is_string($_POST['email'] ?? null) ? $_POST['email'] : '';
+    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+    $confirm_password = is_string($_POST['confirm_password'] ?? null) ? $_POST['confirm_password'] : '';
 
     // Валидация пароля
-    if (strlen($password) < 8) {
-        $errors[] = "Пароль должен быть не менее 8 символов!";
+    if (strlen($password) < 8 || strlen($password) > 72 || str_contains($password, "\0")) {
+        $errors[] = "Пароль должен содержать не менее 8 символов и занимать не более 72 байт.";
     } elseif (!preg_match("/[A-Z]/", $password)) {
         $errors[] = "Пароль должен содержать хотя бы одну заглавную букву!";
     } elseif ($password !== $confirm_password) {
         $errors[] = "Пароли не совпадают!";
     } else {
-        // Проверяем токен
-        $stmt = $pdo->prepare("
-            SELECT email FROM password_resets
-            WHERE token = ? AND email = ? AND expires_at > NOW()
-        ");
-        $stmt->execute([$token, $email]);
-
-        if ($row = $stmt->fetch()) {
-            // Обновляем пароль
-            $password_hash = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
-            $stmt->execute([$password_hash, $email]);
-
-            // Удаляем использованный токен
-            $stmt = $pdo->prepare("DELETE FROM password_resets WHERE email = ?");
-            $stmt->execute([$email]);
-
+        if (consumePasswordReset($pdo, $email, $token, $password)) {
             $success = true;
         } else {
             $errors[] = "Недействительная или просроченная ссылка для сброса пароля.";
@@ -138,14 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2) {
 
 // Проверка токена при переходе по ссылке
 if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
-    $token = $_GET['token'];
-    $email = urldecode($_GET['email']);
+    $token = is_string($_GET['token']) ? $_GET['token'] : '';
+    $email = is_string($_GET['email']) ? $_GET['email'] : '';
 
     $stmt = $pdo->prepare("
         SELECT email, expires_at FROM password_resets
-        WHERE token = ? AND email = ? AND expires_at > NOW()
+        WHERE token_digest = ? AND email = ? AND expires_at > NOW()
     ");
-    $stmt->execute([$token, $email]);
+    $stmt->execute([passwordResetDigest($token), $email]);
 
     if (!$stmt->fetch()) {
         $token_valid = false;
@@ -1044,6 +1045,7 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
                 <!-- Шаг 1: Ввод email -->
                 <?php elseif ($step == 1): ?>
                     <form method="POST" action="reset-password.php" id="resetForm">
+                        <input type="hidden" name="reset_csrf" value="<?= htmlspecialchars($_SESSION['reset_csrf']) ?>">
                         <input type="hidden" name="step" value="1">
 
                         <div class="form-group">
@@ -1068,9 +1070,10 @@ if ($step === 2 && isset($_GET['token']) && isset($_GET['email'])) {
                 <!-- Шаг 2: Новый пароль -->
                 <?php elseif ($step == 2 && $token_valid): ?>
                     <form method="POST" action="reset-password.php?step=2" id="newPasswordForm">
+                        <input type="hidden" name="reset_csrf" value="<?= htmlspecialchars($_SESSION['reset_csrf']) ?>">
                         <input type="hidden" name="step" value="2">
-                        <input type="hidden" name="token" value="<?= htmlspecialchars($_GET['token'] ?? $_POST['token'] ?? '') ?>">
-                        <input type="hidden" name="email" value="<?= htmlspecialchars($_GET['email'] ?? $_POST['email'] ?? '') ?>">
+                        <input type="hidden" name="token" value="<?= htmlspecialchars($token ?? '') ?>">
+                        <input type="hidden" name="email" value="<?= htmlspecialchars($email ?? '') ?>">
 
                         <div class="form-group">
                             <label for="password" class="form-label">

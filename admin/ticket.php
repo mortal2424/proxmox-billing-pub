@@ -92,6 +92,7 @@ try {
 
 // Обработка POST-запросов (как в оригинале)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requirePostCsrf();
     try {
         $ticket_id = (int)$_POST['ticket_id'];
         $response = ['success' => false, 'message' => ''];
@@ -1856,6 +1857,7 @@ function initTicketForms() {
 // Отправка формы тикета
 function submitTicketForm(form) {
     const formData = new FormData(form);
+    formData.set('form_csrf', <?= json_encode(formCsrfToken()) ?>);
     const action = form.dataset.action;
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalContent = submitBtn.innerHTML;

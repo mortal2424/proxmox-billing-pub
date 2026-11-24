@@ -10,6 +10,16 @@ if ($lockHandle === false || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
+require_once __DIR__ . '/../includes/billing_guest_state.php';
+
+function billingGuestApi(PDO $pdo, int $nodeId): ProxmoxAPI
+{
+    $query = $pdo->prepare('SELECT * FROM proxmox_nodes WHERE id=? AND is_active=1');
+    $query->execute([$nodeId]);
+    $node = $query->fetch(PDO::FETCH_ASSOC);
+    if (!$node) throw new RuntimeException('Billing node unavailable');
+    return new ProxmoxAPI($node['hostname'],$node['username'],$node['password'],$node['ssh_port'] ?? 22,$node['node_name'],$nodeId,$pdo);
+}
 
 error_log("[".date('Y-m-d H:i:s')."] Starting cron_charge.php");
 
@@ -48,11 +58,18 @@ foreach ($vms as $vm) {
         
         $user_id = (int)$vm['user_id'];
         // Lock and read the current balance, not the stale value from the initial VM list.
-        $balanceStmt = $pdo->prepare('SELECT balance, bonus_balance FROM users WHERE id = ? FOR UPDATE');
+        $balanceStmt = $pdo->prepare('SELECT balance, bonus_balance, is_admin FROM users WHERE id = ? FOR UPDATE');
         $balanceStmt->execute([$user_id]);
         $currentUser = $balanceStmt->fetch(PDO::FETCH_ASSOC);
         if (!$currentUser) {
             throw new RuntimeException('Billing user not found: ' . $user_id);
+        }
+        $verifiedGuest = $pdo->prepare('SELECT id FROM vms
+            WHERE id=? AND user_id=? AND node_id=? AND vm_type=? AND vm_id=? AND status=? FOR UPDATE');
+        $verifiedGuest->execute([$vm['id'],$user_id,$vm['node_id'],$vm['vm_type'],$vm['vm_id'],$vm['status']]);
+        if (!$verifiedGuest->fetchColumn()) {
+            $pdo->rollBack();
+            continue;
         }
         $amount = 0;
         $metadata = [];
@@ -149,25 +166,12 @@ foreach ($vms as $vm) {
         }
         
         // 6. Проверяем, достаточно ли средств было списано
-        if ($remaining_amount > 0) {
-            // Если не хватило средств - приостанавливаем ВМ
-            $pdo->prepare("UPDATE vms SET status = 'suspended' WHERE vm_id = ?")
-                ->execute([$vm['vm_id']]);
-            
-            $vm_type_name = $vm['vm_type'] === 'lxc' ? 'контейнер' : 'ВМ';
-            
-            $pdo->prepare("
-                INSERT INTO notifications (user_id, title, message, is_read)
-                VALUES (?, ?, ?, 0)
-            ")->execute([
-                $user_id,
-                "{$vm_type_name} #{$vm['vm_id']} приостановлен",
-                "Недостаточно средств для {$vm_type_name} #{$vm['vm_id']}. Требуется: ".number_format($amount, 6)." ₽"
-            ]);
-            
-            // Приостанавливаем ВМ на гипервизоре
-            $proxmox = new ProxmoxFunctions($pdo);
-            $proxmox->suspendVM($vm['vm_id'], "Недостаточно средств на балансе");
+        if ($remaining_amount > 0 && !$currentUser['is_admin']) {
+            $api = billingGuestApi($pdo, (int) $vm['node_id']);
+            $api->stopGuestIfRunning((int) $vm['vm_id'], $vm['vm_type']);
+            updateBillingGuestState($pdo, (int)$vm['id'], 'Недостаточно средств на балансе');
+            $pdo->prepare('INSERT INTO notifications (user_id,title,message,is_read) VALUES (?,?,?,0)')
+                ->execute([$user_id, 'Гость приостановлен', "Недостаточно средств для гостя #{$vm['vm_id']}"]);
         } elseif ($vm['status'] == 'suspended') {
             // Если средств хватает, но ВМ приостановлена - возобновляем
             $balanceStmt = $pdo->prepare("SELECT balance, bonus_balance FROM users WHERE id = ?");
@@ -177,11 +181,9 @@ foreach ($vms as $vm) {
             $required_balance = $amount * 24; // Проверяем на сутки вперед
             
             if ($total_balance >= $required_balance) {
-                $pdo->prepare("UPDATE vms SET status = 'stopped' WHERE vm_id = ?")
-                    ->execute([$vm['vm_id']]);
-                
-                $proxmox = new ProxmoxFunctions($pdo);
-                $proxmox->unsuspendVM($vm['vm_id']);
+                $api = billingGuestApi($pdo, (int) $vm['node_id']);
+                $api->startBillingGuest((int) $vm['vm_id'], $vm['vm_type']);
+                updateBillingGuestState($pdo, (int)$vm['id'], null);
             }
         }
         

@@ -57,7 +57,10 @@ services:
     #  - .:/var/www/html
     environment:
       CONSOLE_ORIGIN: https://${DOMAIN}
+      HOMEVLAD_ENABLE_INSTALL: ${HOMEVLAD_ENABLE_INSTALL:-0}
+      HOMEVLAD_PUBLIC_URL: https://${DOMAIN}
       CONSOLE_BIND: 0.0.0.0
+      HOMEVLAD_UPDATE_PUBLIC_KEY: ${HOMEVLAD_UPDATE_PUBLIC_KEY:-}
       HOMEVLAD_LICENSE_CONFIG: ${HOMEVLAD_LICENSE_CONFIG:-}
       HOMEVLAD_CONSOLE_SETTINGS: /var/lib/homevlad-private/console/settings.json
       PROXMOX_CA_FILE: ${PROXMOX_CA_FILE:-}

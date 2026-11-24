@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/telegram_auth.php';
 require_once __DIR__ . '/../includes/license_guard.php';
 session_start();
 require_once '../includes/db.php';
@@ -52,42 +53,7 @@ $success = false;
 $telegram_data = [];
 
 // Функция для проверки Telegram авторизации
-function verifyTelegramAuthorization($auth_data) {
-    global $bot_token;
-    
-    if (!$bot_token) {
-        error_log("Telegram bot token is not available");
-        return false;
-    }
 
-    $check_hash = $auth_data['hash'];
-    unset($auth_data['hash']);
-
-    $data_check_arr = [];
-    foreach ($auth_data as $key => $value) {
-        if (!empty($value)) {
-            $data_check_arr[] = $key . '=' . $value;
-        }
-    }
-
-    sort($data_check_arr);
-    $data_check_string = implode("\n", $data_check_arr);
-
-    $secret_key = hash('sha256', $bot_token, true);
-    $hash = hash_hmac('sha256', $data_check_string, $secret_key);
-
-    if (strcmp($hash, $check_hash) !== 0) {
-        error_log("Telegram hash verification failed");
-        return false;
-    }
-
-    if ((time() - $auth_data['auth_date']) > 86400) {
-        error_log("Telegram auth data expired");
-        return false;
-    }
-
-    return true;
-}
 
 // Функция для отправки сообщения в Telegram
 function sendTelegramMessage($chat_id, $message) {
@@ -120,8 +86,10 @@ function sendTelegramMessage($chat_id, $message) {
     return $result !== false;
 }
 
+if (($_SESSION['telegram_registration_until'] ?? 0) < time()) unset($_SESSION['telegram_data']);
+
 // Обработка данных из Telegram Widget
-if (isset($_POST['auth_date'])) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['auth_date'])) {
     $telegram_data = [
         'id' => $_POST['id'],
         'first_name' => $_POST['first_name'] ?? '',
@@ -133,7 +101,7 @@ if (isset($_POST['auth_date'])) {
     ];
 
     // Проверяем подлинность данных Telegram
-    if (verifyTelegramAuthorization($telegram_data)) {
+    if (consumeTelegramAuthorization($db->getConnection(), $telegram_data, $bot_token ?? '')) {
         // Проверяем, не зарегистрирован ли уже этот Telegram аккаунт
         $stmt = $db->getConnection()->prepare("SELECT id FROM users WHERE telegram_id = ?");
         $stmt->execute([$telegram_data['id']]);
@@ -142,7 +110,9 @@ if (isset($_POST['auth_date'])) {
             $errors[] = "Этот Telegram аккаунт уже привязан к другому пользователю!";
         } else {
             // Если проверка прошла, переходим сразу к шагу 2
+            session_regenerate_id(true);
             $_SESSION['telegram_data'] = $telegram_data;
+            $_SESSION['telegram_registration_until'] = time() + 900;
             $current_step = 2;
         }
     } else {

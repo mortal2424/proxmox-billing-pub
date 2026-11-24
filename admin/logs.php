@@ -29,7 +29,8 @@ if (!$user || !$user['is_admin']) {
 $root_dir = realpath(__DIR__ . '/../../');
 $logs_dir = $root_dir . '../logs/';
 
-$current_file = $_GET['file'] ?? '';
+$requestedFile = $_POST['file'] ?? $_GET['file'] ?? '';
+$current_file = is_string($requestedFile) ? basename($requestedFile) : '';
 
 // Если папка logs не существует, создаем ее
 if (!file_exists($logs_dir)) {
@@ -60,7 +61,8 @@ if (is_dir($logs_dir)) {
 }
 
 // Обработка действий
-$action = $_GET['action'] ?? '';
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+if (in_array($action, ['delete','clear'], true)) requirePostCsrf();
 $message = '';
 $message_type = '';
 
@@ -1597,7 +1599,7 @@ function setupAutoRefresh() {
 
 // Функции для работы с логами
 function refreshLogs() {
-    const currentFile = '<?= $current_file ?>';
+    const currentFile = <?= json_encode($current_file, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     if (!currentFile) return;
 
     const loadingOverlay = document.getElementById('loadingOverlay');
@@ -1693,32 +1695,46 @@ function toggleWrap() {
     }
 }
 
+function submitLogAction(action, file) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    for (const [name, value] of Object.entries({action, file, form_csrf: <?= json_encode(formCsrfToken()) ?>})) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.append(input);
+    }
+    document.body.append(form);
+    form.submit();
+}
+
 function clearLogFile() {
-    const currentFile = '<?= $current_file ?>';
+    const currentFile = <?= json_encode($current_file, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     if (!currentFile) {
         showNotification('Файл не выбран', 'error');
         return;
     }
 
     if (confirm('Вы уверены, что хотите очистить файл "' + currentFile + '"?\nЭто действие нельзя отменить.')) {
-        window.location.href = '?action=clear&file=' + encodeURIComponent(currentFile);
+        submitLogAction('clear', currentFile);
     }
 }
 
 function deleteLogFile() {
-    const currentFile = '<?= $current_file ?>';
+    const currentFile = <?= json_encode($current_file, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     if (!currentFile) {
         showNotification('Файл не выбран', 'error');
         return;
     }
 
     if (confirm('Вы уверены, что хотите удалить файл "' + currentFile + '"?\nЭто действие нельзя отменить.')) {
-        window.location.href = '?action=delete&file=' + encodeURIComponent(currentFile);
+        submitLogAction('delete', currentFile);
     }
 }
 
 function exportLogs() {
-    const currentFile = '<?= $current_file ?>';
+    const currentFile = <?= json_encode($current_file, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     if (!currentFile) {
         showNotification('Файл не выбран', 'error');
         return;
@@ -1742,6 +1758,7 @@ function compressOldLogs() {
         fetch('/admin/ajax/compress_logs.php', {
             method: 'POST',
             headers: {
+                'X-CSRF-Token': <?= json_encode(formCsrfToken()) ?>,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -1770,6 +1787,7 @@ function deleteOldLogs() {
         fetch('/admin/ajax/delete_old_logs.php', {
             method: 'POST',
             headers: {
+                'X-CSRF-Token': <?= json_encode(formCsrfToken()) ?>,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({

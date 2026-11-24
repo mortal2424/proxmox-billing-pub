@@ -1,5 +1,9 @@
 RewriteEngine On
-RewriteRule ^(?:backups|admin/backups|logs|bots/logs|uploads/tickets)(?:/|$) - [F,NC]
+RewriteRule ^(?:admin/(?:test(?:/|$)|(?:node_monitor|metrics_debug|backup_debug)\.php(?:/|$))|test_[^/]*\.php(?:/|$)) - [F,NC]
+RewriteRule ^(?:backups|admin/backups|logs|bots/logs|cache|temp|uploads/tickets)(?:/|$) - [F,NC]
+RewriteRule ^(?:tools/test-[^/]*|api/test_telegram\.php)(?:/|$) - [F,NC]
+RewriteRule ^templates/vm_metrics\.php(?:/|$) - [F,NC]
+RewriteRule ^\.docker-private(?:/|$) - [F,NC]
 RewriteRule ^(?:\.git|\.env)(?:[./]|$) - [F,NC]
 RewriteRule \.(?:sql|log|ini|simple|bak|old)$ - [F,NC]
 RewriteRule ^uploads/.*\.(?:php[0-9]*|phtml|phar)(?:[./]|$) - [F,NC]
