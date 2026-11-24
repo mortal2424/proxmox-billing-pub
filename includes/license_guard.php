@@ -24,9 +24,26 @@ function homevladLicenseConfig(): ?array
                 throw new UnexpectedValueException('Incomplete licensing configuration');
             }
         }
+        if (!filter_var($config['domain'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
+            throw new UnexpectedValueException('Invalid licensing domain');
+        }
         $trusted = $config['public_key'] ?? null;
-        if ((!is_string($trusted) || $trusted === '') && (!is_array($trusted) || $trusted === [])) {
+        $keys = is_string($trusted) ? ['legacy' => $trusted] : $trusted;
+        if (!is_array($keys) || $keys === []) {
             throw new UnexpectedValueException('Missing trusted signing key');
+        }
+        foreach ($keys as $kid => $key) {
+            $decoded = is_string($key) && preg_match('/^[A-Za-z0-9_-]{43}$/D', $key)
+                ? base64_decode(strtr($key, '-_', '+/'), true) : false;
+            if ($decoded === false || ($kid !== 'legacy' && $kid !== hash('sha256', $decoded))) {
+                throw new UnexpectedValueException('Invalid trusted signing key');
+            }
+        }
+        if (isset($config['key_file']) &&
+            (!is_string($config['key_file']) || $config['key_file'] === '' ||
+                !filter_var($config['source_ip'] ?? '', FILTER_VALIDATE_IP) ||
+                !is_string($config['nonce'] ?? null) || !preg_match('/^[a-f0-9]{64}$/D', $config['nonce']))) {
+            throw new UnexpectedValueException('Invalid installation identity');
         }
         if (!is_readable($config['client'])) {
             throw new UnexpectedValueException('Licensing client unavailable');

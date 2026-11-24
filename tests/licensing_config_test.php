@@ -25,7 +25,10 @@ try {
     file_put_contents($path, '<?php return [;');
     $expectFailure();
     $config = ['client' => __FILE__, 'domain' => 'test.example.com', 'cache' => $path . '.cache',
-        'public_key' => 'test-public-key'];
+        'public_key' => str_repeat('A', 43), 'nonce' => str_repeat('0', 64),
+        'source_ip' => '192.0.2.3', 'key_file' => $path . '.key'];
+    file_put_contents($path, '<?php return ' . var_export(array_replace($config, ['public_key' => 'bad']), true) . ';');
+    $expectFailure();
     file_put_contents($path, '<?php return ' . var_export($config, true) . ';');
     if (homevladLicenseConfig() !== $config) throw new RuntimeException('Valid configuration was rejected');
 } finally {
