@@ -33,7 +33,6 @@ switch ($argv[1] ?? '') {
         $pdo->exec('CREATE TABLE homevlad_backup_smoke (id INT PRIMARY KEY, message TEXT, binary_data BLOB)
             ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $pdo->prepare('INSERT INTO homevlad_backup_smoke VALUES (1,?,?)')->execute(['до копии 🌤', "\x00\xff"]);
-        file_put_contents($root . '/static/backup-smoke.txt','site-before');
         file_put_contents($root . '/uploads/backup-smoke.txt','upload-before');
         break;
     case 'session':
@@ -62,7 +61,6 @@ switch ($argv[1] ?? '') {
     case 'change':
         $pdo->exec("UPDATE homevlad_backup_smoke SET message='after', binary_data=X'0080'");
         $pdo->exec('CREATE TABLE IF NOT EXISTS homevlad_backup_smoke_extra (id INT PRIMARY KEY)');
-        file_put_contents($root . '/static/backup-smoke.txt','site-after');
         file_put_contents($root . '/uploads/backup-smoke.txt','upload-after');
         break;
     case 'verify':
@@ -73,10 +71,10 @@ switch ($argv[1] ?? '') {
             'Database content or binary bytes differ');
         $extra = $pdo->query("SHOW TABLES LIKE 'homevlad_backup_smoke_extra'")->fetchColumn();
         requireSmoke((bool)$extra !== $dbRestored, 'Unexpected extra table state');
-        foreach (['static'=>'site','uploads'=>'upload'] as $dir=>$label) {
-            requireSmoke(file_get_contents("$root/$dir/backup-smoke.txt") === $label . ($filesRestored ? '-before' : '-after'),
-                "$label file differs");
-        }
+        requireSmoke(file_get_contents("$root/static/backup-smoke.txt") === 'site-after',
+            'Image file changed during data restore');
+        requireSmoke(file_get_contents("$root/uploads/backup-smoke.txt") === ($filesRestored ? 'upload-before' : 'upload-after'),
+            'Uploaded fixture differs');
         requireSmoke(!is_file($root.'/backups/restore/recovery.json'), 'Restore journal remains');
         echo "Verified DB {$argv[2]}, files {$argv[3]}\n";
         break;
