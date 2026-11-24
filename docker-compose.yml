@@ -50,10 +50,14 @@ services:
       - ./logs:/var/www/html/logs
       - ./backups:/var/www/html/backups
       - ./backups/archives:/var/www/html/admin/backups
+      - ${HOMEVLAD_LICENSE_DIR:-./.docker-private/license}:/run/homevlad-license:ro
+      - homevlad-license-state:/var/lib/homevlad-license
       - ./docker/proxmox-tls:/etc/proxmox-tls:ro
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
     #  - .:/var/www/html
     environment:
+      HOMEVLAD_LICENSE_REQUIRED: ${HOMEVLAD_LICENSE_REQUIRED:-0}
+      HOMEVLAD_LICENSE_CONFIG: ${HOMEVLAD_LICENSE_CONFIG:-}
       CONSOLE_ORIGIN: https://${DOMAIN}
       CONSOLE_BIND: 0.0.0.0
       PROXMOX_CA_FILE: ${PROXMOX_CA_FILE:-}
@@ -110,6 +114,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  homevlad-license-state:
   db_data:
   ssl-certs:
 

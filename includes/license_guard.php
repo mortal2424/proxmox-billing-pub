@@ -13,13 +13,28 @@ function homevladLicenseConfig(): ?array
     if (!$path && basename(dirname(__DIR__, 2)) === 'dev.homevlad.ru') {
         $path = dirname(__DIR__, 4) . '/tmp/homevlad-dev-license/config.php';
     }
-    if (!$path) {
-        return null;
+    if (!$path && getenv('HOMEVLAD_LICENSE_REQUIRED') !== '1') return null;
+    if (!$path || !is_file($path)) {
+        throw new DomainException('Настройки лицензии недоступны.');
     }
-    if (!is_file($path)) {
-        throw new RuntimeException('Настройки лицензии недоступны.');
+    try {
+        $config = require $path;
+        foreach (['client', 'domain', 'cache'] as $field) {
+            if (!is_string($config[$field] ?? null) || trim($config[$field]) === '') {
+                throw new UnexpectedValueException('Incomplete licensing configuration');
+            }
+        }
+        $trusted = $config['public_key'] ?? null;
+        if ((!is_string($trusted) || $trusted === '') && (!is_array($trusted) || $trusted === [])) {
+            throw new UnexpectedValueException('Missing trusted signing key');
+        }
+        if (!is_readable($config['client'])) {
+            throw new UnexpectedValueException('Licensing client unavailable');
+        }
+        return $config;
+    } catch (Throwable $error) {
+        throw new DomainException('Настройки лицензии недоступны.', 0, $error);
     }
-    return require $path;
 }
 
 function homevladLicenseUsage(PDO $pdo): array
@@ -73,7 +88,7 @@ function homevladLicenseMode(array $config, array $usage, bool $force = false): 
 {
     require_once $config['client'];
     [$key] = homevladLicenseCredentials($config);
-    if ($key !== '') {
+    if ($key !== '' || (isset($config['key_file']) && is_file($config['key_file']))) {
         try {
             return ['mode'=>'licensed', 'claims'=>homevladLicenseLease($config, $usage, $force)];
         } catch (DomainException $error) {
