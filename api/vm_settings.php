@@ -129,16 +129,10 @@ switch ($action) {
                 }
             }
 
-            $node_networks = $proxmox->getNodeNetworks();
-            $sdn_networks = $proxmox->getSDNNetworks();
-
-            // Формируем список доступных сетей с учетом SDN
-            $available_networks = array_map(fn($network)=>is_array($network)?$network:['name'=>(string)$network],$node_networks);
-            foreach ($sdn_networks as $sdn_net) {
-                $available_networks[] = [
-                    'name' => $sdn_net['name'],
-                    'alias' => $sdn_net['alias'] ?? ''
-                ];
+            $pools = $proxmox->guestNetworkPoolOptions();
+            $available_networks = [];
+            foreach ($pools as $pool => $bridge) {
+                $available_networks[] = ['name' => (string)$pool, 'alias' => $bridge];
             }
 
             $result = [
@@ -151,7 +145,7 @@ switch ($action) {
                         'alias' => $net['alias'] ?? null
                     ];
                 }, $networks),
-                'availableNetworks' => array_values(array_filter($available_networks,fn($network)=>in_array($network['name'],array_filter([$vm['network'],basename((string)($vm['sdn']??''))]),true)))
+                'availableNetworks' => $available_networks
             ];
         } catch (Exception $e) {
             $result = ['networks' => [], 'availableNetworks' => [], 'error' => $e->getMessage()];

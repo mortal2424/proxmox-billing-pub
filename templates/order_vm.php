@@ -1122,6 +1122,22 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
         transform: translateY(0);
     }
 }
+
+.order-details-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+.order-details-grid > .form-section { grid-column: span 2; margin: 0; min-width: 0; }
+.order-details-grid > .form-section:nth-child(n+4) { grid-column: span 3; }
+@media (max-width: 850px) {
+    .order-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .order-details-grid > .form-section:nth-child(n) { grid-column: span 1; }
+}
+@media (max-width: 580px) {
+    .order-details-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
     </style>
 </head>
 <body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
@@ -1415,6 +1431,7 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                     </div>
                 </div>
 
+                <div class="order-details-grid">
                 <!-- 2. Выбор ноды -->
                 <div class="form-section">
                     <h3><i class="fas fa-server"></i> 2. Выберите зону доступности</h3>
@@ -1552,6 +1569,8 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                             <small class="text-muted">Оставьте оба поля пустыми для автоматической генерации. Собственный пароль в карточке не сохраняется.</small>
                         </div>
                     </details>
+                </div>
+
                 </div>
 
                 <!-- Предупреждение о квотах -->

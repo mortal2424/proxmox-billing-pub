@@ -343,16 +343,8 @@ function formatFileSizee($size) {
 }
 
 $title = "Управление образами | HomeVlad Cloud";
+ob_start();
 ?>
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" href="../img/cloud.png" type="image/png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/css/themes.css">
@@ -1023,10 +1015,10 @@ $title = "Управление образами | HomeVlad Cloud";
         .cloud-image-actions button { margin: 0; }
         .cloud-image-file { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-block: .55rem; overflow-wrap: anywhere; }
     </style>
-</head>
-<body>
-
-     <?php include 'admin_header.php'; ?>
+<?php
+$adminHeadContent = ob_get_clean();
+require __DIR__ . '/admin_header.php';
+?>
     <!-- Кнопка мобильного меню -->
     <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">
         <i class="fas fa-bars"></i>
@@ -1107,6 +1099,8 @@ $title = "Управление образами | HomeVlad Cloud";
                 <section class="card">
                     <h3><i class="fas fa-cloud"></i> Cloud-образы QEMU</h3>
                     <p>Выберите образ из каталога издателей. Импорт выполняется в фоне. При смене хранилища старый источник доступен заказам до завершения загрузки.</p>
+                    <p><a class="btn-update" href="?node_id=<?= (int)$current_node_id ?>&amp;type=cloud">Обновить из хранилища Import</a></p>
+                    <p>Для готового QCOW2 загрузите файл в Import через Proxmox. Используйте имя формата <code>homevlad-&lt;ключ&gt;-&lt;диск-ГиБ&gt;g-&lt;12-hex&gt;.qcow2</code>. Ключи перечислены в карточках ниже.</p>
                     <?php if (!$cloudStores): ?>
                         <p class="notification notification-warning">На ноде нет активного хранилища с типом Import.</p>
                     <?php endif ?>
@@ -1125,7 +1119,7 @@ $title = "Управление образами | HomeVlad Cloud";
                             <summary><strong><?= htmlspecialchars($label === '' ? $cloud['label'] : $label) ?></strong>
                                 · <?= $published ? 'В каталоге заказов' : 'Скрыт или отсутствует' ?>
                             </summary>
-                            <p><?= htmlspecialchars($cloud['label']) ?> · пользователь <code><?= htmlspecialchars($cloud['user']) ?></code>
+                            <p><?= htmlspecialchars($cloud['label']) ?> · ключ <code><?= htmlspecialchars($key) ?></code> · пользователь <code><?= htmlspecialchars($cloud['user']) ?></code>
                                 <?php if ($source !== ''): ?> · источник <code><?= htmlspecialchars($source) ?></code><?php endif ?>
                             </p>
                             <?php if (!empty($setting['pending_storage'])): ?>
@@ -1157,6 +1151,23 @@ $title = "Управление образами | HomeVlad Cloud";
                                     <?php endif ?>
                                 </div>
                             </form>
+                            <?php if ($cloudStores): ?>
+                                <form class="cloud-image-form" method="post" action="cloud_image_action.php" enctype="multipart/form-data">
+                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                    <label>Хранилище Import
+                                        <select class="form-control" name="storage" required>
+                                            <option value="">Выберите хранилище</option>
+                                            <?php foreach ($cloudStores as $store): ?>
+                                                <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
+                                            <?php endforeach ?>
+                                        </select>
+                                    </label>
+                                    <label>Готовый файл QCOW2 <input type="file" name="image_file" accept=".qcow2" required></label>
+                                    <button class="btn-update" name="action" value="upload">Загрузить образ</button>
+                                </form>
+                            <?php endif ?>
                             <?php foreach ($files as $file): ?>
                                 <?php $store = explode(':', $file['volid'], 2)[0]; ?>
                                 <form class="cloud-image-file" method="post" action="cloud_image_action.php">

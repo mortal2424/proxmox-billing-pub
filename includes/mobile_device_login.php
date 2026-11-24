@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/account_totp.php';
 
 const MOBILE_DEVICE_LOGIN_LIFETIME = 30 * 86400;
 
@@ -39,6 +40,7 @@ function resumeMobileDeviceLogin(PDO $pdo, string $token): bool
     $query->execute([$hash, time()]);
     $user = $query->fetch(PDO::FETCH_ASSOC);
     if (!$user || !hash_equals($user['password_fingerprint'], mobileAccountFingerprint($user))) return false;
+    if (accountTotpRow($pdo, (int)$user['id']) !== null) return false;
     openAccountSession($user);
     $_SESSION['mobile_csrf'] = bin2hex(random_bytes(32));
     $_SESSION['mobile_device_token'] = bin2hex($hash);

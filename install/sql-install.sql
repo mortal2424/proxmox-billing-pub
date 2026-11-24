@@ -1950,3 +1950,12 @@ CREATE TABLE IF NOT EXISTS `mobile_device_tokens` (
   `expires_at` bigint NOT NULL,
   KEY `mobile_device_expiry` (`expires_at`)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS account_totp (
+    user_id INT NOT NULL PRIMARY KEY,
+    secret_box VARCHAR(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    last_step BIGINT NOT NULL DEFAULT -1,
+    attempt_window BIGINT NOT NULL DEFAULT 0,
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

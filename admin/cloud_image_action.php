@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/node_admin_guard.php';
 require_once __DIR__ . '/../includes/zone_placement.php';
+require_once __DIR__ . '/../includes/cloud_image_import.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -20,7 +21,7 @@ $volume = $_POST['volume'] ?? '';
 
 try {
     if (!$nodeId || !is_string($key) || !isset(cloudImageCatalog()[$key]) ||
-        !in_array($action, ['rename', 'import', 'hide', 'delete_file'], true)) {
+        !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload'], true)) {
         throw new InvalidArgumentException('Неизвестный cloud-образ или действие');
     }
     if (!is_string($label) || mb_strlen(trim($label)) > 100 || preg_match('/[[:cntrl:]]/u', $label)) {
@@ -31,7 +32,17 @@ try {
     $node = $query->fetch();
     if (!$node) throw new InvalidArgumentException('Активная нода не найдена');
 
-    if ($action === 'hide') {
+    if ($action === 'upload') {
+        $file = $_FILES['image_file'] ?? null;
+        if (!is_string($storage) || !is_array($file) || ($file['error'] ?? null) !== UPLOAD_ERR_OK ||
+            !is_string($file['tmp_name'] ?? null) || !is_uploaded_file($file['tmp_name']) ||
+            ($file['size'] ?? 0) < 104 || $file['size'] > 4 * 1024 * 1024 * 1024) {
+            throw new InvalidArgumentException('Выберите готовый QCOW2 размером до 4 ГиБ и хранилище Import');
+        }
+        set_time_limit(3600);
+        uploadPreparedCloudImage($node, $storage, $key, $file['tmp_name']);
+        $message = 'Образ загружен. Выберите то же хранилище и нажмите «Добавить в каталог».';
+    } elseif ($action === 'hide') {
         $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,enabled) VALUES (?,?,0)
             ON DUPLICATE KEY UPDATE enabled=0,pending_storage=NULL,pending_id=NULL,import_error=NULL');
         $query->execute([$nodeId, $key]);

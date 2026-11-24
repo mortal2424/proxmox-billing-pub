@@ -16,6 +16,7 @@ final class FixtureGuestTransport
     public function requestAndWait(string $method,string $path,array $parameters=[],int $timeout=180):mixed
     {
         $this->calls[]=[$method,$path,$parameters];
+        if($path==='/nodes/node2/network' && $method==='GET')return [['iface'=>'vmbr0','type'=>'bridge','active'=>1],['iface'=>'management','type'=>'bridge','active'=>1]];
         if($path==='/nodes/node2/qemu'&&$method==='GET')return $this->destroyed?[]:[['vmid'=>120]];
         if($path==='/nodes/node2/qemu/120/config'&&$method==='GET')return $this->config;
         if($path==='/nodes/node2/qemu/120/status/current'&&$method==='GET')return ['status'=>'stopped'];
@@ -39,6 +40,8 @@ try{
  $pdo->exec('CREATE TEMPORARY TABLE user_quotas(user_id INT PRIMARY KEY,max_cpu INT,max_ram INT,max_disk INT)');
  $pdo->exec('CREATE TEMPORARY TABLE tariffs(id INT PRIMARY KEY,cpu INT,ram INT,disk INT,is_active INT,is_custom INT,vm_type VARCHAR(10),os_type VARCHAR(10))');
  $pdo->exec("CREATE TEMPORARY TABLE vms(id INT PRIMARY KEY,node_id INT,vm_id INT,vm_type VARCHAR(10),user_id INT,cpu INT,ram INT,disk INT,tariff_id INT,is_custom INT,os_type VARCHAR(10),status VARCHAR(20),network VARCHAR(20),sdn VARCHAR(20),INDEX(vm_id)) ENGINE=InnoDB");
+ $pdo->exec("CREATE TEMPORARY TABLE node_placement_pools(node_id INT,kind VARCHAR(12),pool_name VARCHAR(30),resource VARCHAR(30))");
+ $pdo->exec("INSERT INTO node_placement_pools VALUES (1,'network','public','vmbr0'),(4,'network','private','management')");
  $pdo->exec('INSERT INTO users VALUES(100,0,1)');$pdo->exec('INSERT INTO user_quotas VALUES(100,8,2048,20)');
  $pdo->exec("INSERT INTO vms VALUES(1001,1,120,'qemu',100,1,128,1,0,1,'linux','stopped','vmbr0',NULL),(1004,4,120,'qemu',100,1,128,1,0,1,'linux','stopped','vmbr0',NULL)");
  $reflection=new ReflectionClass(ProxmoxAPI::class);$api=$reflection->newInstanceWithoutConstructor();$transport=new FixtureGuestTransport();
@@ -53,8 +56,8 @@ try{
  $result=$api->changeVmDisk(120,'qemu','scsi0',2,'fast');ensure($result['status']==='success','Idempotent resize failed');
  ensure((int)$pdo->query('SELECT disk FROM vms WHERE id=1001')->fetchColumn()===2,'Resize retry double counted disk');
  ensure($other===$pdo->query('SELECT * FROM vms WHERE id=1004')->fetch(PDO::FETCH_ASSOC),'Other node disk changed');
- $writes=$transport->writes();$result=$api->addVmNetwork(120,'qemu','net1','management');ensure($result['status']==='error'&&$transport->writes()===$writes,'Unassigned network accepted');
- $result=$api->addVmNetwork(120,'qemu','net1','vmbr0');ensure($result['status']==='success','Assigned network rejected');
+ $writes=$transport->writes();$result=$api->addVmNetwork(120,'qemu','net1','private');ensure($result['status']==='error'&&$transport->writes()===$writes,'Unassigned network accepted');
+ $result=$api->addVmNetwork(120,'qemu','net1','public');ensure($result['status']==='success','Assigned network rejected');
  $writes=$transport->writes();$result=$api->deleteVm(120,'qemu');ensure($result['status']==='error'&&$transport->writes()===$writes,'Duplicate VMID deletion reached API');
  $pdo->exec('DELETE FROM vms WHERE id=1004');$transport->failDelete=true;$result=$api->deleteVm(120,'qemu');
  ensure($result['status']==='error'&&(int)$pdo->query('SELECT COUNT(*) FROM vms WHERE id=1001')->fetchColumn()===1,'API failure deleted billing row');
@@ -66,6 +69,6 @@ try{
  echo "PASS temporary MySQL tables: node isolation, quotas, retry accounting, network restrictions, deletion ordering and task warnings\n";
 }finally{
  if($pdo->inTransaction())$pdo->rollBack();
- $pdo->exec('DROP TEMPORARY TABLE IF EXISTS vms,tariffs,user_quotas,users');
+ $pdo->exec('DROP TEMPORARY TABLE IF EXISTS node_placement_pools,vms,tariffs,user_quotas,users');
  foreach(glob($directory.'/*')?:[]as$file)unlink($file);if(is_dir($directory))rmdir($directory);
 }

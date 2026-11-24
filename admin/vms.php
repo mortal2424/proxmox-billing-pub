@@ -33,6 +33,13 @@ $totalVms = count($adminVms);
 $runningVms = 0;
 $stoppedVms = 0;
 $totalNodes = 0;
+$resources = null;
+try {
+    $resources = $pdo->query("SELECT COALESCE(SUM(cpu),0) AS cpu, COALESCE(SUM(ram),0) AS ram,
+        COALESCE(SUM(disk),0) AS disk FROM vms_admin")->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $error) {
+    error_log('Could not read administrative guest resources');
+}
 
 foreach ($adminVms as $vm) {
     if ($vm['status'] === 'running') {
@@ -1003,6 +1010,18 @@ require 'admin_header.php';
                 <h4>Нод Proxmox</h4>
                 <div class="vm-stat-value"><?= $totalNodes ?></div>
                 <p class="vm-stat-subtext">Серверов виртуализации</p>
+            </div>
+        </div>
+        <div class="vm-stat-card">
+            <div class="vm-stat-icon total"><i class="fas fa-microchip"></i></div>
+            <div class="vm-stat-content">
+                <h4>Ресурсы</h4>
+                <?php if ($resources === null): ?>
+                    <p class="vm-stat-subtext">Данные недоступны</p>
+                <?php else: ?>
+                    <div class="vm-stat-value"><?= (int)$resources['cpu'] ?> vCPU</div>
+                    <p class="vm-stat-subtext"><?= number_format((int)$resources['ram'] / 1024, 1, ',', ' ') ?> ГиБ RAM · <?= (int)$resources['disk'] ?> ГиБ дисков</p>
+                <?php endif ?>
             </div>
         </div>
     </div>

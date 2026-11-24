@@ -56,6 +56,7 @@ services:
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
     #  - .:/var/www/html
     environment:
+      BILLING_TOTP_KEY: ${BILLING_TOTP_KEY:-}
       CONSOLE_ORIGIN: https://${DOMAIN}
       HOMEVLAD_ENABLE_INSTALL: ${HOMEVLAD_ENABLE_INSTALL:-0}
       HOMEVLAD_PUBLIC_URL: https://${DOMAIN}

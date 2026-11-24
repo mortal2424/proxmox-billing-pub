@@ -139,13 +139,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Обработка добавления сети
         if (isset($_POST['add_network'])) {
             $network_id = $_POST['network_id'];
-            $bridge = $_POST['bridge'];
+            $pool = $_POST['network_pool'] ?? '';
 
             $result = $proxmox->addVmNetwork(
                 $vm['vm_id'],
                 $vm['vm_type'],
                 $network_id,
-                $bridge
+                $pool
             );
 
             if ($result['status'] === 'success') {
@@ -1248,11 +1248,11 @@ try {
                     `;
                 } else {
                     // Обычная сеть
-                    networkOptions += `<option value="${net}">${net}</option>`;
+                    networkOptions += `<option value="${guestHtml(net)}">${guestHtml(net)}</option>`;
                 }
             });
         } else {
-            networkOptions = '<option value="vmbr0">vmbr0</option>';
+            networkOptions = '<option value="">На ноде нет доступных сетевых пулов</option>';
         }
 
         form.innerHTML = `
@@ -1262,13 +1262,13 @@ try {
             <div class="form-row">
                 ${networkIdField}
                 <div class="form-group">
-                    <label>Bridge</label>
-                    <select class="form-control" name="bridge" required>
+                    <label>Сетевой пул</label>
+                    <select class="form-control" name="network_pool" required>
                         ${networkOptions}
                     </select>
                 </div>
             </div>
-            <button type="submit" name="add_network" class="btn btn-primary">
+            <button type="submit" name="add_network" class="btn btn-primary" ${availableNetworks.length ? '' : 'disabled'}>
                 <i class="fas fa-network-wired"></i> Добавить интерфейс
             </button>
         `;

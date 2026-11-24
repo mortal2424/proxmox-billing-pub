@@ -67,7 +67,7 @@ if ($answer === false || ($_SESSION['captcha'] ?? null) !== $answer ||
     mobileRespond(['error' => 'Неправильный ответ или истёк срок CAPTCHA'] + mobileChallenge(), 400);
 }
 try {
-    completePasswordLogin((new Database())->getConnection(), $email, $password);
+    completePasswordLogin((new Database())->getConnection(), $email, $password, $input['totp'] ?? null);
     unset($_SESSION['mobile_device_token']);
     $_SESSION['mobile_password_login_at'] = time();
     $_SESSION['mobile_csrf'] = bin2hex(random_bytes(32));

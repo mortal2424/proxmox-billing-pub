@@ -133,13 +133,44 @@ trait ProxmoxGuestMutations
             return ['status'=>'success','message'=>'Существующий том увеличен. Размер раздела и файловой системы внутри ВМ проверьте в гостевой ОС'];
         });
     }
-    public function addVmNetwork($vmid,$type,$network_id,$bridge)
+    public function guestNetworkPoolOptions(): array
     {
-        return $this->guestMutation($vmid,(string)$type,function($vm,$api)use($vmid,$type,$network_id,$bridge){
+        $query = $this->pdo->prepare("SELECT DISTINCT pool_name, resource FROM node_placement_pools
+            WHERE node_id=? AND kind='network' ORDER BY pool_name, resource");
+        $query->execute([$this->nodeId]);
+        $members = $query->fetchAll(PDO::FETCH_ASSOC);
+        if (!$members) return [];
+        $interfaces = $this->request('GET', '/nodes/' . rawurlencode($this->nodeName) . '/network', ['type'=>'any_bridge']);
+        $live = [];
+        foreach ($interfaces as $row) {
+            $type = $row['type'] ?? '';
+            if (in_array($type, ['bridge', 'OVSBridge', 'vnet'], true) &&
+                (!empty($row['active']) || $type === 'vnet')) $live[$row['iface']] = $type;
+        }
+        $sdn = [];
+        if (array_filter($members, static fn(array $member): bool => str_contains($member['resource'], '/'))) {
+            foreach ($this->request('GET', '/cluster/sdn/vnets') as $vnet) {
+                if (isset($vnet['zone'], $vnet['vnet'])) $sdn[$vnet['zone'] . '/' . $vnet['vnet']] = $vnet['vnet'];
+            }
+        }
+        $available = [];
+        foreach ($members as $member) {
+            $resource = $member['resource'];
+            $bridge = $sdn[$resource] ?? $resource;
+            if (!isset($live[$bridge]) || (isset($sdn[$resource]) !== ($live[$bridge] === 'vnet'))) continue;
+            $available[$member['pool_name']] ??= $bridge;
+        }
+        return $available;
+    }
+
+    public function addVmNetwork($vmid,$type,$network_id,$pool)
+    {
+        return $this->guestMutation($vmid,(string)$type,function($vm,$api)use($vmid,$type,$network_id,$pool){
             if(in_array($vm['status'],['creating','suspended'],true))throw new RuntimeException('Изменение сети сейчас недоступно');
-            // Until network pools are introduced, an extra NIC may only use the guest's assigned bridge.
-            $allowed=array_filter([$vm['network'],basename((string)($vm['sdn']??''))]);
-            if(!is_string($bridge)||!in_array($bridge,$allowed,true))throw new RuntimeException('Дополнительный интерфейс доступен только в назначенной гостю сети');
+            if (!is_string($pool)) throw new InvalidArgumentException('Выберите сетевой пул');
+            $available = $this->guestNetworkPoolOptions();
+            $bridge = $available[$pool] ?? null;
+            if ($bridge === null) throw new RuntimeException('Сетевой пул недоступен на ноде гостя');
             $api->addNetwork($vmid,$type,$network_id,$bridge);
             return ['status'=>'success','message'=>'Сетевой интерфейс добавлен'];
         });

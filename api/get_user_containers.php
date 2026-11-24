@@ -13,9 +13,9 @@ $user_id = $_SESSION['user']['id'];
 try {
     $stmt = $pdo->prepare("
         SELECT 
-            v.id, v.vm_id, v.hostname, v.cpu, v.ram, v.disk, v.status, 
+            v.id, v.vm_id, v.vm_type, v.hostname, v.cpu, v.ram, v.disk, v.status, 
             v.created_at, v.node_id, v.ip_address,
-            t.name as tariff_name, 
+            t.name as tariff_name, t.price AS tariff_price, v.is_custom, 
             n.node_name
         FROM vms v
         LEFT JOIN tariffs t ON t.id = v.tariff_id
@@ -26,6 +26,9 @@ try {
     $stmt->execute([$user_id]);
     $containers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    require_once __DIR__ . '/../includes/guest_card_pricing.php';
+    annotateGuestCardPrices($pdo, $containers);
+
     echo json_encode([
         'success' => true,
         'containers' => $containers

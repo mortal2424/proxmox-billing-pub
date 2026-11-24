@@ -1156,6 +1156,15 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.5), transparent);
         }
+        .guest-addresses { display: inline-block; position: relative; white-space: nowrap; }
+        .guest-addresses summary { cursor: pointer; }
+        .guest-addresses ul {
+            position: absolute; z-index: 4; inset-inline-start: 0;
+            margin: 4px 0; padding: 8px 12px; list-style: none;
+            background: var(--card-bg, #fff); color: var(--text-color, #172438);
+            border: 1px solid #8897aa; border-radius: 6px;
+        }
+        .guest-addresses li { font-family: monospace; padding: 2px 0; }
     </style>
 </head>
 <body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
@@ -1726,7 +1735,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <div class="vm-spec">
                                         <div class="spec-info">
                                             <i class="fas fa-network-wired"></i>
-                                            <span class="spec-label">${vm.ip_address || 'Не назначен'}</span>
+                                            <div class="spec-label">${guestAddresses(vm.ip_address)}</div>
                                         </div>
                                         <div class="network-progress-container">
                                             <div class="network-progress-label">
@@ -1745,7 +1754,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 <div class="vm-specs-tf">
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-tag"></i>
-                                        <span>Тариф: ${escapeHtml(vm.tariff_name)}</span>
+                                        <span>Тариф: ${guestTariff(vm)} · ${guestPrice(vm)}</span>
                                     </div>
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-server"></i>
@@ -1826,7 +1835,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <div class="vm-spec compact">
                                         <div class="spec-info">
                                             <i class="fas fa-network-wired"></i>
-                                            <span>${vm.ip_address || 'Не назначен'}</span>
+                                            <div>${guestAddresses(vm.ip_address)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1974,7 +1983,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <div class="vm-spec">
                                         <div class="spec-info">
                                             <i class="fas fa-network-wired"></i>
-                                            <span class="spec-label">${ct.ip_address || 'Не назначен'}</span>
+                                            <div class="spec-label">${guestAddresses(ct.ip_address)}</div>
                                         </div>
                                         <div class="network-progress-container">
                                             <div class="network-progress-label">
@@ -1993,7 +2002,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 <div class="vm-specs-tf">
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-tag"></i>
-                                        <span>Тариф: ${escapeHtml(ct.tariff_name)}</span>
+                                        <span>Тариф: ${guestTariff(ct)} · ${guestPrice(ct)}</span>
                                     </div>
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-server"></i>
@@ -2074,7 +2083,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <div class="vm-spec compact">
                                         <div class="spec-info">
                                             <i class="fas fa-network-wired"></i>
-                                            <span>${ct.ip_address || 'Не назначен'}</span>
+                                            <div>${guestAddresses(ct.ip_address)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -2792,6 +2801,26 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
         }
 
         // Вспомогательные функции
+        function guestAddresses(raw) {
+            const addresses = String(raw || '').split(',').map(ip => ip.trim()).filter(Boolean);
+            if (!addresses.length) return 'Не назначен';
+            const primary = addresses.find(ip => !ip.includes(':'));
+            const additional = addresses.filter(ip => ip !== primary);
+            if (!additional.length) return escapeHtml(primary);
+            return `<details class="guest-addresses"><summary>${primary ? escapeHtml(primary) : 'IP-адреса'}</summary>
+                <ul>${additional.map(ip => `<li>${escapeHtml(ip)}</li>`).join('')}</ul></details>`;
+        }
+
+        function guestTariff(guest) {
+            return Number(guest.is_custom) === 1 ? 'Индивидуальный' : escapeHtml(guest.tariff_name || 'Не назначен');
+        }
+
+        function guestPrice(guest) {
+            if (guest.current_price == null) return 'Стоимость недоступна';
+            const amount = Number(guest.current_price).toLocaleString('ru-RU', {maximumFractionDigits: 6});
+            return `${amount} ₽ / ${guest.billing_period === 'month' ? 'мес.' : 'ч'}`;
+        }
+
         function escapeHtml(unsafe) {
             return unsafe?.replace(/&/g, "&amp;")
                          .replace(/</g, "&lt;")

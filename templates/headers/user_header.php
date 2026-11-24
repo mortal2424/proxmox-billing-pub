@@ -147,6 +147,9 @@
                         <a href="/templates/settings.php" class="menu-link">
                             <i class="fas fa-user-cog"></i> Настройки профиля
                         </a>
+                        <a href="/templates/two_factor.php" class="menu-link">
+                            <i class="fas fa-key"></i> Двухфакторная аутентификация
+                        </a>
                         <a href="/templates/security.php" class="menu-link">
                             <i class="fas fa-shield-alt"></i> Безопасность
                         </a>

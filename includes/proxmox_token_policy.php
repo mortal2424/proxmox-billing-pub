@@ -33,7 +33,8 @@ function verifyHomevladTokenPermissions(callable $request): array
     foreach ($permissions as $path => $grants) {
         if (!is_array($grants)) throw new RuntimeException('Некорректный ответ о правах');
         foreach ($grants as $privilege => $enabled) {
-            if ($enabled && !in_array($privilege, $allowed, true)) throw new RuntimeException('У токена обнаружены избыточные права');
+            if ($enabled && !in_array($privilege, $allowed, true) &&
+                !($path === '/storage/hv-ci-snippets' && $privilege === 'Datastore.Allocate')) throw new RuntimeException('У токена обнаружены избыточные права');
         }
     }
     foreach (homevladTokenRoles() as $role) {

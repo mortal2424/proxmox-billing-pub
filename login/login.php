@@ -79,6 +79,7 @@ if (isset($_POST['auth_date'])) {
                     if ($user['is_active'] == 0) {
                         $_SESSION['error'] = "Ваш аккаунт деактивирован. Обратитесь к администратору.";
                     } else {
+                        accountTotpVerify($db->getConnection(), (int)$user['id'], $_POST['totp'] ?? null);
                         openAccountSession($user);
                         header('Location: /templates/dashboard.php');
                         exit;
@@ -99,8 +100,8 @@ if (isset($_POST['auth_date'])) {
 
 // Обработка обычного входа (только если не было Telegram авторизации)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $email = trim(is_string($_POST['email'] ?? null) ? $_POST['email'] : '');
+    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
     $captcha_answer = isset($_POST['captcha']) ? (int)$_POST['captcha'] : null;
 
     // Валидация данных
@@ -116,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
         $error = "Неправильный ответ капчи!";
     } else {
         try {
-            completePasswordLogin((new Database())->getConnection(), $email, $password);
+            completePasswordLogin((new Database())->getConnection(), $email, $password, $_POST['totp'] ?? null);
             header('Location: /templates/dashboard.php');
             exit;
         } catch (PDOException $loginError) {
@@ -997,6 +998,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SE
                     </div>
 
                     <!-- Капча -->
+                    <div class="form-group">
+                        <label for="login-totp">Код Google Authenticator (если включён)</label>
+                        <input id="login-totp" class="form-control" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6">
+                    </div>
                     <div class="captcha-box">
                         <div>Сколько будет?</div>
                         <div style="font-size: 24px; font-weight: 700; margin: 8px 0; color: var(--mint-text);">

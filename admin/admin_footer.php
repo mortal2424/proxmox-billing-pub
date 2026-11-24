@@ -269,6 +269,13 @@ function getDiskUsage() {
     overflow: hidden;
 }
 
+@media (min-width: 993px) {
+    body:has(#adminSidebar) .admin-footer { margin-inline-start: 280px; }
+    body:has(#adminSidebar.compact) .admin-footer { margin-inline-start: 70px; }
+}
+@media (993px <= width <= 1200px) {
+    body:has(#adminSidebar:not(.compact)) .admin-footer { margin-inline-start: 260px; }
+}
 .admin-footer::before {
     content: '';
     position: absolute;

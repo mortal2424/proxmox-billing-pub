@@ -173,6 +173,10 @@ final class ProxmoxApiClient
             }
         }
         if ($status < 200 || $status >= 300) {
+            if ($status === 403 && $method === 'POST' &&
+                preg_match('#^/nodes/[^/]+/(?:qemu|lxc)/[0-9]+/status/(?:start|stop|shutdown|reboot)$#D', $path)) {
+                throw new RuntimeException('Proxmox отклонил управление питанием (HTTP 403). Проверьте VM.PowerMgmt у учётной записи и токена на этой ноде.', 403);
+            }
             throw new RuntimeException("API Proxmox вернул HTTP $status", $status);
         }
         if (strlen($body) > 8388608) {

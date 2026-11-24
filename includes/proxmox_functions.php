@@ -122,6 +122,20 @@ class ProxmoxAPI {
         }
     }
 
+    private function commitGuestBilling(int $guestId, int $vmid, string $type): void
+    {
+        try {
+            $this->pdo->commit();
+        } catch (PDOException $error) {
+            if (!in_array((int)($error->errorInfo[1] ?? 0), [2006, 2013, 2055], true)) throw $error;
+            $fresh = (new Database())->getConnection();
+            $query = $fresh->prepare('SELECT id FROM vms WHERE id=? AND node_id=? AND vm_id=? AND vm_type=?');
+            $query->execute([$guestId, $this->nodeId, $vmid, $type]);
+            if ((int)$query->fetchColumn() !== $guestId) throw $error;
+            $this->pdo = $fresh;
+        }
+    }
+
     private function finishGuestCreation(int $vmid, string $type, bool $start): array
     {
         $result = ['status' => 'stopped'];
@@ -131,6 +145,7 @@ class ProxmoxAPI {
             if ($license !== null) homevladAssertLicense($this->pdo, $license, ['vms_running' => 1]);
             $this->controlGuest($vmid, $type, 'start');
             $result['status'] = 'running';
+            $this->pdo = (new Database())->getConnection();
             $stmt = $this->pdo->prepare("UPDATE vms SET status='running' WHERE node_id=? AND vm_id=? AND vm_type=? AND status='stopped'");
             $stmt->execute([$this->nodeId, $vmid, $type]);
         } catch (Throwable $error) {
@@ -416,7 +431,7 @@ class ProxmoxAPI {
         }
 
         $commitAttempted = true;
-        $this->pdo->commit();
+        $this->commitGuestBilling($guestId, $vmid, 'qemu');
         $launch = $this->finishGuestCreation($vmid, 'qemu', !$hasIso);
         error_log("[VM Creation] VM {$vmid} created successfully");
 
@@ -623,7 +638,7 @@ private function createLicensedLXC($params) {
         }
 
         $commitAttempted = true;
-        $this->pdo->commit();
+        $this->commitGuestBilling($guestId, $vmid, 'lxc');
         $launch = $this->finishGuestCreation($vmid, 'lxc', true);
         error_log("[LXC Creation] Container {$vmid} created successfully");
 
@@ -725,7 +740,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
         try {
             // 1. Проверяем баланс перед возобновлением
             $vmStmt = $this->pdo->prepare("
-                SELECT v.*, u.balance, u.bonus_balance, t.is_custom, t.price as tariff_price
+                SELECT v.*, u.balance, u.bonus_balance, t.price as tariff_price
                 FROM vms v
                 JOIN users u ON u.id = v.user_id
                 LEFT JOIN tariffs t ON t.id = v.tariff_id
@@ -806,7 +821,7 @@ public function suspendVM($vmid, $reason = 'Недостаточно средс�
             // 1. Получаем информацию о ВМ и пользователе
             $vmStmt = $this->pdo->prepare("
                 SELECT v.*, u.balance, u.bonus_balance, u.is_admin,
-                       t.is_custom, t.price as tariff_price
+                       t.price as tariff_price
                 FROM vms v
                 JOIN users u ON u.id = v.user_id
                 LEFT JOIN tariffs t ON t.id = v.tariff_id

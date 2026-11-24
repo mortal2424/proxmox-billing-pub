@@ -42,7 +42,7 @@ if (!$resourcePrices) {
 // 2. Получаем все ВМ (и running, и stopped) с названием тарифа
 $vms = $pdo->query("
     SELECT v.*, u.id as user_id, u.balance, u.bonus_balance, 
-           t.is_custom, t.price as tariff_price, t.name as tariff_name,
+           t.price as tariff_price, t.name as tariff_name,
            t.vm_type as tariff_vm_type
     FROM vms v
     JOIN users u ON u.id = v.user_id

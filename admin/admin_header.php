@@ -91,6 +91,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
     <link rel="icon" href="/img/cloud.png" type="image/png">
     <link rel="stylesheet" href="/admin/css/admin_style.css">
     <link rel="stylesheet" href="/css/themes.css">
+    <?= $adminHeadContent ?? '' ?>
     <style>
         /* ОСНОВНЫЕ ПЕРЕМЕННЫЕ - БОЛЕЕ КОНТРАСТНЫЕ ЦВЕТА */
         :root {
@@ -138,7 +139,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
             border-bottom: 1px solid var(--admin-header-border);
         }
 
-        .header-container {
+        .admin-header-container {
             max-width: 100%;
             padding: 0 24px;
             height: 100%;
@@ -783,7 +784,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
                 height: 65px;
             }
 
-            .header-container {
+            .admin-header-container {
                 padding: 0 20px;
             }
 
@@ -811,7 +812,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
         }
 
         @media (max-width: 576px) {
-            .header-container {
+            .admin-header-container {
                 padding: 0 16px;
             }
 
@@ -841,7 +842,7 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
 <body>
     <!-- Шапка админки -->
     <header class="admin-header modern-header">
-        <div class="header-container">
+        <div class="admin-header-container">
             <!-- Логотип -->
             <a href="/admin/" class="admin-logo">
                 <div class="admin-logo-icon">
@@ -855,49 +856,6 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
 
             <!-- Центральная область с двумя блоками -->
             <div class="header-center">
-                <!-- Блок статистики (скрыт на дашборде через JS) -->
-                <div class="admin-stats-block" id="headerStatsBlock">
-                    <div class="admin-stat-item">
-                        <div class="admin-stat-icon users">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="admin-stat-info">
-                            <span class="admin-stat-value"><?= htmlspecialchars($header_stats['total_users']) ?></span>
-                            <span class="admin-stat-label">Пользователи</span>
-                        </div>
-                    </div>
-
-                    <div class="admin-stat-item">
-                        <div class="admin-stat-icon vms">
-                            <i class="fas fa-server"></i>
-                        </div>
-                        <div class="admin-stat-info">
-                            <span class="admin-stat-value"><?= htmlspecialchars($header_stats['total_vms']) ?></span>
-                            <span class="admin-stat-label">Всего ВМ</span>
-                        </div>
-                    </div>
-
-                    <div class="admin-stat-item">
-                        <div class="admin-stat-icon active">
-                            <i class="fas fa-play-circle"></i>
-                        </div>
-                        <div class="admin-stat-info">
-                            <span class="admin-stat-value"><?= htmlspecialchars($header_stats['active_vms']) ?></span>
-                            <span class="admin-stat-label">Активные ВМ</span>
-                        </div>
-                    </div>
-
-                    <div class="admin-stat-item">
-                        <div class="admin-stat-icon tickets">
-                            <i class="fas fa-ticket-alt"></i>
-                        </div>
-                        <div class="admin-stat-info">
-                            <span class="admin-stat-value"><?= htmlspecialchars($header_stats['open_tickets']) ?></span>
-                            <span class="admin-stat-label">Открытые тикеты</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Блок быстрых действий -->
                 <div class="admin-quick-block">
                     <!-- Быстрые действия -->
@@ -1064,6 +1022,9 @@ if (($admin_role === 'admin' || $admin_role === 'superadmin') && !defined('ON_DA
                                     <?= htmlspecialchars($header_stats['open_tickets']) ?>
                                 </span>
                             <?php endif; ?>
+                        </a>
+                        <a href="/templates/two_factor.php" class="admin-menu-link">
+                            <i class="fas fa-key"></i> Двухфакторная аутентификация
                         </a>
                         <a href="/admin/settings.php" class="admin-menu-link">
                             <i class="fas fa-cog"></i> Настройки
