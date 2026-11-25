@@ -158,8 +158,13 @@ manifest="updates/$test_version/manifest.json"
 jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
     git -C "$checkout" show "$base_ref:$file" | "${compose[@]}" exec -T apache tee "$file" >/dev/null
 done
+# Start fresh PHP workers before exercising the older source written above.
+"${compose[@]}" restart apache
+ready
 "${compose[@]}" exec -T --user www-data apache php cronjobs/check_updates.php
-"${https[@]}" --fail "${cookie[@]}" "$web/admin/check_updates_count.php" | jq -e '.success and (.count >= 1)'
+counter=$("${https[@]}" --fail "${cookie[@]}" "$web/admin/check_updates_count.php")
+echo "Updater count response: $counter"
+jq -e '.success and (.count >= 1)' <<< "$counter"
 
 update=(--data-urlencode "version=$test_version" --data-urlencode "csrf_token=$csrf")
 "${https[@]}" --fail "${cookie[@]}" "${update[@]}" -d action=preview "$web/admin/update.php" > "$qa/preview.html"
