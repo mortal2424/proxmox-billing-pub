@@ -44,8 +44,11 @@ foreach ($accounts as $label=>$id) {
     $_SESSION = [
         'user'=>['auth_generation'=>1,'id'=>$id,'is_admin'=>(int)($label==='admin'),'email'=>"$label@example.invalid"],
         'update_csrf'=>bin2hex(random_bytes(32)),
+        'node_csrf'=>bin2hex(random_bytes(32)),
+        'mobile_csrf'=>bin2hex(random_bytes(32)),
     ];
-    $sessionFiles[$label] = ['id'=>session_id(),'csrf'=>$_SESSION['update_csrf']];
+    $sessionFiles[$label] = ['id'=>session_id(),'csrf'=>$_SESSION['update_csrf'],
+        'node_csrf'=>$_SESSION['node_csrf'],'mobile_csrf'=>$_SESSION['mobile_csrf']];
     session_write_close();
 }
 file_put_contents('/tmp/homevlad-docker-sessions.json',json_encode(['node'=>$node,'sessions'=>$sessionFiles],JSON_THROW_ON_ERROR));

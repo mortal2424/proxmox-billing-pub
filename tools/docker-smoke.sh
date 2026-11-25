@@ -10,6 +10,7 @@ export DOMAIN=nginx EMAIL=qa@example.invalid DB_NAME=homevlad_smoke DB_USER=home
 export DB_PASSWORD="$(openssl rand -hex 24)" MYSQL_ROOT_PASSWORD="$(openssl rand -hex 24)"
 export PROXMOX_NODE_KEY="$(openssl rand -base64 32)"
 export PROXMOX_CA_FILE=/etc/proxmox-tls/smoke.pem
+export HOMEVLAD_LICENSE_REQUIRED=1 HOMEVLAD_LICENSE_CONFIG=/run/homevlad-license/license.php
 compose=(docker compose)
 cleanup() {
     code=$?
@@ -33,7 +34,10 @@ return ['client'=>'/run/homevlad-license/client.php',
     'public_key'=>'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     'domain'=>'smoke.example.invalid','source_ip'=>'192.0.2.7','nonce'=>str_repeat('0',64)];
 PHP
-printf '<?php\n' > .docker-private/license/client.php
+cat > .docker-private/license/client.php <<'PHP'
+<?php
+function licenseTrialUntil(array $config, int $now): int { return $now + 3600; }
+PHP
 chmod 0755 .docker-private .docker-private/license
 chmod 0644 .docker-private/license/*.php
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj '/CN=nginx' \
@@ -88,6 +92,34 @@ session=$("${compose[@]}" exec -T --user www-data apache cat /tmp/homevlad-docke
 sid=$(jq -r '.sessions.admin.id' <<< "$session")
 csrf=$(jq -r '.sessions.admin.csrf' <<< "$session")
 cookie=(--cookie "PHPSESSID=$sid")
+node_csrf=$(jq -r '.sessions.admin.node_csrf' <<< "$session")
+mobile_csrf=$(jq -r '.sessions.admin.mobile_csrf' <<< "$session")
+check_zone_count() {
+    result=$("${compose[@]}" exec -T --user www-data apache php -r '
+        require "includes/db.php";
+        echo (new Database())->getConnection()->query(
+            "SELECT COUNT(*) FROM proxmox_clusters WHERE name LIKE \x27qa-license-%\x27"
+        )->fetchColumn();')
+    test "$result" = "$1"
+}
+try_zone_creation() {
+    "${https[@]}" "${cookie[@]}" --data-urlencode "node_csrf=$node_csrf" \
+        -d "add_cluster=1&name=qa-license-web-$1" "$web/admin/add_cluster.php" -o "$qa/license-web.html"
+    jq -nc --arg csrf "$mobile_csrf" --arg name "qa-license-mobile-$1" \
+        '{action:"zone_save",csrf:$csrf,name:$name,active:1,limit:20,threshold:80}' |
+        "${https[@]}" "${cookie[@]}" -H 'Content-Type: application/json' --data-binary @- \
+            "$web/api/mobile_admin.php" -o "$qa/license-mobile.json"
+}
+mv .docker-private/license/license.php .docker-private/license/license.php.disabled
+try_zone_creation missing
+check_zone_count 0
+grep -q 'Настройки лицензии недоступны' "$qa/license-web.html"
+jq -e '.error | contains("Настройки лицензии недоступны")' "$qa/license-mobile.json"
+mv .docker-private/license/license.php.disabled .docker-private/license/license.php
+try_zone_creation trial
+jq -e '.success == true' "$qa/license-mobile.json"
+check_zone_count 2
+
 checkout=$(git -C "$OLDPWD" rev-parse --show-toplevel)
 manifest="updates/$test_version/manifest.json"
 jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
