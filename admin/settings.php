@@ -1244,6 +1244,36 @@ require 'admin_header.php';
         width: 100%;
     }
 }
+
+/* Keep the main settings dense without changing dialog forms. */
+.settings-wrapper { padding: clamp(10px, 1.5vw, 18px); }
+.settings-wrapper .settings-header { margin-bottom: 14px; padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+.settings-wrapper .header-left h1 { font-size: clamp(20px, 2vw, 24px); margin-bottom: 3px; }
+.settings-wrapper .header-left p { font-size: 13px; }
+.settings-wrapper .dashboard-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-wrapper .settings-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.settings-wrapper .setting-card { height: auto; min-width: 0; border-radius: 12px; }
+.settings-wrapper .card-header,
+.settings-wrapper .table-header { padding: 10px 14px; }
+.settings-wrapper .card-body,
+.settings-wrapper .table-container { padding: 12px 14px; }
+.settings-wrapper .setting-form { gap: 9px; }
+.settings-wrapper .form-row { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr)); }
+.settings-wrapper .form-label { margin-bottom: 3px; font-size: 13px; }
+.settings-wrapper .form-input { padding: 7px 9px; }
+.settings-wrapper .btn { padding: 7px 12px; }
+.settings-wrapper .table-section { margin-bottom: 14px; }
+@media (max-width: 992px) {
+    body:has(#adminSidebar) .settings-wrapper { margin-left: 0 !important; }
+}
+@media (max-width: 520px) {
+    .settings-wrapper .form-row { grid-template-columns: minmax(0,1fr); }
+}
 </style>
 
 <!-- Основной контент -->
@@ -1252,8 +1282,7 @@ require 'admin_header.php';
     <div class="settings-header">
         <div class="header-left">
             <h1><i class="fas fa-cog"></i> Настройки сайта</h1>
-                <p><a class="btn btn-outline-primary" href="/admin/captcha_settings.php">Защита входа · CAPTCHA</a></p>
-            <p>Управление всными настройками системы в одном месте</p>
+            <p>Управление настройками системы в одном месте</p>
         </div>
         <div class="dashboard-quick-actions">
             <a href="/admin/license_status.php" class="btn btn-primary">
@@ -1262,6 +1291,7 @@ require 'admin_header.php';
             <a href="/admin/console_settings.php" class="btn btn-primary">
                 <i class="fas fa-terminal" aria-hidden="true"></i> Настройки VNC
             </a>
+            <a class="btn btn-primary" href="/admin/captcha_settings.php"><i class="fas fa-shield-alt" aria-hidden="true"></i> Настройки CAPTCHA</a>
             <a href="/admin/" class="btn btn-primary">
                 <i class="fas fa-arrow-left"></i> Назад в дашборд
             </a>
