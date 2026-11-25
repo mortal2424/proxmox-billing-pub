@@ -55,15 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Ошибка подготовки запроса: " . implode(", ", $pdo->errorInfo()));
             }
 
-            // Выполнение запроса
-            $result = homevladLicensedMutation($pdo, ['zones' => 1], static fn() => $stmt->execute([$name, $description, $is_active, $allowedUsers]));
-
-            if (!$result) {
-                $errorInfo = $stmt->errorInfo();
-                throw new Exception("Ошибка выполнения запроса: " . $errorInfo[2]);
-            }
-
-            $clusterId = $pdo->lastInsertId();
+            $clusterId = homevladLicensedMutation($pdo, ['zones' => 1],
+                static function () use ($pdo, $stmt, $name, $description, $is_active, $allowedUsers): string {
+                    $stmt->execute([$name, $description, $is_active, $allowedUsers]);
+                    return $pdo->lastInsertId();
+                });
 
             // Логирование успешного создания
             error_log("Зона доступности создана: ID = $clusterId, Name = $name");

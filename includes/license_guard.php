@@ -26,13 +26,67 @@ function homevladLicenseConfig(): ?array
     if (!$path && @is_file($localConfig)) {
         $path = $localConfig;
     }
-    if (!$path) {
-        return null;
+    if (!$path && getenv('HOMEVLAD_LICENSE_REQUIRED') !== '1') return null;
+    if (!$path || !is_file($path)) {
+        throw new DomainException('Настройки лицензии недоступны.');
     }
-    if (!is_file($path)) {
-        throw new RuntimeException('Настройки лицензии недоступны.');
+    try {
+        $config = require $path;
+        foreach (['client', 'domain', 'cache'] as $field) {
+            if (!is_string($config[$field] ?? null) || trim($config[$field]) === '') {
+                throw new UnexpectedValueException('Incomplete licensing configuration');
+            }
+        }
+        if (!filter_var($config['domain'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)) {
+            throw new UnexpectedValueException('Invalid licensing domain');
+        }
+        $trusted = $config['public_key'] ?? null;
+        $keys = is_string($trusted) ? ['legacy' => $trusted] : $trusted;
+        if (!is_array($keys) || $keys === []) {
+            throw new UnexpectedValueException('Missing trusted signing key');
+        }
+        foreach ($keys as $kid => $key) {
+            $decoded = is_string($key) && preg_match('/^[A-Za-z0-9_-]{43}$/D', $key)
+                ? base64_decode(strtr($key, '-_', '+/'), true) : false;
+            if ($decoded === false || ($kid !== 'legacy' && $kid !== hash('sha256', $decoded))) {
+                throw new UnexpectedValueException('Invalid trusted signing key');
+            }
+        }
+        if (isset($config['key_file']) &&
+            (!is_string($config['key_file']) || $config['key_file'] === '' ||
+                !filter_var($config['source_ip'] ?? '', FILTER_VALIDATE_IP) ||
+                !is_string($config['nonce'] ?? null) || !preg_match('/^[a-f0-9]{64}$/D', $config['nonce']))) {
+            throw new UnexpectedValueException('Invalid installation identity');
+        }
+        if (!isset($config['key_file']) && isset($config['key']) &&
+            (!is_string($config['key']) || !preg_match('/^dvl1_[a-f0-9]{24}_[A-Za-z0-9_-]{43}$/D', $config['key']) ||
+                !is_string($config['installation_id'] ?? $config['installation'] ?? null) ||
+                !preg_match('/^[a-f0-9]{32}$/D', $config['installation_id'] ?? $config['installation']))) {
+            throw new UnexpectedValueException('Invalid static license identity');
+        }
+        if (isset($config['installation_id']) &&
+            (!is_string($config['installation_id']) || !preg_match('/^[a-f0-9]{32}$/D', $config['installation_id']))) {
+            throw new UnexpectedValueException('Invalid stable installation ID');
+        }
+        if (isset($config['installation']) && isset($config['installation_id']) &&
+            $config['installation'] !== $config['installation_id']) {
+            throw new UnexpectedValueException('Conflicting installation IDs');
+        }
+        if (isset($config['endpoint'])) {
+            $endpoint = is_string($config['endpoint']) ? parse_url($config['endpoint']) : false;
+            if (!is_array($endpoint) || ($endpoint['scheme'] ?? '') !== 'https' ||
+                !filter_var($endpoint['host'] ?? '', FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) ||
+                array_diff(array_keys($endpoint), ['scheme','host','port'])) {
+                throw new UnexpectedValueException('Invalid license service origin');
+            }
+        }
+        if (!is_readable($config['client'])) {
+            throw new UnexpectedValueException('Licensing client unavailable');
+        }
+        return $config;
+    } catch (Throwable $error) {
+        throw new DomainException('Настройки лицензии недоступны.', 0, $error);
     }
-    return require $path;
 }
 
 function homevladLicenseUsage(PDO $pdo): array
@@ -54,7 +108,8 @@ function homevladLicenseRequest(array $config): ?string
 {
     require_once $config['client'];
     return isset($config['nonce'], $config['source_ip'])
-        ? pairingRequest('homevlad', $config['domain'], $config['source_ip'], $config['nonce'])
+        ? (isset($config['installation_id']) ? configuredPairingRequest('homevlad', $config) :
+            pairingRequest('homevlad', $config['domain'], $config['source_ip'], $config['nonce']))
         : null;
 }
 
@@ -65,7 +120,7 @@ function homevladLicenseCredentials(array $config): array
         $pair = readPairingRequest($request);
         return [trim(file_get_contents($config['key_file'])), $pair['installation']];
     }
-    return [$config['key'] ?? '', $config['installation'] ?? ''];
+    return [$config['key'] ?? '', $config['installation_id'] ?? $config['installation'] ?? ''];
 }
 
 function homevladLicenseLease(array $config, array $usage, bool $force = false): array
@@ -86,7 +141,7 @@ function homevladLicenseMode(array $config, array $usage, bool $force = false): 
 {
     require_once $config['client'];
     [$key] = homevladLicenseCredentials($config);
-    if ($key !== '') {
+    if ($key !== '' || (isset($config['key_file']) && is_file($config['key_file']))) {
         try {
             return ['mode'=>'licensed', 'claims'=>homevladLicenseLease($config, $usage, $force)];
         } catch (DomainException $error) {

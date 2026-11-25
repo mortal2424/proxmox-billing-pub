@@ -30,12 +30,18 @@ foreach (['customer'=>0,'other'=>0,'admin'=>1] as $label=>$admin) {
 }
 $query = $pdo->prepare("INSERT INTO vms (user_id,vm_id,node_id,hostname,cpu,ram,disk,storage,status,vm_type,is_custom)
     VALUES (?,?,?,?,1,256,1,'qa-storage','stopped',?,1)");
+$guests = [];
 foreach ([501=>'qemu',502=>'lxc'] as $vm=>$type) {
     $query->execute([$accounts['customer'],$vm,$node,"qa-$type",$type]);
+    $guests[$vm] = (int)$pdo->lastInsertId();
 }
 $managed = $pdo->prepare("INSERT INTO vms_admin (user_id,vm_id,node_id,hostname,cpu,ram,disk,storage,status)
     VALUES (?,503,?,'qa-managed',1,256,1,'qa-storage','stopped')");
 $managed->execute([$accounts['admin'],$node]);
+
+$pdo->exec("INSERT INTO tariffs (name,cpu,ram,disk,price,is_active,vm_type)
+    VALUES ('Docker smoke order',1,256,1,0,1,'lxc')");
+$orderTariff = (int)$pdo->lastInsertId();
 
 $sessionFiles = [];
 foreach ($accounts as $label=>$id) {
@@ -43,10 +49,17 @@ foreach ($accounts as $label=>$id) {
     if (!session_start()) throw new RuntimeException("Could not start fixture session");
     $_SESSION = [
         'user'=>['auth_generation'=>1,'id'=>$id,'is_admin'=>(int)($label==='admin'),'email'=>"$label@example.invalid"],
+        'order_csrf'=>bin2hex(random_bytes(32)),
         'update_csrf'=>bin2hex(random_bytes(32)),
+        'guest_settings_csrf'=>bin2hex(random_bytes(32)),
+        'node_csrf'=>bin2hex(random_bytes(32)),
+        'mobile_csrf'=>bin2hex(random_bytes(32)),
     ];
-    $sessionFiles[$label] = ['id'=>session_id(),'csrf'=>$_SESSION['update_csrf']];
+    $sessionFiles[$label] = ['id'=>session_id(),'csrf'=>$_SESSION['update_csrf'],
+        'order_csrf'=>$_SESSION['order_csrf'],
+        'guest_settings_csrf'=>$_SESSION['guest_settings_csrf'],
+        'node_csrf'=>$_SESSION['node_csrf'],'mobile_csrf'=>$_SESSION['mobile_csrf']];
     session_write_close();
 }
-file_put_contents('/tmp/homevlad-docker-sessions.json',json_encode(['node'=>$node,'sessions'=>$sessionFiles],JSON_THROW_ON_ERROR));
+file_put_contents('/tmp/homevlad-docker-sessions.json',json_encode(['node'=>$node,'zone'=>$zone,'order_tariff'=>$orderTariff,'guests'=>$guests,'sessions'=>$sessionFiles],JSON_THROW_ON_ERROR));
 chmod('/tmp/homevlad-docker-sessions.json',0600);
