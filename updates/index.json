@@ -288,9 +288,9 @@
     {
       "version": "2.5.1-rc1.3",
       "display_version": "2.5.1-Pre-release1.3",
-      "commit": "b4333bd027a8bced20ebdd5602add9376c58e45e",
-      "sha256": "3892b88feed0614c9b2db50d856386663e64cd18aaf9033c29eb7d63437a0ba0",
-      "summary": "Группы Cloud-образов и ручная проверка обновлений в админке HomeVlad."
+      "commit": "28989eb36abcbab2d34c494309b4b2aeb21b318b",
+      "sha256": "e934341c53180c1bfef64a3e489442a109e80b59390b3ed2bb7e79554730e937",
+      "summary": "Группы Cloud-образов, ручная проверка и фоновая установка с прогрессом, полноширинный футер."
     }
   ]
 }
