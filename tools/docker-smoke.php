@@ -55,5 +55,5 @@ foreach ($accounts as $label=>$id) {
         'node_csrf'=>$_SESSION['node_csrf'],'mobile_csrf'=>$_SESSION['mobile_csrf']];
     session_write_close();
 }
-file_put_contents('/tmp/homevlad-docker-sessions.json',json_encode(['node'=>$node,'guests'=>$guests,'sessions'=>$sessionFiles],JSON_THROW_ON_ERROR));
+file_put_contents('/tmp/homevlad-docker-sessions.json',json_encode(['node'=>$node,'zone'=>$zone,'guests'=>$guests,'sessions'=>$sessionFiles],JSON_THROW_ON_ERROR));
 chmod('/tmp/homevlad-docker-sessions.json',0600);

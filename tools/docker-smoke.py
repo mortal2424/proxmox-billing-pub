@@ -72,6 +72,12 @@ def serve():
     tls.load_cert_chain(CERT, '/tmp/homevlad-docker-pve.key')
     app = web.Application(middlewares=[authorize])
     app.router.add_get('/api2/json/cluster/resources', inventory)
+    async def standalone(_request):
+        return web.json_response({'data': []})
+    async def node_status(_request):
+        return web.json_response({'data': {'status': 'online'}})
+    app.router.add_get('/api2/json/cluster/status', standalone)
+    app.router.add_get('/api2/json/nodes/qa-extra/status', node_status)
     app.router.add_get('/api2/json/nodes/qa/tasks/{id}/status', task)
     app.router.add_route('*', '/api2/json/nodes/qa/{kind}/{id}/{operation:.+}', guest)
     web.run_app(app, host='0.0.0.0', port=8006, ssl_context=tls, print=None)
@@ -160,6 +166,15 @@ async def license_power_smoke():
                                               'guest_settings_csrf': config['sessions']['customer']['guest_settings_csrf']}) as response:
                     assert response.status == 200 and 'Лимит лицензии' in await response.text(), response.status
             assert eventlog.read_text() == before
+            admin = config['sessions']['admin']
+            async with browser.post(origin + '/api/mobile_admin.php', ssl=tls,
+                                    headers={'Cookie': 'PHPSESSID=' + admin['id']},
+                                    json={'action': 'node_save', 'csrf': admin['mobile_csrf'],
+                                          'zoneId': config['zone'], 'name': 'qa-extra', 'host': 'apache',
+                                          'port': 8006, 'tokenId': 'qa@pve!panel', 'secret': 'docker-smoke-token',
+                                          'active': True, 'primary': False, 'orders': False}) as response:
+                node_response = await response.json()
+                assert response.status == 422 and 'Лимит лицензии' in node_response.get('error', ''), node_response
             key.write_text('rejected-fixture')
             for action in ('start', 'stop'):
                 status, payload = await power(action)

@@ -46,7 +46,7 @@ function currentLease(string $key, ...$args): array {
     if ($key === 'refresh-fixture' && PHP_SAPI === 'cli' && basename($_SERVER['argv'][0]) === 'refresh_license.php') {
         file_put_contents('/var/lib/homevlad-private/license/worker-refresh', "refreshed\n");
     }
-    return ['limits'=>['vms_running'=>0,'vcpu'=>0,'ram_mib'=>0]];
+    return ['limits'=>['vms_running'=>0,'vcpu'=>0,'ram_mib'=>0,'nodes'=>0]];
 }
 PHP
 chmod 0755 .docker-private .docker-private/license
