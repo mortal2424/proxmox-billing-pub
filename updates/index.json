@@ -284,6 +284,13 @@
       "commit": "00dd560b8b3ba04fc0248615153349a50500e23f",
       "sha256": "70f38f39286dc921eb3e78673a112ada8706348392ae08f527a9db1eefcc242e",
       "summary": "Google Authenticator, Turnstile, настройка нод, загрузка QCOW2, сетевые пулы и компактный интерфейс."
+    },
+    {
+      "version": "2.5.1-rc1.3",
+      "display_version": "2.5.1-Pre-release1.3",
+      "commit": "ca5e93d901b51dd9605e5381caf3dacd784e6a8d",
+      "sha256": "44b30411332b91cbb46d1ff950f933e813c717842130a22682337f4f8bedb4fd",
+      "summary": "Создание своих групп Linux Cloud-образов через админку HomeVlad."
     }
   ]
 }
