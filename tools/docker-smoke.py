@@ -48,6 +48,11 @@ async def guest(request):
             await socket.send_bytes(b'fixture-input:' + message.data)
         await socket.close()
         return socket
+    if operation == 'config' and request.method == 'GET':
+        return web.json_response({'data': {'cores': 1, 'sockets': 1, 'memory': 256, 'scsi0': 'qa-storage:disk,size=1G'}})
+    if operation == 'config' and request.method == 'PUT':
+        record(f'{kind}:{vmid}:config')
+        return web.json_response({'data': None})
     if operation == 'status/current' and request.method == 'GET':
         return web.json_response({'data': {'status': states[vmid]}})
     if operation in ('status/start', 'status/reboot', 'status/shutdown', 'status/stop') and request.method == 'POST':
@@ -147,6 +152,13 @@ async def license_power_smoke():
             key.write_text('limit-fixture')
             status, payload = await power('start')
             assert status == 400 and not payload.get('success') and 'Лимит лицензии' in str(payload), payload
+            for cpu, ram in [(2, 256), (1, 512)]:
+                async with browser.post(origin + '/templates/vm_settings.php',
+                                        params={'id': config['guests']['501']}, headers=headers, ssl=tls,
+                                        data={'change_resources': '1', 'plan_id': '0', 'custom_cpu': str(cpu),
+                                              'custom_ram': str(ram), 'custom_disk': '1',
+                                              'guest_settings_csrf': config['sessions']['customer']['guest_settings_csrf']}) as response:
+                    assert response.status == 200 and 'Лимит лицензии' in await response.text(), response.status
             assert eventlog.read_text() == before
             key.write_text('rejected-fixture')
             for action in ('start', 'stop'):
