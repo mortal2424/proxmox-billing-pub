@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "Smoke test failed at line $LINENO" >&2' ERR
 
-cd "$(git rev-parse --show-toplevel)"
+checkout=$(git rev-parse --show-toplevel)
+cd "$checkout"
 base_ref=v2.5.1-Pre-release1
 test_version=2.5.1-rc1.1
 qa=$(mktemp -d)
@@ -100,6 +102,7 @@ check_zone_count() {
         echo (new Database())->getConnection()->query(
             "SELECT COUNT(*) FROM proxmox_clusters WHERE name LIKE \x27qa-license-%\x27"
         )->fetchColumn();')
+    echo "License zone fixtures: expected $1, got $result"
     test "$result" = "$1"
 }
 try_zone_creation() {
@@ -125,7 +128,6 @@ check_zone_count 2
     $db = (new Database())->getConnection();
     $db->prepare("UPDATE system_versions SET version = ?")->execute([$argv[1]]);
 ' "${base_ref#v}"
-checkout=$(git -C "$OLDPWD" rev-parse --show-toplevel)
 manifest="updates/$test_version/manifest.json"
 jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
     git -C "$checkout" show "$base_ref:$file" | "${compose[@]}" exec -T apache tee "$file" >/dev/null
