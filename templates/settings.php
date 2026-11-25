@@ -1501,6 +1501,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             });
 
+            function selectLinkedSettingsTab() {
+                const requested = window.location.hash.slice(1);
+                const tab = Array.from(settingsTabs).find(item => item.dataset.tab === requested);
+                if (tab) tab.click();
+            }
+
+            selectLinkedSettingsTab();
+            window.addEventListener('hashchange', selectLinkedSettingsTab);
+
             // Обработка загрузки аватара
             const avatarInput = document.getElementById('avatarInput');
             if (avatarInput) {

@@ -150,13 +150,13 @@
                         <a href="/templates/two_factor.php" class="menu-link">
                             <i class="fas fa-key"></i> Двухфакторная аутентификация
                         </a>
-                        <a href="/templates/security.php" class="menu-link">
+                        <a href="/templates/settings.php#security" class="menu-link">
                             <i class="fas fa-shield-alt"></i> Безопасность
                         </a>
                         <a href="/templates/support.php" class="menu-link">
                             <i class="fas fa-headset"></i> Поддержка
                         </a>
-                        <a href="/templates/notifications.php" class="menu-link">
+                        <a href="/templates/settings.php#notifications" class="menu-link">
                             <i class="fas fa-bell"></i> Уведомления
                             <?php if (isset($user['unread_notifications']) && $user['unread_notifications'] > 0): ?>
                                 <span class="menu-badge"><?= $user['unread_notifications'] ?></span>
