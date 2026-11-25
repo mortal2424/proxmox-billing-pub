@@ -46,7 +46,7 @@ function currentLease(string $key, ...$args): array {
     if ($key === 'refresh-fixture' && PHP_SAPI === 'cli' && basename($_SERVER['argv'][0]) === 'refresh_license.php') {
         file_put_contents('/var/lib/homevlad-private/license/worker-refresh', "refreshed\n");
     }
-    return ['limits'=>['vms_running'=>0,'vcpu'=>0,'ram_mib'=>0,'nodes'=>0]];
+    return ['limits'=>['vms_running'=>0,'vcpu'=>0,'ram_mib'=>0,'nodes'=>0,'vms_created'=>0]];
 }
 PHP
 chmod 0755 .docker-private .docker-private/license
@@ -94,6 +94,26 @@ fi
 "${compose[@]}" exec -T --user www-data -e HOMEVLAD_DOCKER_SMOKE=1 apache php /tmp/docker-smoke.php
 "${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py test
 "${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py license
+"${compose[@]}" exec -T --user www-data apache php -r '
+    require "includes/proxmox_functions.php";
+    $pdo = (new Database())->getConnection();
+    $node = $pdo->query("SELECT * FROM proxmox_nodes WHERE node_name=\x27qa\x27")->fetch();
+    $api = new ProxmoxAPI($node["hostname"], $node["username"], $node["password"], 22, "qa", $node["id"], $pdo);
+    $key = homevladLicenseConfig()["key_file"];
+    file_put_contents($key, "limit-fixture");
+    try {
+        foreach (["createVM", "createLXC"] as $method) {
+            try {
+                $api->$method(["cpu"=>1,"ram"=>256]);
+                throw new RuntimeException("Guest creation exceeded the limit");
+            } catch (DomainException $error) {
+                if (!str_starts_with($error->getMessage(), "Лимит лицензии:")) throw $error;
+            }
+        }
+    } finally {
+        unlink($key);
+    }
+    echo "QEMU and LXC creation methods enforce the guest limit", PHP_EOL;'
 "${compose[@]}" exec -T --user www-data apache php -r '
     require "includes/console_settings.php";
     $status=consoleBrokerStatus();
