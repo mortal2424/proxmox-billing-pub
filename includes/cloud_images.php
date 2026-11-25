@@ -56,12 +56,17 @@ function createCloudImageGroup(PDO $db, mixed $key, mixed $label, mixed $guestUs
         throw new InvalidArgumentException('Укажите ключ образа, название и имя пользователя cloud-init.');
     }
     if (isset(cloudImageCatalog()[$key])) throw new InvalidArgumentException('Этот ключ уже используется встроенной группой.');
-    try {
-        $db->prepare('INSERT INTO cloud_image_groups (image_key,label,guest_user) VALUES (?,?,?)')
-            ->execute([$key, trim($label), $guestUser]);
-    } catch (PDOException $error) {
-        if ((int)($error->errorInfo[1] ?? 0) === 1062) throw new InvalidArgumentException('Группа с таким ключом уже существует.');
-        throw $error;
+    for ($attempt = 0; $attempt < 2; $attempt++) {
+        try {
+            $db->prepare('INSERT INTO cloud_image_groups (image_key,label,guest_user) VALUES (?,?,?)')
+                ->execute([$key, trim($label), $guestUser]);
+            return;
+        } catch (PDOException $error) {
+            $code = (int)($error->errorInfo[1] ?? 0);
+            if ($code === 1062) throw new InvalidArgumentException('Группа с таким ключом уже существует.');
+            if ($code !== 1146 || $attempt !== 0) throw $error;
+            $db->exec(file_get_contents(__DIR__ . '/../migrations/20261125_cloud_image_groups.sql'));
+        }
     }
 }
 

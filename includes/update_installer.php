@@ -58,7 +58,7 @@ function replaceUpdateFile(string $source, string $target, int $mode): void
     }
 }
 
-function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null): void
+function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connect = null, ?Closure $progress = null): void
 {
     if (getenv('HOMEVLAD_IMMUTABLE_IMAGE') === '1') {
         http_response_code(403);
@@ -99,6 +99,9 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
         if (!mkdir($work, 0700)) {
             throw new RuntimeException('Не удалось подготовить обновление');
         }
+        $total = count($manifest['files']);
+        $downloaded = 0;
+        if ($progress) $progress('downloading', 0, $total);
         foreach ($manifest['files'] as $path => $file) {
             $target = updateTarget($root, $path);
             $bytes = fetchUpdateDocument($manifest['source_commit'] . '/' . str_replace('%2F', '/', rawurlencode($path)), 16777216);
@@ -112,6 +115,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
             if (is_file($target) && (!copy($target, $staged . '.before') || !chmod($staged . '.before', fileperms($target) & 0777))) {
                 throw new RuntimeException("Не удалось сохранить исходный файл $path");
             }
+            if ($progress) $progress('downloading', ++$downloaded, $total);
         }
         if (previewUpdate($root, $manifest)) {
             throw new RuntimeException('Файлы изменились во время подготовки');
@@ -132,6 +136,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
             throw new RuntimeException('Не удалось создать журнал восстановления');
         }
         $journalWritten = true;
+        if ($progress) $progress('applying', 0, $total);
         foreach ($manifest['files'] as $path => $file) {
             $target = updateTarget($root, $path);
             if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0755, true)) {
@@ -143,6 +148,7 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
                 throw new RuntimeException("Не удалось установить $path", 0, $error);
             }
             $applied[] = $path;
+            if ($progress) $progress('applying', count($applied), $total);
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($target, true);
             }
