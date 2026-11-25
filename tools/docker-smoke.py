@@ -170,7 +170,7 @@ async def license_power_smoke():
             async with browser.post(origin + '/api/mobile_admin.php', ssl=tls,
                                     headers={'Cookie': 'PHPSESSID=' + admin['id']},
                                     json={'action': 'node_save', 'csrf': admin['mobile_csrf'],
-                                          'zoneId': config['zone'], 'name': 'qa-extra', 'host': 'apache',
+                                          'zoneId': config['zone'], 'name': 'qa-extra', 'host': 'localhost',
                                           'port': 8006, 'tokenId': 'qa@pve!panel', 'secret': 'docker-smoke-token',
                                           'active': True, 'primary': False, 'orders': False}) as response:
                 node_response = await response.json()
