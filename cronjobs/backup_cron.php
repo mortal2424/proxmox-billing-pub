@@ -31,6 +31,8 @@ try {
     $db = new Database();
     $pdo = $db->getConnection();
 
+    runManualBackupQueue();
+
     // Создаем таблицы если их нет
     createBackupLogsTable($pdo);
     createSchedulesTable($pdo);

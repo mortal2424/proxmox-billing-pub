@@ -1,13 +1,20 @@
 <?php
 
+function backupNeedsCli(string $type): bool
+{
+    return PHP_SAPI !== 'cli' && in_array($type, ['db','full'], true) && !is_callable('proc_open');
+}
+
 /** Run the MySQL client without putting credentials in arguments, environment or logs. */
-function backupDatabaseCommand(string $mode, string $sqlFile): void
+function backupDatabaseCommand(string $mode, string $sqlFile, ?callable $report = null): void
 {
     if ($mode === 'import' && (!is_file($sqlFile) || !is_readable($sqlFile) || filesize($sqlFile) < 100)) throw new RuntimeException('Нет корректного дампа для импорта');
     $candidates = $mode === 'export' ? ['/usr/bin/mariadb-dump', '/usr/bin/mysqldump'] : ['/usr/bin/mariadb', '/usr/bin/mysql'];
     $binary = null;
     foreach ($candidates as $candidate) if (is_executable($candidate)) { $binary = $candidate; break; }
-    if (!$binary || !is_callable('proc_open')) throw new RuntimeException('Нужен установленный клиент MariaDB/MySQL и доступ к proc_open');
+    if (!is_callable('proc_open')) throw new RuntimeException('PHP не разрешает запуск клиента БД. Для дампа нужен CLI-процесс резервного копирования.');
+    if (!$binary) throw new RuntimeException('Не найден установленный клиент MariaDB/MySQL для копирования БД.');
+    if ($report) $report('database', 'Выбран клиент: ' . basename($binary));
     $directory = dirname($sqlFile);
     $settings = tempnam($directory, '.mysql-');
     if ($settings === false || !chmod($settings, 0600)) throw new RuntimeException('Не удалось создать закрытую конфигурацию клиента БД');
@@ -41,7 +48,9 @@ function backupDatabaseCommand(string $mode, string $sqlFile): void
             $descriptors = [0 => ['file', $sqlFile, 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', $errorFile, 'w']];
         } else throw new InvalidArgumentException('Неизвестная операция БД');
         $process = proc_open($args, $descriptors, $pipes);
-        if (!is_resource($process) || proc_close($process) !== 0) {
+        $status = is_resource($process) ? proc_close($process) : null;
+        if ($report) $report('database', $status === null ? 'Клиент не удалось запустить' : 'Код завершения клиента: ' . $status);
+        if ($status !== 0) {
             throw new RuntimeException($mode === 'export' ? 'Не удалось создать дамп БД. Проверьте доступ клиента MySQL к базе.' : 'Не удалось импортировать дамп БД');
         }
         if ($mode === 'export' && (filesize($sqlFile) < 100 || !chmod($sqlFile, 0600))) throw new RuntimeException('Получен пустой дамп БД');

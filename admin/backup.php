@@ -101,6 +101,16 @@ if (in_array($action, $mutations, true) && ($_SERVER['REQUEST_METHOD'] !== 'POST
 }
 
 switch ($action) {
+    case 'activity':
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        try {
+            echo json_encode(['entries'=>recentBackupActivity()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        } catch (Throwable $error) {
+            http_response_code(503);
+            echo '{"error":"Журнал временно недоступен"}';
+        }
+        exit;
     case 'create':
         handleCreateBackup();
         break;
@@ -155,14 +165,24 @@ function handleCreateBackup() {
         return;
     }
 
+    if (backupNeedsCli($type)) {
+        try {
+            $id = enqueueManualBackup($type, mb_substr($comment, 0, 255));
+            $message = 'Копия поставлена в очередь. Номер заявки: ' . $id . '. Ход работы доступен в журнале.';
+            $message_type = 'success';
+        } catch (Throwable $error) {
+            $message = 'Не удалось поставить копию в очередь.';
+            $message_type = 'error';
+        }
+        return;
+    }
+
     $result = createBackup($type, $comment, false);
 
     if ($result['success']) {
         $message = "Бэкап успешно создан: {$result['filename']}";
         $message_type = 'success';
 
-        // Логируем действие
-        logBackupAction($pdo, $user_id, 'create', $result['filename'], "Тип: {$type}, Комментарий: {$comment}");
     } else {
         $message = "Ошибка при создании бэкапа: " . $result['error'];
         $message_type = 'error';
@@ -373,6 +393,12 @@ function runScheduleNow() {
             $schedule = $stmt->fetch();
 
             if ($schedule) {
+                if (backupNeedsCli($schedule['backup_type'])) {
+                    $id = enqueueManualBackup($schedule['backup_type'], (string)$schedule['comment'], (int)$schedule['id']);
+                    $message = 'Копия поставлена в очередь. Номер заявки: ' . $id;
+                    $message_type = 'success';
+                    return;
+                }
                 $result = createBackup($schedule['backup_type'], $schedule['comment'] . ' [По расписанию: ' . $schedule['name'] . ']', true, (int) $schedule['id'], (int) $schedule['keep_count']);
 
                 if ($result['success']) {
@@ -1896,6 +1922,15 @@ require 'admin_header.php';
     </div>
 </div>
 
+<dialog id="backupActivityDialog" aria-labelledby="backupActivityTitle"
+        style="width:min(48rem, calc(100% - 2rem)); max-height:80vh; border:1px solid var(--db-border); border-radius:12px; background:var(--db-card-bg); color:var(--db-text); padding:1rem;">
+    <h2 id="backupActivityTitle">Журнал резервного копирования</h2>
+    <p id="backupActivityStatus" role="status"></p>
+    <ol id="backupActivityEntries"></ol>
+    <button class="btn btn-info" type="button" onclick="showLogs()">Обновить</button>
+    <form method="dialog" style="display:inline"><button class="btn" type="submit">Закрыть</button></form>
+</dialog>
+
 <!-- Модальное окно добавления/редактирования расписания -->
 <div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg" style="max-height: 85vh;">
@@ -2072,110 +2107,7 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(sidebar, { attributes: true });
     }
 
-    // Обработчик формы создания бэкапа
-    const backupForm = document.querySelector('form[action*="create"]');
-    if (backupForm) {
-        backupForm.onsubmit = function(e) {
-            e.preventDefault();
-            return handleCreateBackupWithProgress();
-        };
-    }
 });
-
-// Функции для работы с бэкапами
-function handleCreateBackupWithProgress() {
-    const form = document.querySelector('form[action*="create"]');
-    const backupType = form.querySelector('[name="backup_type"]').value;
-    const comment = form.querySelector('[name="comment"]').value;
-
-    // Показываем прогресс бар
-    const progressContainer = document.getElementById('backupProgress');
-    const progressFill = document.getElementById('progressFill');
-    const progressPercent = document.getElementById('progressPercent');
-    const createBtn = document.getElementById('createBackupBtn');
-
-    progressContainer.style.display = 'block';
-    createBtn.disabled = true;
-    createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
-
-    // Генерируем уникальный ID операции
-    const operationId = 'backup_' + Date.now();
-
-    // Начинаем отслеживание операции
-    startOperationTracking(operationId, 'backup_create', {
-        type: backupType,
-        comment: comment,
-        timestamp: new Date().toISOString()
-    });
-
-    // Симулируем прогресс
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress > 95) {
-            progress = 95;
-            clearInterval(progressInterval);
-        }
-        progressFill.style.width = progress + '%';
-        progressPercent.textContent = Math.round(progress) + '%';
-        updateOperationProgress(operationId, progress, 'Создание бэкапа...');
-    }, 500);
-
-    // Отправляем форму
-    const formData = new FormData(form);
-
-    fetch(form.action, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.text();
-    })
-    .then(data => {
-        clearInterval(progressInterval);
-        progressFill.style.width = '100%';
-        progressPercent.textContent = '100%';
-
-        // Парсим HTML для поиска сообщения об успехе/ошибке
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data, 'text/html');
-        const alert = doc.querySelector('.alert');
-
-        if (alert && alert.classList.contains('alert-success')) {
-            const message = alert.querySelector('p')?.textContent || 'Бэкап успешно создан';
-            completeOperation(operationId, true, message);
-
-            // Обновляем страницу через 2 секунды
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        } else if (alert && alert.classList.contains('alert-error')) {
-            const errorMsg = alert.querySelector('p')?.textContent || 'Ошибка при создании бэкапа';
-            completeOperation(operationId, false, errorMsg);
-            createBtn.disabled = false;
-            createBtn.innerHTML = '<i class="fas fa-database"></i> Создать бэкап';
-        } else {
-            // Если не нашли alert, предполагаем успех
-            completeOperation(operationId, true, 'Бэкап успешно создан');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-        }
-    })
-    .catch(error => {
-        clearInterval(progressInterval);
-        console.error('Ошибка при создании бэкапа:', error);
-        completeOperation(operationId, false, 'Ошибка сети: ' + error.message);
-        createBtn.disabled = false;
-        createBtn.innerHTML = '<i class="fas fa-database"></i> Создать бэкап';
-    });
-
-    return false;
-}
 
 function updateRetentionOffer() {
     const counts = <?= json_encode($backup_counts, JSON_FORCE_OBJECT) ?>;
@@ -2418,8 +2350,27 @@ function cleanupOldBackups() {
     }
 }
 
-function showLogs() {
-    showNotification('Логи бэкапов в разработке', 'info');
+async function showLogs() {
+    const dialog = document.getElementById('backupActivityDialog');
+    const status = document.getElementById('backupActivityStatus');
+    const list = document.getElementById('backupActivityEntries');
+    if (!dialog.open) dialog.showModal();
+    status.textContent = 'Загрузка…';
+    list.replaceChildren();
+    try {
+        const response = await fetch('/admin/backup.php?action=activity', {cache: 'no-store'});
+        if (!response.ok) throw new Error();
+        const {entries} = await response.json();
+        if (!Array.isArray(entries)) throw new Error();
+        for (const entry of entries) {
+            const row = document.createElement('li');
+            row.textContent = new Date(entry.time).toLocaleString() + ' · ' + entry.id + ' · ' + entry.message;
+            list.append(row);
+        }
+        status.textContent = entries.length ? 'Последние записи' : 'Записей пока нет.';
+    } catch {
+        status.textContent = 'Не удалось загрузить журнал. Попробуйте ещё раз.';
+    }
 }
 
 function createEmergencyBackup() {
