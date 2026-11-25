@@ -47,20 +47,31 @@ $payment_info = $stmt->fetch(PDO::FETCH_ASSOC);
 $stmt->execute([$user_id]);
 $login_stats = $stmt->fetch();
 
+$_SESSION['profile_settings_csrf'] ??= bin2hex(random_bytes(32));
 $success_message = '';
 $error_message = '';
 
 // Обработка формы
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        // Проверка текущего пароля для любых изменений
-        /*if (!empty($_POST['current_password'])) {
-            if (!password_verify($_POST['current_password'], $user['password_hash'])) {
-                throw new Exception("Неверный текущий пароль");
+        $csrf = $_POST['profile_settings_csrf'] ?? null;
+        if (!is_string($csrf) || !hash_equals($_SESSION['profile_settings_csrf'], $csrf)) {
+            http_response_code(403);
+            throw new RuntimeException('Сессия формы истекла. Обновите страницу.');
+        }
+        $newPassword = $_POST['new_password'] ?? '';
+        if (!is_string($newPassword)) {
+            throw new RuntimeException('Некорректный пароль');
+        }
+        if ($newPassword !== '') {
+            $currentPassword = $_POST['current_password'] ?? null;
+            if (!is_string($currentPassword) || !password_verify($currentPassword, $user['password_hash'])) {
+                throw new RuntimeException('Неверный текущий пароль');
             }
-        } else {
-            throw new Exception("Текущий пароль обязателен для подтверждения изменений");
-        }*/
+            if (strlen($newPassword) < 8 || $newPassword !== ($_POST['confirm_password'] ?? null)) {
+                throw new RuntimeException('Новый пароль должен содержать минимум 8 символов и совпадать с подтверждением');
+            }
+        }
 
         // Подготовка данных для обновления
         $update_data = ['id' => $user_id];
@@ -135,17 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Обновление пароля (если указан)
-        if (!empty($_POST['new_password'])) {
-            if (strlen($_POST['new_password']) < 8) {
-                throw new Exception("Пароль должен содержать минимум 8 символов");
-            }
-
-            if ($_POST['new_password'] !== $_POST['confirm_password']) {
-                throw new Exception("Пароли не совпадают");
-            }
-
-            $update_data['password_hash'] = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+        if ($newPassword !== '') {
+            $update_data['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
         }
 
         // Подготовка SQL запроса
@@ -157,9 +159,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $sql = "UPDATE users SET " . implode(', ', $set_parts) . " WHERE id = :id";
+        if ($newPassword !== '') {
+            $sql .= ' AND BINARY password_hash = :previous_password_hash';
+            $update_data['previous_password_hash'] = $user['password_hash'];
+        }
         $stmt = $pdo->prepare($sql);
 
-        if (!$stmt->execute($update_data)) {
+        if (!$stmt->execute($update_data) || ($newPassword !== '' && $stmt->rowCount() !== 1)) {
             throw new Exception("Ошибка при обновлении данных");
         }
 
@@ -1114,6 +1120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Вкладка: Профиль -->
             <div class="tab-content active" id="profile-tab">
                 <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="profile_settings_csrf" value="<?= htmlspecialchars($_SESSION['profile_settings_csrf'], ENT_QUOTES) ?>">
                     <div class="settings-section">
                         <div class="section-header">
                             <div class="section-icon">
@@ -1213,6 +1220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Вкладка: Безопасность -->
             <div class="tab-content" id="security-tab">
                 <form method="POST">
+                    <input type="hidden" name="profile_settings_csrf" value="<?= htmlspecialchars($_SESSION['profile_settings_csrf'], ENT_QUOTES) ?>">
                     <div class="settings-section">
                         <div class="section-header">
                             <div class="section-icon">
@@ -1308,6 +1316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <form method="POST">
+                        <input type="hidden" name="profile_settings_csrf" value="<?= htmlspecialchars($_SESSION['profile_settings_csrf'], ENT_QUOTES) ?>">
                         <div class="telegram-connect <?= !empty($user['telegram_id']) ? 'telegram-connected' : '' ?>">
                             <div class="telegram-header">
                                 <i class="fab fa-telegram telegram-icon"></i>
@@ -1429,6 +1438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php endif; ?>
 
                     <form method="POST">
+                        <input type="hidden" name="profile_settings_csrf" value="<?= htmlspecialchars($_SESSION['profile_settings_csrf'], ENT_QUOTES) ?>">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Имя владельца карты</label>

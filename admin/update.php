@@ -20,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['status'])) {
     exit;
 }
 $_SESSION['update_csrf'] ??= bin2hex(random_bytes(32));
-$pdo = (new Database())->getConnection();
 $message = '';
 $error = '';
 $manifest = null;
@@ -57,6 +56,7 @@ try {
         $releases = [];
     }
 }
+$pdo = (new Database())->getConnection();
 $currentVersion = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());
 $releases = array_filter($releases, static fn (array $release): bool =>
     homevladCompareVersions(updateReleaseLabel($release), $currentVersion) > 0
