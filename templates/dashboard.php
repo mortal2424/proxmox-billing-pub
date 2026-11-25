@@ -1001,6 +1001,18 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                 height: 250px;
             }
         }
+
+        .dashboard-guest-addresses { position: relative; min-width: 0; }
+        .dashboard-guest-addresses summary { cursor: pointer; white-space: nowrap; }
+        .dashboard-guest-addresses ul {
+            position: absolute; z-index: 5; inset-inline-start: 0;
+            width: max-content; max-width: min(18rem, 68vw);
+            margin: 4px 0 0; padding: 8px 12px; list-style: none;
+            color: #172842; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+            box-shadow: 0 6px 18px #0f172a26;
+        }
+        body.dark-theme .dashboard-guest-addresses ul { background: #192438; color: #eff5ff; border-color: #475569; }
+        .dashboard-guest-addresses li { font-family: monospace; overflow-wrap: anywhere; }
     </style>
 </head>
 <body>
@@ -1275,7 +1287,30 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                                     </div>
                                     <div class="vm-spec">
                                         <i class="fas fa-network-wired"></i>
-                                        <span><?= $vm['ip_address'] ?? 'DHCP' ?></span>
+                                        <?php
+                                        $addresses = array_values(array_unique(array_filter(
+                                            array_map('trim', explode(',', (string)($vm['ip_address'] ?? '')))
+                                        )));
+                                        $ipv4 = array_values(array_filter($addresses, static fn(string $ip): bool =>
+                                            filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false
+                                        ));
+                                        $primaryAddress = $ipv4[0] ?? null;
+                                        $additionalAddresses = array_diff($addresses, [$primaryAddress]);
+                                        ?>
+                                        <?php if (!$addresses): ?>
+                                            <span>DHCP</span>
+                                        <?php elseif (!$additionalAddresses): ?>
+                                            <span><?= htmlspecialchars($primaryAddress, ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php else: ?>
+                                            <details class="dashboard-guest-addresses">
+                                                <summary><?= htmlspecialchars($primaryAddress ?? 'IP-адреса', ENT_QUOTES, 'UTF-8') ?></summary>
+                                                <ul>
+                                                <?php foreach ($additionalAddresses as $address): ?>
+                                                    <li><?= htmlspecialchars($address, ENT_QUOTES, 'UTF-8') ?></li>
+                                                <?php endforeach; ?>
+                                                </ul>
+                                            </details>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
