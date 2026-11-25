@@ -261,27 +261,19 @@ function getDiskUsage() {
 <style>
 /* ========== ФУТЕР ========== */
 .admin-footer {
-    --footer-sidebar: 0px;
     box-sizing: border-box;
-    align-self: flex-start;
-    margin-inline-start: var(--footer-sidebar);
-    width: calc(100% - var(--footer-sidebar));
+    align-self: stretch;
+    margin-inline: 0;
+    width: 100%;
 
     background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding: 20px 0;
-    margin-top: 40px;
+    margin-top: max(40px, var(--footer-sidebar-gap, 0px));
     position: relative;
     overflow: hidden;
 }
 
-@media (min-width: 993px) {
-    body:has(#adminSidebar) .admin-footer { --footer-sidebar: 280px; }
-    body:has(#adminSidebar.compact) .admin-footer { --footer-sidebar: 70px; }
-}
-@media (993px <= width <= 1200px) {
-    body:has(#adminSidebar:not(.compact)) .admin-footer { --footer-sidebar: 260px; }
-}
 .admin-footer::before {
     content: '';
     position: absolute;
@@ -818,6 +810,33 @@ function getDiskUsage() {
         </div>
     </div>
 </footer>
+<script>
+(() => {
+    const sidebar = document.getElementById('adminSidebar');
+    const footer = document.querySelector('.admin-footer');
+    if (!sidebar || !footer) return;
+
+    const desktop = window.matchMedia('(min-width: 993px)');
+    function positionFooter() {
+        const margin = parseFloat(getComputedStyle(footer).marginTop) || 0;
+        const naturalTop = footer.getBoundingClientRect().top - margin;
+        const gap = desktop.matches ? Math.max(0, Math.ceil(sidebar.getBoundingClientRect().bottom - naturalTop)) : 0;
+        const value = gap + 'px';
+        if (footer.style.getPropertyValue('--footer-sidebar-gap') !== value) {
+            footer.style.setProperty('--footer-sidebar-gap', value);
+        }
+    }
+
+    positionFooter();
+    window.addEventListener('resize', positionFooter);
+    window.addEventListener('load', positionFooter, {once: true});
+    if (window.ResizeObserver) {
+        const observer = new ResizeObserver(positionFooter);
+        observer.observe(sidebar);
+        observer.observe(document.body);
+    }
+})();
+</script>
 
 <!-- Основные скрипты -->
 <script src="/admin/js/admin_scripts.js"></script>
