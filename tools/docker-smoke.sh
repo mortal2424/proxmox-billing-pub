@@ -113,11 +113,27 @@ try_zone_creation() {
         "${https[@]}" "${cookie[@]}" -H 'Content-Type: application/json' --data-binary @- \
             "$web/api/mobile_admin.php" -o "$qa/license-mobile.json"
 }
+try_account_creation() {
+    jq -nc --arg csrf "$mobile_csrf" --arg email "qa-license-$1@example.invalid" \
+        '{action:"account_save",csrf:$csrf,email:$email,fullName:"License fixture",type:"individual",
+          password:"qa-test-password",isActive:true,isAdmin:false}' |
+        "${https[@]}" "${cookie[@]}" -H 'Content-Type: application/json' --data-binary @- \
+            "$web/api/mobile_admin.php" -o "$qa/license-account.json"
+}
 mv .docker-private/license/license.php .docker-private/license/license.php.disabled
 try_zone_creation missing
 check_zone_count 0
 jq -e '.error | contains("Настройки лицензии недоступны")' "$qa/license-mobile.json"
+try_account_creation missing
+jq -e '.error | contains("Настройки лицензии недоступны")' "$qa/license-account.json"
 mv .docker-private/license/license.php.disabled .docker-private/license/license.php
+try_account_creation trial
+jq -e '.success and (.id > 0)' "$qa/license-account.json"
+"${compose[@]}" exec -T --user www-data apache php -r '
+    require "includes/db.php";
+    $db = (new Database())->getConnection();
+    $accounts = $db->query("SELECT email FROM users WHERE email LIKE \x27qa-license-%@example.invalid\x27")->fetchAll(PDO::FETCH_COLUMN);
+    if ($accounts !== ["qa-license-trial@example.invalid"]) exit(1);'
 try_zone_creation trial
 jq -e '.success == true' "$qa/license-mobile.json"
 check_zone_count 2
