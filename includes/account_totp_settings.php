@@ -49,6 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $manualKey = isset($_SESSION['account_totp_pending']) && !$enabled
     ? accountTotpManualKey(accountTotpCrypt($_SESSION['account_totp_pending']['secret'], false)) : null;
+$qr = null;
+if ($manualKey !== null) {
+    try {
+        require_once __DIR__ . '/qr_lib/qr.php';
+        $label = rawurlencode($issuer) . ':' . rawurlencode('#' . $userId);
+        $qr = accountTotpSvg('otpauth://totp/' . $label . '?' . http_build_query([
+            'secret'=>$manualKey,'issuer'=>$issuer,'algorithm'=>'SHA1','digits'=>6,'period'=>30
+        ], '', '&', PHP_QUERY_RFC3986));
+    } catch (Throwable $error) {
+        error_log('TOTP QR unavailable: ' . get_class($error));
+    }
+}
 ?>
 <!doctype html>
 <html lang="ru">
@@ -56,18 +68,38 @@ $manualKey = isset($_SESSION['account_totp_pending']) && !$enabled
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Двухфакторная аутентификация</title>
 <style>
-body{font:1rem system-ui;margin:2rem auto;padding:0 1rem;max-width:36rem}
-label,input{display:block;margin:.5rem 0} input,button{font:inherit;padding:.45rem}
-code{overflow-wrap:anywhere} button{cursor:pointer}
+
+:root{color-scheme:light dark;font:16px/1.5 system-ui;--bg:#f2f6fc;--card:#fff;--text:#172842;--muted:#4b6077;--line:#cbd5e1;--accent:#2458ac}
+@media(prefers-color-scheme:dark){:root{--bg:#111827;--card:#192438;--text:#eff5ff;--muted:#bacbe0;--line:#475569;--accent:#a0c6ff}}
+body{margin:0;padding:clamp(16px,5vw,56px);background:var(--bg);color:var(--text)}
+main{max-width:640px;margin:auto;background:var(--card);padding:clamp(18px,4vw,36px);border:1px solid var(--line);border-radius:18px}
+h1{font-size:clamp(1.5rem,4vw,2rem);margin:1rem 0 .25rem} a{color:var(--accent)} p{color:var(--muted)}
+label{display:block;margin:.9rem 0}input,button{font:inherit;padding:.6rem .8rem;border:1px solid var(--line);border-radius:8px}
+input{display:block;margin-top:.35rem;width:min(100%,24rem);box-sizing:border-box;background:var(--card);color:var(--text)}
+button{background:#2458ac;color:#fff;border-color:#2458ac;cursor:pointer;font-weight:600}
+summary{cursor:pointer;color:var(--accent)}code{overflow-wrap:anywhere;user-select:all}
+.setup{margin:1.2rem 0;padding:1rem;border:1px solid var(--line);border-radius:12px}
+.setup svg{display:block;width:min(100%,216px);height:auto;border-radius:8px;margin-bottom:1rem}
+
 </style>
+<main>
 <a href="<?= $escape($backUrl) ?>">Вернуться в кабинет</a>
 <h1>Двухфакторная аутентификация</h1>
 <p>Google Authenticator · <?= $enabled ? 'включён' : 'выключен' ?></p>
 <?php if ($message !== ''): ?><p role="status"><?= $escape($message) ?></p><?php endif ?>
 <?php if ($manualKey !== null): ?>
+    <section class="setup">
+    <?php if ($qr !== null): ?>
+        <p>В Google Authenticator выберите «Сканировать QR-код».</p>
+        <?= $qr ?>
+    <?php endif ?>
+    <details <?= $qr === null ? 'open' : '' ?>>
+    <summary>Ввести ключ вручную</summary>
     <p>В Google Authenticator нажмите «Добавить код», выберите «Ввести ключ настройки» и укажите тип «По времени».</p>
     <p>Имя аккаунта: <strong><?= $escape($issuer . ' #' . $userId) ?></strong></p>
     <p>Ключ настройки: <code><?= $escape($manualKey) ?></code></p>
+    </details>
+    </section>
 <?php endif ?>
 <form method="post">
     <input type="hidden" name="csrf" value="<?= $escape($csrf) ?>">
@@ -79,4 +111,5 @@ code{overflow-wrap:anywhere} button{cursor:pointer}
         <?= $enabled ? 'Отключить' : ($manualKey === null ? 'Начать настройку' : 'Подтвердить и включить') ?>
     </button>
 </form>
+</main>
 </html>

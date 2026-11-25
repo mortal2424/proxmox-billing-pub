@@ -16,6 +16,10 @@ function accountTotpRow(PDO $db, int $id): ?array
 function accountTotpCrypt(string $value, bool $encrypt): string
 {
     $encoded = getenv('BILLING_TOTP_KEY');
+    if (!$encoded && basename(dirname(__DIR__, 2)) === 'homevlad.ru') {
+        $file = dirname(__DIR__, 4) . '/tmp/homevlad-production-totp.key';
+        if (is_readable($file)) $encoded = trim(file_get_contents($file));
+    }
     $key = is_string($encoded) ? base64_decode($encoded, true) : false;
     if ($key === false || strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
         throw new RuntimeException('Настройка двухфакторной аутентификации недоступна.');
