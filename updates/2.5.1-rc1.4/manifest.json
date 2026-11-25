@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.4",
+  "from": "2.5.1-Pre-release1.3",
+  "source_commit": "3329e0d39eaf094250a97154f788ab5ad13c26ec",
+  "changelog": "## v2.5.1-Pre-release1.4\n\n- Формы профиля проверяют CSRF-токен. Для смены пароля сервер проверяет текущий пароль и отклоняет изменения, если пароль успел измениться параллельно.\n- Пункты «Безопасность» и «Уведомления» ведут на соответствующие вкладки профиля.\n- Карточки дашборда, списки IP и поля настроек VNC адаптированы для узких экранов.\n- Админский дашборд больше не запрашивает отсутствующий маршрут статистики. Данные загружаются при открытии страницы.\n- Обновлятор читает версию через новое соединение с БД после загрузки каталога или предпросмотра.\n\nПакет предназначен для установленной версии v2.5.1-Pre-release1.3. В Docker пересоберите образ и сохраните существующие тома.\n",
+  "files": {
+    "admin/console_settings.php": {
+      "before": "de5040737c92758e1ad6de947944d0f2647765160e7135d491cf2382f609beb9",
+      "sha256": "6c809a48f3e9cfba59798a5fe33a1553238d83bc3de172cade3d1aa49b3472f3"
+    },
+    "admin/index.php": {
+      "before": "dd6115575cb9f72dccf6298e5387ee279254fe32a5af2bd549d0302d875f1b8f",
+      "sha256": "12dba99d4c8d058e296a91c003ac34c09bcf5a74b09d6e3e2a51c6a2f877dfc3"
+    },
+    "admin/update.php": {
+      "before": "4b357d15bc97e54e02cc3d34cfe1cd69a9508778d41d4b85bbc17e2e16f15255",
+      "sha256": "a951b14546dc8372a395c7207d4049095ba35236507c9c39a5cc82b2346dc098"
+    },
+    "includes/version.php": {
+      "before": "11413a5f25b789c41e777f88f9d5e85529fb98713432ffc9a44ae061e9efb34c",
+      "sha256": "81484412062aac311110785223784d97a9d1dd11d112021c557549735651672b"
+    },
+    "templates/dashboard.php": {
+      "before": "d3faabf444988a47b2285c400f964958a616f49afb3cb0b07adb8095d5fa75f6",
+      "sha256": "08ed71d536967d97cab502f4c032e8beae98eb06f3f8c724328bb4e08dbd8050"
+    },
+    "templates/headers/user_header.php": {
+      "before": "28619c0c5bb9a6f121c86bb3d4ce078a60df4ba470d183caa55f15ea7c0bdad2",
+      "sha256": "430fb5d924a1d9c58528ae534c5609ab779868734323da42c92cca62e807eef3"
+    },
+    "templates/settings.php": {
+      "before": "5649ac4a95909afbaf01cab359512b6e5f1ba16f8fd459683636bcbc80d37993",
+      "sha256": "427ffde86205feabdb0466b14e0e3143b1bf78ad5d0fd60850bc52f650f9cc60"
+    }
+  }
+}

@@ -57,10 +57,10 @@ require __DIR__ . '/admin_sidebar.php';
 .console-settings-page{margin-inline-start:280px;padding:clamp(1rem,3vw,2rem);color:var(--admin-header-text)}
 .console-settings-card{background:var(--admin-card-bg);border:1px solid var(--admin-header-border);padding:1.25rem;border-radius:12px;max-width:44rem}
 .console-settings-guide{margin-top:1rem}
-.console-settings-guide code{overflow-wrap:anywhere}
+.console-settings-card code{overflow-wrap:anywhere}
 .console-settings-guide a{color:var(--admin-header-text);text-decoration:underline}
-.console-settings-card form,.console-settings-card label{display:grid;gap:.55rem}.console-settings-card form{margin-top:1rem}
-.console-settings-card select,.console-settings-card input,.console-settings-card button{padding:.5rem;color:inherit;background:var(--admin-hover-bg);border:1px solid var(--admin-header-border);border-radius:6px}
+.console-settings-card form,.console-settings-card label{display:grid;grid-template-columns:minmax(0,1fr);gap:.55rem}.console-settings-card form{margin-top:1rem}
+.console-settings-card select,.console-settings-card input,.console-settings-card button{min-width:0;max-width:100%;padding:.5rem;color:inherit;background:var(--admin-hover-bg);border:1px solid var(--admin-header-border);border-radius:6px}
 @media(max-width:1200px){.console-settings-page{margin-inline-start:70px}}
 @media(max-width:768px){.console-settings-page{margin-inline-start:0}}
 </style>
