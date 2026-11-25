@@ -126,7 +126,7 @@ check_zone_count 2
 "${compose[@]}" exec -T --user www-data apache php -r '
     require "includes/db.php";
     $db = (new Database())->getConnection();
-    $db->prepare("UPDATE system_versions SET version = ?")->execute([$argv[1]]);
+    $db->prepare("INSERT INTO system_versions (version) VALUES (?) ON DUPLICATE KEY UPDATE version = VALUES(version)")->execute([$argv[1]]);
 ' "${base_ref#v}"
 manifest="updates/$test_version/manifest.json"
 jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
