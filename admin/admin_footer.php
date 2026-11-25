@@ -261,6 +261,12 @@ function getDiskUsage() {
 <style>
 /* ========== ФУТЕР ========== */
 .admin-footer {
+    --footer-sidebar: 0px;
+    box-sizing: border-box;
+    align-self: flex-start;
+    margin-inline-start: var(--footer-sidebar);
+    width: calc(100% - var(--footer-sidebar));
+
     background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding: 20px 0;
@@ -270,11 +276,11 @@ function getDiskUsage() {
 }
 
 @media (min-width: 993px) {
-    body:has(#adminSidebar) .admin-footer { margin-inline-start: 280px; }
-    body:has(#adminSidebar.compact) .admin-footer { margin-inline-start: 70px; }
+    body:has(#adminSidebar) .admin-footer { --footer-sidebar: 280px; }
+    body:has(#adminSidebar.compact) .admin-footer { --footer-sidebar: 70px; }
 }
 @media (993px <= width <= 1200px) {
-    body:has(#adminSidebar:not(.compact)) .admin-footer { margin-inline-start: 260px; }
+    body:has(#adminSidebar:not(.compact)) .admin-footer { --footer-sidebar: 260px; }
 }
 .admin-footer::before {
     content: '';
@@ -288,8 +294,8 @@ function getDiskUsage() {
 }
 
 .footer-content {
-    max-width: 1200px;
-    margin: 0 auto;
+    box-sizing: border-box;
+    width: 100%;
     padding: 0 20px;
 }
 
