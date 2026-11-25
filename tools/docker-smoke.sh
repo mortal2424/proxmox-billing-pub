@@ -29,7 +29,9 @@ cat > .docker-private/license/license.php <<'PHP'
 <?php
 return ['client'=>'/run/homevlad-license/client.php',
     'key_file'=>'/var/lib/homevlad-private/license/activation.key',
-    'cache'=>'/var/lib/homevlad-private/license/lease.json'];
+    'cache'=>'/var/lib/homevlad-private/license/lease.json',
+    'public_key'=>'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    'domain'=>'smoke.example.invalid','source_ip'=>'192.0.2.7','nonce'=>str_repeat('0',64)];
 PHP
 printf '<?php\n' > .docker-private/license/client.php
 chmod 0755 .docker-private .docker-private/license
@@ -58,6 +60,8 @@ ready() {
     return 1
 }
 ready
+"${compose[@]}" cp tests/licensing_config_test.php apache:/tmp/licensing_config_test.php
+"${compose[@]}" exec -T --user www-data apache php /tmp/licensing_config_test.php /var/www/html
 image_version=$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')
 echo "Built Docker image for $image_version"
 wrong_host=$("${https[@]}" -H 'Host: unknown.example.invalid' -o /dev/null -w '%{http_code}' "$web/")

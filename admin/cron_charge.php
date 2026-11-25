@@ -53,7 +53,21 @@ $vms = $pdo->query("
 foreach ($vms as $vm) {
     error_log("Processing VM #{$vm['vm_id']} (Type: {$vm['vm_type']}, Status: {$vm['status']})");
     
+    $resumeLicense = null;
+    $resumeLocked = false;
+    $resumeAllowed = true;
     try {
+        if ($vm['status'] === 'suspended') {
+            try {
+                $resumeLicense = homevladLicenseConfig();
+                if ($resumeLicense !== null) {
+                    homevladLicenseAcquire($pdo);
+                    $resumeLocked = true;
+                }
+            } catch (DomainException $error) {
+                $resumeAllowed = false;
+            }
+        }
         $pdo->beginTransaction();
         
         $user_id = (int)$vm['user_id'];
@@ -180,7 +194,14 @@ foreach ($vms as $vm) {
             $total_balance = (float)$current_balance['balance'] + (float)$current_balance['bonus_balance'];
             $required_balance = $amount * 24; // Проверяем на сутки вперед
             
-            if ($total_balance >= $required_balance) {
+            if ($resumeAllowed && $total_balance >= $required_balance && $resumeLicense !== null) {
+                try {
+                    homevladAssertLicense($pdo, $resumeLicense, ['vms_running'=>1]);
+                } catch (DomainException $error) {
+                    $resumeAllowed = false;
+                }
+            }
+            if ($resumeAllowed && $total_balance >= $required_balance) {
                 $api = billingGuestApi($pdo, (int) $vm['node_id']);
                 $api->startBillingGuest((int) $vm['vm_id'], $vm['vm_type']);
                 updateBillingGuestState($pdo, (int)$vm['id'], null);
@@ -193,6 +214,8 @@ foreach ($vms as $vm) {
             $pdo->rollBack();
         }
         error_log("Error processing VM #{$vm['vm_id']}: " . $e->getMessage());
+    } finally {
+        if ($resumeLocked) homevladLicenseRelease($pdo);
     }
 }
 
