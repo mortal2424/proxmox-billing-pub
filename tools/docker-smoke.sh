@@ -90,6 +90,7 @@ fi
 "${compose[@]}" exec -d apache /usr/bin/python3 /tmp/docker-smoke.py serve
 "${compose[@]}" exec -T --user www-data -e HOMEVLAD_DOCKER_SMOKE=1 apache php /tmp/docker-smoke.php
 "${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py test
+"${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py license
 "${compose[@]}" exec -T --user www-data apache php -r '
     require "includes/console_settings.php";
     $status=consoleBrokerStatus();
