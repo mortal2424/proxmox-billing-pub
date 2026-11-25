@@ -437,9 +437,13 @@ require 'admin_header.php';
 /* ========== ОСНОВНАЯ СЕТКА ========== */
 .dashboard-main-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     gap: 25px;
     margin-bottom: 30px;
+}
+
+.dashboard-main-grid > div {
+    min-width: 0;
 }
 
 @media (max-width: 1200px) {
@@ -448,7 +452,7 @@ require 'admin_header.php';
     }
 
     .dashboard-main-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -1041,6 +1045,7 @@ require 'admin_header.php';
                 </div>
                 <div class="dashboard-widget-body">
                     <?php if (!empty($recent_users)): ?>
+                    <div class="mobile-table-scroll">
                     <table class="dashboard-table">
                         <thead>
                             <tr>
@@ -1069,6 +1074,7 @@ require 'admin_header.php';
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                    </div>
                     <?php else: ?>
                     <div class="dashboard-no-data">
                         <i class="fas fa-info-circle"></i>

@@ -121,9 +121,11 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         }
 
         @media (max-width: 992px) {
-            .main-content {
+            .main-content, .sidebar-collapsed .main-content {
+                min-width: 0;
                 margin-left: 0;
                 padding: 20px;
+                transition: none;
             }
         }
 
@@ -1014,6 +1016,7 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         body.dark-theme .dashboard-guest-addresses ul { background: #192438; color: #eff5ff; border-color: #475569; }
         .dashboard-guest-addresses li { font-family: monospace; overflow-wrap: anywhere; }
         @media (max-width: 768px) {
+            .main-container .stats-grid { grid-template-columns: minmax(0, 1fr); }
             .stats-grid > *, .vm-grid > *, .quick-actions-grid > * { min-width: 0; overflow-wrap: anywhere; }
             .dashboard-guest-addresses summary { white-space: normal; overflow-wrap: anywhere; }
             .dashboard-guest-addresses ul { position: static; max-width: 100%; }

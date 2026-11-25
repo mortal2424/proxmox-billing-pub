@@ -394,6 +394,7 @@ $userBlock = homevladLicenseBlockReason($pdo, ['users'=>1]);
 }
 
 .table-search input {
+    box-sizing: border-box;
     padding: 10px 40px 10px 12px;
     border-radius: 8px;
     border: 1px solid var(--admin-border);
@@ -868,6 +869,7 @@ $userBlock = homevladLicenseBlockReason($pdo, ['users'=>1]);
 
         <!-- Таблица -->
         <?php if (!empty($users)): ?>
+            <div class="mobile-table-scroll">
             <table class="users-table">
                 <thead>
                     <tr>
@@ -929,6 +931,7 @@ $userBlock = homevladLicenseBlockReason($pdo, ['users'=>1]);
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         <?php else: ?>
             <div class="table-empty-state">
                 <i class="fas fa-users"></i>
