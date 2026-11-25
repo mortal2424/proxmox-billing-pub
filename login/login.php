@@ -98,59 +98,27 @@ if (isset($_POST['auth_date'])) {
     }
 }
 
-// Обработка обычного входа (только если не было Telegram авторизации)
+require_once __DIR__ . '/../includes/web_login_challenge.php';
+$captchaRequired = false;
+$siteKey = getenv('HOMEVLAD_TURNSTILE_SITE_KEY') ?: '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
     $email = trim(is_string($_POST['email'] ?? null) ? $_POST['email'] : '');
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
-    $captcha_answer = isset($_POST['captcha']) ? (int)$_POST['captcha'] : null;
-
-    // Валидация данных
-    $error = null;
-
-    if (empty($email)) {
-        $error = "Введите email";
-    } elseif (empty($password)) {
-        $error = "Введите пароль";
-    } elseif (empty($captcha_answer)) {
-        $error = "Введите ответ капчи";
-    } elseif (!isset($_SESSION['captcha']) || $captcha_answer !== $_SESSION['captcha']) {
-        $error = "Неправильный ответ капчи!";
-    } else {
-        try {
-            completePasswordLogin((new Database())->getConnection(), $email, $password, $_POST['totp'] ?? null);
-            header('Location: /templates/dashboard.php');
-            exit;
-        } catch (PDOException $loginError) {
-            $error = "Сервис входа временно недоступен";
-        } catch (RuntimeException $loginError) {
-            $error = $loginError->getMessage();
-        }
-
+    try {
+        $pdo = (new Database())->getConnection();
+        limitWebLogin($pdo, $_SERVER['REMOTE_ADDR'] ?? '');
+        completePasswordLogin($pdo, $email, $password, $_POST['totp'] ?? null, static function () use (&$captchaRequired): void {
+            $captchaRequired = true;
+            verifyLoginTurnstile($_POST['cf-turnstile-response'] ?? null);
+        });
+        header('Location: /templates/dashboard.php');
+        exit;
+    } catch (PDOException $error) {
+        $_SESSION['login_error'] = 'Сервис входа временно недоступен.';
+    } catch (RuntimeException $error) {
+        $_SESSION['login_error'] = $error->getMessage();
     }
-
-    if ($error) {
-        $_SESSION['login_error'] = $error;
-
-        // Генерируем новую капчу только при ошибке входа
-        $num1 = rand(1, 10);
-        $num2 = rand(1, 10);
-        $_SESSION['captcha'] = $num1 + $num2;
-        $_SESSION['captcha_question'] = "$num1 + $num2";
-
-        // Сохраняем введенный email для удобства пользователя
-        $_SESSION['login_email'] = $email;
-    }
-}
-
-// Генерация новой капчи при первой загрузке страницы (не POST или если это GET запрос)
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SERVER['REQUEST_METHOD'] === 'POST')) {
-    // Генерируем капчу только если ее еще нет в сессии
-    if (!isset($_SESSION['captcha'])) {
-        $num1 = rand(1, 10);
-        $num2 = rand(1, 10);
-        $_SESSION['captcha'] = $num1 + $num2;
-        $_SESSION['captcha_question'] = "$num1 + $num2";
-    }
+    $_SESSION['login_email'] = $email;
 }
 ?>
 
@@ -1002,18 +970,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SE
                         <label for="login-totp">Код Google Authenticator (если включён)</label>
                         <input id="login-totp" class="form-control" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6">
                     </div>
-                    <div class="captcha-box">
-                        <div>Сколько будет?</div>
-                        <div style="font-size: 24px; font-weight: 700; margin: 8px 0; color: var(--mint-text);">
-                            <?= $_SESSION['captcha_question'] ?? 'Обновите страницу' ?> = ?
-                        </div>
-                        <input type="number" name="captcha" class="form-control" required
-                               placeholder="Введите ответ"
-                               min="1" max="20">
-                        <button type="button" class="captcha-refresh" onclick="refreshCaptcha()">
-                            <i class="fas fa-redo"></i> Обновить капчу
-                        </button>
-                    </div>
+                    <?php if ($captchaRequired && $siteKey !== ''): ?>
+                        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                        <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars($siteKey, ENT_QUOTES) ?>"
+                             data-action="homevlad_login" data-theme="auto" data-size="flexible"></div>
+                    <?php endif; ?>
 
                     <!-- Вспомогательные ссылки -->
                     <div class="auth-links">
@@ -1113,53 +1074,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SE
                         if (nextIndex < inputs.length) {
                             inputs[nextIndex].focus();
                         } else {
-                            form.submit();
+                            form.requestSubmit();
                         }
                     }
                 });
             });
 
-            // Добавляем эффект при наведении на капчу
-            const captchaBox = document.querySelector('.captcha-box');
-            captchaBox.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-2px)';
-            });
-
-            captchaBox.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0)';
-            });
         });
-
-        // Обновление капчи
-        function refreshCaptcha() {
-            fetch('/login/refresh_captcha.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const captchaDiv = document.querySelector('.captcha-box div:nth-child(2)');
-                        if (captchaDiv) {
-                            captchaDiv.textContent = data.question;
-                            captchaDiv.style.animation = 'fadeInUp 0.5s ease';
-
-                            // Сбросить поле ввода
-                            const captchaInput = document.querySelector('input[name="captcha"]');
-                            if (captchaInput) {
-                                captchaInput.value = '';
-                                captchaInput.focus();
-                            }
-
-                            // Обновить вопрос в сессии на стороне клиента (только для отображения)
-                            setTimeout(() => {
-                                captchaDiv.style.animation = '';
-                            }, 500);
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error refreshing captcha:', error);
-                    alert('Не удалось обновить капчу. Попробуйте перезагрузить страницу.');
-                });
-        }
 
         // Обработка данных из Telegram Widget
         function onTelegramAuth(user) {
@@ -1176,7 +1097,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || (isset($_POST['auth_date']) && $_SE
             }
 
             document.body.appendChild(form);
-            form.submit();
+            form.requestSubmit();
         }
     </script>
 </body>

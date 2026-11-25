@@ -70,10 +70,13 @@ function accountTotpMatch(string $secret, mixed $code, ?int $now = null): ?int
     return null;
 }
 
-function accountTotpVerify(PDO $db, int $id, mixed $code): void
+function accountTotpVerify(PDO $db, int $id, mixed $code, bool $required = false): void
 {
     $row = accountTotpRow($db, $id);
-    if ($row === null) return;
+    if ($row === null) {
+        if ($required) throw new RuntimeException('Настройки входа изменились. Повторите попытку.');
+        return;
+    }
     if (!is_string($code) || !preg_match('/^[0-9]{6}$/D', $code)) {
         throw new RuntimeException('Введите шестизначный код Google Authenticator.');
     }
