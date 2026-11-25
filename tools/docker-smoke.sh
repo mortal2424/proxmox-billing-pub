@@ -206,7 +206,19 @@ verify='require "includes/db.php"; $d=(new Database())->getConnection();
     if (!extension_loaded("sodium") || !is_readable($c["client"]) ||
         is_writable($c["client"]) || file_put_contents($c["cache"], "test lease") === false) exit(1);
     if (file_put_contents($c["key_file"], "refresh-fixture") === false) exit(1);'
+mkdir -p .docker-private/update-trust
+openssl rand -base64 32 > .docker-private/update-trust/homevlad-update.pub
+chmod 0644 .docker-private/update-trust/homevlad-update.pub
+export HOMEVLAD_UPDATE_SIGNATURE_REQUIRED=1
+export HOMEVLAD_UPDATE_PUBLIC_KEY=/run/homevlad-update-trust/homevlad-update.pub
 "${compose[@]}" up -d --no-deps --force-recreate apache nginx
+"${compose[@]}" exec -T --user www-data apache php -r '
+    $path = getenv("HOMEVLAD_UPDATE_PUBLIC_KEY");
+    if (getenv("HOMEVLAD_UPDATE_SIGNATURE_REQUIRED") !== "1" ||
+        strlen(base64_decode(trim(file_get_contents($path)), true)) !== 32 ||
+        is_writable($path)) exit(1);'
+"${compose[@]}" cp tools/test-update-signature.php apache:/tmp/test-update-signature.php
+"${compose[@]}" exec -T --user www-data apache php /tmp/test-update-signature.php /var/www/html
 ready
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
 "${compose[@]}" exec -T --user www-data apache php -l includes/mobile_admin_directory.php

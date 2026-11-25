@@ -123,13 +123,8 @@ function releaseManifest(string $version): array
         if (!hash_equals($hash, hash('sha256', $raw))) {
             throw new RuntimeException('Контрольная сумма манифеста не совпадает');
         }
-        $keyPath = getenv('HOMEVLAD_UPDATE_PUBLIC_KEY');
-        if ($keyPath !== false && $keyPath !== '') {
-            $publicKey = @file_get_contents($keyPath, false, null, 0, 256);
-            if ($publicKey === false) throw new RuntimeException('Доверенный ключ обновлений недоступен');
-            $signature = fetchUpdateDocument("$commit/updates/$packageVersion/manifest.json.sig", 256);
-            verifyUpdateManifestSignature($raw, $signature, $publicKey);
-        }
+        verifyConfiguredUpdateSignature($raw, static fn (): string =>
+            fetchUpdateDocument("$commit/updates/$packageVersion/manifest.json.sig", 256));
         $manifest = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
         if (($manifest['version'] ?? '') !== $packageVersion || ($manifest['format'] ?? null) !== 1) {
             throw new RuntimeException('Некорректный манифест');

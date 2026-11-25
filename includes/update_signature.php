@@ -13,3 +13,24 @@ function verifyUpdateManifestSignature(string $document, string $signature, stri
         throw new RuntimeException('Подпись манифеста недействительна');
     }
 }
+
+function verifyConfiguredUpdateSignature(string $document, callable $fetchSignature): void
+{
+    $required = getenv('HOMEVLAD_UPDATE_SIGNATURE_REQUIRED');
+    if (!in_array($required, [false, '', '0', '1'], true)) {
+        throw new RuntimeException('HOMEVLAD_UPDATE_SIGNATURE_REQUIRED должен быть 0 или 1');
+    }
+    $path = getenv('HOMEVLAD_UPDATE_PUBLIC_KEY');
+    if ($path === false || $path === '') {
+        if ($required === '1') throw new RuntimeException('Для обязательной проверки подписи задайте HOMEVLAD_UPDATE_PUBLIC_KEY');
+        return;
+    }
+    $publicKey = @file_get_contents($path, false, null, 0, 256);
+    if ($publicKey === false) throw new RuntimeException('Доверенный ключ обновлений недоступен');
+    try {
+        $signature = $fetchSignature();
+    } catch (Throwable $error) {
+        throw new RuntimeException('Подпись пакета обновления недоступна', 0, $error);
+    }
+    verifyUpdateManifestSignature($document, $signature, $publicKey);
+}
