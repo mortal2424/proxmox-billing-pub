@@ -1252,6 +1252,7 @@ require 'admin_header.php';
     <div class="settings-header">
         <div class="header-left">
             <h1><i class="fas fa-cog"></i> Настройки сайта</h1>
+                <p><a class="btn btn-outline-primary" href="/admin/captcha_settings.php">Защита входа · CAPTCHA</a></p>
             <p>Управление всными настройками системы в одном месте</p>
         </div>
         <div class="dashboard-quick-actions">

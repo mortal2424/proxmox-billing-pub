@@ -552,9 +552,7 @@ docker compose up -d --build
 
 ### Проверка веб-входа
 
-Перед обновлением примените `migrations/20261125_web_login_attempts.sql` и настройте
-`HOMEVLAD_TURNSTILE_SITE_KEY`, `HOMEVLAD_TURNSTILE_SECRET` и
-`HOMEVLAD_TURNSTILE_HOSTNAME` в приватном окружении PHP. Разрешите точное имя
-сайта в Cloudflare Turnstile. Веб-вход с паролем без TOTP требует успешной
-серверной проверки Turnstile. При включённом TOTP проверяется шестизначный код.
-Лимит попыток по IP действует для обоих сценариев.
+Перед обновлением примените миграции `20261125_web_login_attempts.sql` и
+`20261125_web_login_captcha.sql`. После этого откройте «Настройки сайта →
+Защита входа · CAPTCHA» и сохраните ключи Cloudflare Turnstile. Секрет шифруется
+приватным ключом установки, который также используется для TOTP.

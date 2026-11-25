@@ -16,13 +16,20 @@ function limitWebLogin(PDO $db, string $address): void
     if ((int)$query->fetchColumn() > 30) throw new RuntimeException('Слишком много попыток. Повторите через 15 минут.');
 }
 
-function verifyLoginTurnstile(mixed $token): void
+function loginCaptchaSettings(PDO $db): array
 {
-    $secret = getenv('HOMEVLAD_TURNSTILE_SECRET');
-    $hostname = getenv('HOMEVLAD_TURNSTILE_HOSTNAME');
-    if (!$secret || !$hostname || !getenv('HOMEVLAD_TURNSTILE_SITE_KEY')) {
+    static $defaults = ['enabled'=>0, 'site_key'=>'', 'secret_box'=>'', 'hostname'=>''];
+    return $db->query('SELECT enabled, site_key, secret_box, hostname FROM web_login_captcha WHERE id=1')
+        ->fetch(PDO::FETCH_ASSOC) ?: $defaults;
+}
+
+function verifyLoginTurnstile(mixed $token, array $config): void
+{
+    if (!$config['secret_box'] || !$config['hostname'] || !$config['site_key']) {
         throw new RuntimeException('Проверка входа временно недоступна.');
     }
+    $secret = accountTotpCrypt($config['secret_box'], false);
+    $hostname = $config['hostname'];
     if (!is_string($token) || $token === '' || strlen($token) > 2048) {
         throw new RuntimeException('Пройдите проверку и повторите ввод пароля.');
     }
@@ -37,7 +44,7 @@ function verifyLoginTurnstile(mixed $token): void
     }
     $result = json_decode($body, true);
     if (($result['success'] ?? null) !== true || ($result['hostname'] ?? null) !== $hostname ||
-        ($result['action'] ?? null) !== 'homevlad_login') {
+        ($result['action'] ?? null) !== 'panel_login') {
         throw new RuntimeException('Проверка не пройдена. Повторите попытку.');
     }
 }

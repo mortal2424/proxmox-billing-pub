@@ -100,16 +100,19 @@ if (isset($_POST['auth_date'])) {
 
 require_once __DIR__ . '/../includes/web_login_challenge.php';
 $captchaRequired = false;
-$siteKey = getenv('HOMEVLAD_TURNSTILE_SITE_KEY') ?: '';
+$siteKey = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
     $email = trim(is_string($_POST['email'] ?? null) ? $_POST['email'] : '');
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
     try {
         $pdo = (new Database())->getConnection();
         limitWebLogin($pdo, $_SERVER['REMOTE_ADDR'] ?? '');
-        completePasswordLogin($pdo, $email, $password, $_POST['totp'] ?? null, static function () use (&$captchaRequired): void {
+        completePasswordLogin($pdo, $email, $password, $_POST['totp'] ?? null, static function () use ($pdo, &$captchaRequired, &$siteKey): void {
+            $config = loginCaptchaSettings($pdo);
+            if (!$config['enabled']) return;
             $captchaRequired = true;
-            verifyLoginTurnstile($_POST['cf-turnstile-response'] ?? null);
+            $siteKey = $config['site_key'];
+            verifyLoginTurnstile($_POST['cf-turnstile-response'] ?? null, $config);
         });
         header('Location: /templates/dashboard.php');
         exit;
@@ -973,7 +976,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['auth_date'])) {
                     <?php if ($captchaRequired && $siteKey !== ''): ?>
                         <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
                         <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars($siteKey, ENT_QUOTES) ?>"
-                             data-action="homevlad_login" data-theme="auto" data-size="flexible"></div>
+                             data-action="panel_login" data-theme="auto" data-size="flexible"></div>
                     <?php endif; ?>
 
                     <!-- Вспомогательные ссылки -->
