@@ -598,15 +598,15 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
             }
 
             .stats-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr);
             }
 
             .vm-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr);
             }
 
             .quick-actions-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr);
             }
         }
 
@@ -1013,6 +1013,11 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         }
         body.dark-theme .dashboard-guest-addresses ul { background: #192438; color: #eff5ff; border-color: #475569; }
         .dashboard-guest-addresses li { font-family: monospace; overflow-wrap: anywhere; }
+        @media (max-width: 768px) {
+            .stats-grid > *, .vm-grid > *, .quick-actions-grid > * { min-width: 0; overflow-wrap: anywhere; }
+            .dashboard-guest-addresses summary { white-space: normal; overflow-wrap: anywhere; }
+            .dashboard-guest-addresses ul { position: static; max-width: 100%; }
+        }
     </style>
 </head>
 <body>
