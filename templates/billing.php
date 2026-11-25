@@ -1578,9 +1578,20 @@ $title = "Биллинг | HomeVlad Cloud";
                 align-items: stretch;
             }
 
+            .filter-form {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
             .filter-group {
-                width: 100%;
-                justify-content: space-between;
+                flex: 1 1 100%;
+                min-width: 0;
+                white-space: normal;
+            }
+
+            .filter-group select {
+                flex: 1 1 auto;
+                min-width: 0;
             }
 
             .payment-item, .debit-item {

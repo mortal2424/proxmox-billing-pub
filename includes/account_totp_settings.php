@@ -67,6 +67,7 @@ if ($manualKey !== null) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Двухфакторная аутентификация</title>
+<link rel="icon" type="image/png" href="/img/app-icon-180.png">
 <style>
 
 :root{color-scheme:light dark;font:16px/1.5 system-ui;--bg:#f2f6fc;--card:#fff;--text:#172842;--muted:#4b6077;--line:#cbd5e1;--accent:#2458ac}
