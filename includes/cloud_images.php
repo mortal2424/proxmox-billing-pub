@@ -1,6 +1,6 @@
 <?php
 
-function cloudImageCatalog(): array
+function cloudImageCatalog(?PDO $db = null): array
 {
     $images = [];
     foreach (['22.04' => 'jammy', '24.04' => 'noble', '26.04' => 'resolute'] as $version => $release) {
@@ -35,7 +35,34 @@ function cloudImageCatalog(): array
             'minimum_ram' => 2048, 'minimum_disk' => 32,
         ];
     }
+    if ($db !== null) {
+        try {
+            $rows = $db->query('SELECT image_key,label,guest_user FROM cloud_image_groups ORDER BY label')->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                $images[$row['image_key']] ??= ['label'=>$row['label'], 'user'=>$row['guest_user'], 'custom'=>true];
+            }
+        } catch (PDOException $error) {
+            if ((int)($error->errorInfo[1] ?? 0) !== 1146) throw $error;
+        }
+    }
     return $images;
+}
+
+function createCloudImageGroup(PDO $db, mixed $key, mixed $label, mixed $guestUser): void
+{
+    if (!is_string($key) || !preg_match('/^[a-z][a-z0-9-]{0,31}$/D', $key) ||
+        !is_string($label) || trim($label) === '' || mb_strlen($label) > 100 || preg_match('/[[:cntrl:]]/u', $label) ||
+        !is_string($guestUser) || !preg_match('/^[a-z_][a-z0-9_-]{0,31}$/D', $guestUser)) {
+        throw new InvalidArgumentException('Укажите ключ образа, название и имя пользователя cloud-init.');
+    }
+    if (isset(cloudImageCatalog()[$key])) throw new InvalidArgumentException('Этот ключ уже используется встроенной группой.');
+    try {
+        $db->prepare('INSERT INTO cloud_image_groups (image_key,label,guest_user) VALUES (?,?,?)')
+            ->execute([$key, trim($label), $guestUser]);
+    } catch (PDOException $error) {
+        if ((int)($error->errorInfo[1] ?? 0) === 1062) throw new InvalidArgumentException('Группа с таким ключом уже существует.');
+        throw $error;
+    }
 }
 
 function cloudGuestAgentSnippet(callable $request, string $node, array $stores): ?string
@@ -58,11 +85,11 @@ function cloudGuestAgentSnippet(callable $request, string $node, array $stores):
     return null;
 }
 
-function cloudImportVolumes(callable $request, string $node, ?array $storage = null): array
+function cloudImportVolumes(callable $request, string $node, ?array $storage = null, ?PDO $db = null): array
 {
     $path = '/nodes/' . rawurlencode($node) . '/storage';
     $storage ??= $request('GET', $path, []);
-    $catalog = cloudImageCatalog();
+    $catalog = cloudImageCatalog($db);
     $images = [];
     foreach ($storage as $store) {
         $name = $store['storage'] ?? '';
@@ -122,7 +149,7 @@ function publishedCloudImages(PDO $db, int $nodeId, array $images): array
     $query->execute([$nodeId]);
     $settings = $query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
     foreach ($images as $key => $versions) {
-        if (($versions[0]['os_type'] ?? '') === 'windows' && empty($settings[$key]['storage'])) unset($images[$key]);
+        if ((($versions[0]['os_type'] ?? '') === 'windows' || !empty($versions[0]['custom'])) && empty($settings[$key]['storage'])) unset($images[$key]);
     }
     foreach ($settings as $key => $setting) {
         if (empty($setting['enabled'])) {

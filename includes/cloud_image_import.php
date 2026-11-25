@@ -25,9 +25,9 @@ function validatedCloudDiskSize($file): int
     return $minimum;
 }
 
-function uploadPreparedCloudImage(array $node, string $storage, string $key, string $file): string
+function uploadPreparedCloudImage(array $node, string $storage, string $key, string $file, ?PDO $db = null): string
 {
-    if (!isset(cloudImageCatalog()[$key]) || !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $storage)) {
+    if (!isset(cloudImageCatalog($db)[$key]) || !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $storage)) {
         throw new InvalidArgumentException('Неизвестный образ или хранилище');
     }
     $handle = fopen($file, 'rb');

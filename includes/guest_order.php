@@ -78,15 +78,16 @@ function submitGuestOrder(int $user_id, array $input): array
             }
             $fromCloud = $vmType === 'qemu' && $installMethod === 'cloud';
             $cloudKey = $fromCloud ? ($input['cloud_image'] ?? '') : '';
-            if ($fromCloud && (!is_string($cloudKey) || !isset(cloudImageCatalog()[$cloudKey]))) {
+            $cloud = $fromCloud && is_string($cloudKey) ? cloudImageCatalog($pdo)[$cloudKey] ?? null : null;
+            if ($fromCloud && $cloud === null) {
                 throw new InvalidArgumentException('Выберите cloud-образ');
             }
             if ($fromCloud) {
                 // Allow the 600-second Proxmox disk import and subsequent setup to finish.
                 set_time_limit(660);
             }
-            $osType = $fromCloud ? (cloudImageCatalog()[$cloudKey]['os_type'] ?? 'linux') : ($input['os_type'] ?? 'linux');
-            $osVersion = $fromCloud ? cloudImageCatalog()[$cloudKey]['label'] : ($vmType === 'qemu' ? ($input['os_version'] ?? '') : 'linux');
+            $osType = $fromCloud ? ($cloud['os_type'] ?? 'linux') : ($input['os_type'] ?? 'linux');
+            $osVersion = $fromCloud ? mb_substr($cloud['label'], 0, 20) : ($vmType === 'qemu' ? ($input['os_version'] ?? '') : 'linux');
 
             $custom_cpu = (int)($input['custom_cpu'] ?? 0);
             $custom_ram = (int)($input['custom_ram'] ?? 0);

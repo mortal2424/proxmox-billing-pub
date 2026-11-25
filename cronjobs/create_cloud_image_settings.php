@@ -2,7 +2,8 @@
 require_once __DIR__ . '/../includes/cli_only.php';
 require_once __DIR__ . '/../includes/db.php';
 
-(new Database())->getConnection()->exec("CREATE TABLE IF NOT EXISTS cloud_image_settings (
+$db = (new Database())->getConnection();
+$db->exec("CREATE TABLE IF NOT EXISTS cloud_image_settings (
     node_id INT NOT NULL,
     image_key VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     display_name VARCHAR(100) NOT NULL DEFAULT '',
@@ -14,4 +15,5 @@ require_once __DIR__ . '/../includes/db.php';
     PRIMARY KEY (node_id, image_key),
     FOREIGN KEY (node_id) REFERENCES proxmox_nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+$db->exec(file_get_contents(__DIR__ . '/../migrations/20261125_cloud_image_groups.sql'));
 echo "Cloud image settings schema ready\n";

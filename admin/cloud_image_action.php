@@ -20,7 +20,13 @@ $storage = $_POST['storage'] ?? '';
 $volume = $_POST['volume'] ?? '';
 
 try {
-    if (!$nodeId || !is_string($key) || !isset(cloudImageCatalog()[$key]) ||
+    if ($action === 'create_group') {
+        createCloudImageGroup($pdo, $key, $label, $_POST['guest_user'] ?? null);
+        $_SESSION['cloud_image_notice'] = ['success', 'Группа создана. Загрузите QCOW2 или обновите список Import.'];
+        header('Location: image.php?' . http_build_query(['type'=>'cloud','node_id'=>$nodeId ?: '']), true, 303);
+        exit;
+    }
+    if (!$nodeId || !is_string($key) || !isset(cloudImageCatalog($pdo)[$key]) ||
         !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload'], true)) {
         throw new InvalidArgumentException('Неизвестный cloud-образ или действие');
     }
@@ -40,7 +46,7 @@ try {
             throw new InvalidArgumentException('Выберите готовый QCOW2 размером до 4 ГиБ и хранилище Import');
         }
         set_time_limit(3600);
-        uploadPreparedCloudImage($node, $storage, $key, $file['tmp_name']);
+        uploadPreparedCloudImage($node, $storage, $key, $file['tmp_name'], $pdo);
         $message = 'Образ загружен. Выберите то же хранилище и нажмите «Добавить в каталог».';
     } elseif ($action === 'hide') {
         $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,enabled) VALUES (?,?,0)
@@ -56,7 +62,7 @@ try {
         $api = placementClient($node, $pdo);
         $nodePath = '/nodes/' . rawurlencode($node['node_name']);
         $stores = $api->request('GET', $nodePath . '/storage');
-        $inventories = cloudImportVolumes([$api, 'request'], $node['node_name'], $stores);
+        $inventories = cloudImportVolumes([$api, 'request'], $node['node_name'], $stores, $pdo);
         $sources = array_column($inventories[$key] ?? [], 'volid');
 
         if ($action === 'import') {
@@ -66,8 +72,8 @@ try {
                 throw new InvalidArgumentException('Выберите активное хранилище с типом Import');
             }
             $existing = array_filter($sources, static fn($source) => str_starts_with($source, "$storage:"));
-            if (!$existing && !isset(cloudImageCatalog()[$key]['base'])) {
-                throw new InvalidArgumentException('Загрузите подготовленный образ Windows в выбранное хранилище Proxmox');
+            if (!$existing && !isset(cloudImageCatalog($pdo)[$key]['base'])) {
+                throw new InvalidArgumentException('Загрузите подготовленный образ в выбранное хранилище Import');
             }
             if ($existing) {
                 $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,display_name,storage) VALUES (?,?,?,?)

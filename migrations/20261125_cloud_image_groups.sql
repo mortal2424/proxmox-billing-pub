@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS cloud_image_groups (
+    image_key VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    label VARCHAR(100) NOT NULL,
+    guest_user VARCHAR(32) CHARACTER SET ascii NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

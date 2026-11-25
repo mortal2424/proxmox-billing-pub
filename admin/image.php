@@ -211,7 +211,7 @@ if ($current_node_id) {
                         $cloudStores[] = $store['storage'];
                     }
                 }
-                $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage);
+                $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage, $pdo);
                 $cloudSettings = cloudImageSettings($pdo, (int)$current_node_id);
                 $permissions = $proxmoxApi->request('GET', '/access/permissions');
                 foreach ($cloudStores as $store) {
@@ -1104,15 +1104,27 @@ require __DIR__ . '/admin_header.php';
                     <?php if (!$cloudStores): ?>
                         <p class="notification notification-warning">На ноде нет активного хранилища с типом Import.</p>
                     <?php endif ?>
-                    <?php foreach (cloudImageCatalog() as $key => $cloud): ?>
+                    <details class="cloud-image-entry">
+                        <summary><strong>Создать группу образов</strong></summary>
+                        <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                            <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                            <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                            <label>Ключ группы <input class="form-control" name="image_key" pattern="[a-z][a-z0-9\-]{0,31}" maxlength="32" placeholder="selectos" required></label>
+                            <label>Название <input class="form-control" name="display_name" maxlength="100" placeholder="SelectOS" required></label>
+                            <label>Пользователь cloud-init <input class="form-control" name="guest_user" pattern="[a-z_][a-z0-9_\-]{0,31}" maxlength="32" required></label>
+                            <button class="btn-update" name="action" value="create_group">Создать группу</button>
+                        </form>
+                    </details>
+                    <?php foreach (cloudImageCatalog($pdo) as $key => $cloud): ?>
                         <?php
                         $setting = $cloudSettings[$key] ?? [];
                         $files = $cloudVolumes[$key] ?? [];
                         $source = $setting['storage'] ?? '';
                         $preparedWindows = ($cloud['os_type'] ?? '') === 'windows';
+                        $requiresPublication = $preparedWindows || !empty($cloud['custom']);
                         $label = $setting['display_name'] ?? '';
                         $enabled = !isset($setting['enabled']) || (bool)$setting['enabled'];
-                        $published = $enabled && (!$preparedWindows || $source !== '') && array_filter($files, static fn($file) =>
+                        $published = $enabled && (!$requiresPublication || $source !== '') && array_filter($files, static fn($file) =>
                             $source === '' || str_starts_with($file['volid'], $source . ':'));
                         ?>
                         <details class="cloud-image-entry" <?= !empty($setting['pending_storage']) || !empty($setting['import_error']) ? 'open' : '' ?>>
