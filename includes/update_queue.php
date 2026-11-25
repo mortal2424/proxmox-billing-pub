@@ -27,7 +27,7 @@ function writeUpdateJob(string $path, array $state): void
     if ($file === false) throw new RuntimeException('Не удалось подготовить состояние обновления');
     try {
         $body = json_encode($state + ['updated_at'=>time()], JSON_THROW_ON_ERROR);
-        if (dirname($file) !== dirname($path) || file_put_contents($file, $body) !== strlen($body) ||
+        if (dirname($file) !== realpath(dirname($path)) || file_put_contents($file, $body) !== strlen($body) ||
             !chmod($file, 0600) || !rename($file, $path)) {
             throw new RuntimeException('Не удалось сохранить состояние обновления');
         }
