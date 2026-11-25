@@ -64,7 +64,7 @@ function updateCatalog(bool $live = false): array
     return decodeUpdateCatalog(fetchUpdateDocument('main/updates/index.json'));
 }
 
-function refreshUpdateCatalogCache(): void
+function refreshUpdateCatalogCache(): array
 {
     $path = HOMEVLAD_UPDATE_CATALOG_CACHE;
     $directory = dirname($path);
@@ -75,7 +75,7 @@ function refreshUpdateCatalogCache(): void
         throw new RuntimeException('Не удалось создать каталог обновлений');
     }
     $document = fetchUpdateDocument('main/updates/index.json');
-    decodeUpdateCatalog($document);
+    $releases = decodeUpdateCatalog($document);
     $temporary = tempnam($directory, '.catalog-');
     if ($temporary === false) {
         throw new RuntimeException('Не удалось подготовить кэш каталога');
@@ -91,6 +91,7 @@ function refreshUpdateCatalogCache(): void
             unlink($temporary);
         }
     }
+    return $releases;
 }
 
 function isUpdateVersion(string $version): bool

@@ -14,6 +14,7 @@ $message = '';
 $error = '';
 $manifest = null;
 $conflicts = [];
+$releases = null;
 $version = is_string($_REQUEST['version'] ?? null) ? $_REQUEST['version'] : '';
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,25 +22,46 @@ try {
             !hash_equals($_SESSION['update_csrf'], $_POST['csrf_token'])) {
             throw new RuntimeException('Неверный CSRF-токен');
         }
-        $manifest = releaseManifest($version);
-        $conflicts = previewUpdate(dirname(__DIR__), $manifest);
-        if (($_POST['action'] ?? '') === 'install') {
-            installUpdate($pdo, dirname(__DIR__), $manifest, static fn () => (new Database())->getConnection());
-            $message = 'Обновление установлено. Версия записана в базу данных.';
+        $action = $_POST['action'] ?? '';
+        if ($action === 'check') {
+            $releases = refreshUpdateCatalogCache();
+            $message = 'Список обновлений проверен.';
+        } elseif (in_array($action, ['preview', 'install'], true)) {
+            $manifest = releaseManifest($version);
+            $conflicts = previewUpdate(dirname(__DIR__), $manifest);
+            if ($action === 'install') {
+                installUpdate($pdo, dirname(__DIR__), $manifest, static fn () => (new Database())->getConnection());
+                $message = 'Обновление установлено. Версия записана в базу данных.';
+            }
+        } else {
+            throw new RuntimeException('Неизвестное действие обновлятора');
         }
     }
-    $releases = updateCatalog();
+    $releases ??= updateCatalog();
 } catch (Throwable $exception) {
     $error = $exception->getMessage();
-    $releases = [];
+    try {
+        $releases = updateCatalog();
+    } catch (Throwable) {
+        $releases = [];
+    }
 }
 $currentVersion = homevladVersion($pdo->query('SELECT version FROM system_versions ORDER BY id DESC LIMIT 1')->fetchColumn());
+$releases = array_filter($releases, static fn (array $release): bool =>
+    homevladCompareVersions(updateReleaseLabel($release), $currentVersion) > 0
+);
 $title = 'Обновления | HomeVlad Cloud';
 require __DIR__ . '/admin_header.php';
 require __DIR__ . '/admin_sidebar.php';
 ?>
 <main class="updates-main">
+<div class="updates-heading">
 <h1>Обновления</h1>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['update_csrf'], ENT_QUOTES) ?>">
+<button name="action" value="check">Проверить обновления</button>
+</form>
+</div>
 <?php if (getenv('HOMEVLAD_IMMUTABLE_IMAGE') === '1'): ?>
 <p>Для установки обновления пересоберите Docker-образ и пересоздайте контейнер, сохранив тома.</p>
 <?php endif; ?>
@@ -49,7 +71,6 @@ require __DIR__ . '/admin_sidebar.php';
 <p>Перед обновлением сохраните резервную копию базы данных. Изменённые файлы требуют ручного слияния. При конфликтах установка всего пакета блокируется.</p>
 <?php if (!$releases && !$error): ?><p>Новых пакетов в каталоге нет.</p><?php endif; ?>
 <?php foreach ($releases as $release): ?>
-<?php if (homevladCompareVersions(updateReleaseLabel($release), $currentVersion) <= 0) continue; ?>
 <section class="update-release">
 <h2><?= htmlspecialchars(updateReleaseLabel($release)) ?></h2>
 <p><?= nl2br(htmlspecialchars($release['summary'] ?? '')) ?></p>
@@ -81,6 +102,7 @@ require __DIR__ . '/admin_sidebar.php';
 </main>
 <style>
 .updates-main { margin-left: 280px; padding: 24px; color: var(--db-text); background: var(--db-bg); min-height: 80vh; }
+.updates-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .update-release { padding: 20px; margin-block: 16px; background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 12px; overflow-wrap: anywhere; }
 .updates-main button { padding: 12px 18px; border: 1px solid var(--db-border); border-radius: 8px; background: var(--db-accent-light); color: var(--db-text); cursor: pointer; }
 @media(max-width:992px) { .updates-main { margin-left: 0; padding: 16px; } }
