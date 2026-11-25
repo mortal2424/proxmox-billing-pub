@@ -1,0 +1,317 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.2",
+  "from": "2.5.1-Pre-release1.1",
+  "source_commit": "9229f202de0da96bdb1a7b4c5e2b176663b07da6",
+  "changelog": "## v2.5.1-Pre-release1.2\n\n- Google Authenticator с QR-кодом и ручным ключом. Настройки Cloudflare Turnstile в админке. При действующей 2FA веб-вход с паролем проходит без CAPTCHA.\n- Мастер настройки учётной записи, API-токена и snippets для новой ноды Proxmox.\n- Загрузка подготовленных QCOW2, обновление каталога Import и выбор сетевого пула при добавлении интерфейса ВМ или LXC.\n- Компактные настройки сайта и форма заказа, раскрываемые IP-адреса и показ стоимости гостя.\n- Дополнительная проверка записи заказа при разрыве MySQL после создания гостя.\n\nПеред обновлением установки без этих изменений примените SQL-миграции для `account_totp`, `web_login_attempts` и `web_login_captcha`. Для 2FA и хранения секрета CAPTCHA требуется постоянный приватный ключ установки. Для Docker пересоберите образ и сохраните тома.\n",
+  "files": {
+    "admin/admin_footer.php": {
+      "before": "de9b3cb69e88fc8d74e591b7f628934a4acf641899efc9bb008fed5b55fa8714",
+      "sha256": "8232b6848efc3462fe0134813692d6cfb51ecb76c30c30f7a595bd380124acf8"
+    },
+    "admin/admin_header.php": {
+      "before": "7671f656df400dcfe36c0e79470c228f2c0fdd34e8750e0748fde4a4490a109d",
+      "sha256": "248b68cf7314ea249f3f400c9e00b16e040a22e4426924dd1bc5e8324319b943"
+    },
+    "admin/captcha_settings.php": {
+      "before": null,
+      "sha256": "74f1beb9807b5160d19a444b801abc43c3c7a3a9e9e6524dc6378e5dac3b3f0d"
+    },
+    "admin/cloud_image_action.php": {
+      "before": "0548c1f602b632c516d59e0380b80b3029cb530fb18ae5b9967138e89d8a9437",
+      "sha256": "7fe0d627082d098b8af4fdb3f6f15b3880d9a41465842f038caa86c12d14309a"
+    },
+    "admin/cron_charge.php": {
+      "before": "137e3ec85c12f49853bf55e30eca012cf85bf98db44d1f185ac51348497aa56f",
+      "sha256": "bab5e5d5f3844e6c1dbfc51b3286b7de101629ba4eab36b862c27108c5234a55"
+    },
+    "admin/image.php": {
+      "before": "51c5a189eca91df41387f2499bbd031f1af8fbb36cffea503bc6c186323aa9ac",
+      "sha256": "e393dcbd18fe6d565ac58a1e5ff3ffeb84d31b5853ee0b0457ed0c0d8d6e3769"
+    },
+    "admin/settings.php": {
+      "before": "06ae4f0c0b966596eefb4cb9625ee281201daf35fa848cdd3a358257d8bf748d",
+      "sha256": "0923a9f5e54f50270bffddb6481e13cb54d7506885d94a9ecc341dca93afe558"
+    },
+    "admin/vms.php": {
+      "before": "eec26c304825f34011f37b325d32073892205a86db6d6078e4d911d74726883d",
+      "sha256": "94896b009d7add2d75f6a55ee51b1aa4046817a7cd290b84c1b83a038f68ad38"
+    },
+    "api/get_user_containers.php": {
+      "before": "aa083cc5f67611cb7d72867458d1185c4d43c611aea78e68d2704a26b6ee2864",
+      "sha256": "ef108c37ca6c820c10a32f4f284e9247cad5d848583213b526f3a6e3df9b37e4"
+    },
+    "api/get_user_vms.php": {
+      "before": "2b96fb4d6f2e94f0a98dd21585b864194be7a933f99e1327c0d7c7be1798c45c",
+      "sha256": "efb018601892381b88e7e19d30c2a8725f8c6b6a7aa28e403362570a954d4c4f"
+    },
+    "api/mobile_auth.php": {
+      "before": "89e83fc5e5705246add9dd0e3439e164256977ee7720d15ed67ad7f40a913c7b",
+      "sha256": "215f2890f6611ea0aaa0448c801c3a2dbc721655bdfab441afcebe90c29ff909"
+    },
+    "api/vm_settings.php": {
+      "before": "32ea03b6ff6de13673a087cc3987a841892199328f0b8699c51b31dcc92997ff",
+      "sha256": "1184e152d068123dc9f36ebf3e3f2779c9eb10ac6d6b4ad4c3fefaf292544ef9"
+    },
+    "includes/ProxmoxApiClient.php": {
+      "before": "0ca0baefcee5fb1749b01b096e1676d4e3772b71bdc600599511b9594b5f5939",
+      "sha256": "ebe0565f431d5dcab08fc66ea288451e4fbee8d9e31cc23572d797326c58604a"
+    },
+    "includes/account_totp.php": {
+      "before": "1dfa537970fe168882fcba90d58e80341ba8e54c81dda85007e1f9f2b7578ad9",
+      "sha256": "0ac80d6b2c5818d350f7a7ec7708ceb63b7a7164547999434676457c785b762e"
+    },
+    "includes/account_totp_settings.php": {
+      "before": "6c575ac8ce1f78d89c2762605dad4ce3b6e2b95b96f41bf8b11712278c8e0724",
+      "sha256": "824c228e22205c5643bef6810f7a9e0177fc6ac353a6d2b9232b490756914b95"
+    },
+    "includes/captcha_admin_view.php": {
+      "before": null,
+      "sha256": "be84c5767b9ae65d9818098b294c2cbc81e2ef02050b08ec487d569e0aafc606"
+    },
+    "includes/cloud_image_import.php": {
+      "before": "6c191edcb2c1d3e78c86521bf59c18ffe5b8d12d7f4264d91b63ad5014a7126c",
+      "sha256": "82b4b87322f474d5c81f5d78e4e0f588e5ea1d19a276b40ed65edd434e731676"
+    },
+    "includes/guest_card_pricing.php": {
+      "before": null,
+      "sha256": "85a76c73fb2f7cef63722938378169ea69173644f7124e228c84481ac705cc68"
+    },
+    "includes/guest_mutations.php": {
+      "before": "9fd3768a9995a0bf69841b5fc52d84a5bda0257c7403399400fce031e7df9645",
+      "sha256": "dc70abdb396779a2489f55e9497a9cd8a93b08b4692b56668e36eddbcefe1462"
+    },
+    "includes/mobile_device_login.php": {
+      "before": "30ce072fec8de87fea63ef966ca6351467845852fd8681e27135e3818a65193f",
+      "sha256": "b2078279e9e9a6e969e73ba3b208a932742d1b73150df8113a5205a9afa565de"
+    },
+    "includes/password_login.php": {
+      "before": "5797afe146a2b26ee202a88519974feb53131422ad5ca7284d26ba6ce3e6f298",
+      "sha256": "9f3d10c6e9c304f8ed05690f9f9a16177ff3907242fa0b5932427795e3547ddf"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "c0a15c9b864b668c15e037255f17f0b30d1636930510a1ff0c61a75f0396a309",
+      "sha256": "9e1dfe7a7480d473b9e494cf1957ed7a94de5cda4412111fa86798b4738a5e72"
+    },
+    "includes/proxmox_token_policy.php": {
+      "before": "3d662bd5e97106a9a1654bb64a1a3a7db46a327ac656d78cdf164f3301db197a",
+      "sha256": "33aecce36c00e9b24b0d606a4d13a8506377590b6b10c8009e7158153f57a3d3"
+    },
+    "includes/qr_lib/bacon/LICENSE": {
+      "before": null,
+      "sha256": "973af1db913b076a85e09732c75df802a6b8a61a63701c38f2ce6d471c213260"
+    },
+    "includes/qr_lib/bacon/README.md": {
+      "before": null,
+      "sha256": "10eee73be5fd7ae8bb98c3a321d0982d3f26eb44a4acbf08d2923499a7664562"
+    },
+    "includes/qr_lib/bacon/composer.json": {
+      "before": null,
+      "sha256": "9717ae6d82f298b024fb15fc5e7088245b8f94712cec088ee50922c7b9ca7462"
+    },
+    "includes/qr_lib/bacon/src/Common/BitArray.php": {
+      "before": null,
+      "sha256": "b9a71976ddad1bd685220362baaadfd4c082619eddc09e9b5235dad908a3eaf9"
+    },
+    "includes/qr_lib/bacon/src/Common/BitMatrix.php": {
+      "before": null,
+      "sha256": "aa3b36d931d6da6ed452b657f8d598b8cc1e4796c685ad1c1d2b989f0d0db6ec"
+    },
+    "includes/qr_lib/bacon/src/Common/BitUtils.php": {
+      "before": null,
+      "sha256": "a461d2b3eb45e14b54cba362fb7fbb910bc624d4ae332340a6a5a9644267a354"
+    },
+    "includes/qr_lib/bacon/src/Common/CharacterSetEci.php": {
+      "before": null,
+      "sha256": "fd9465a40872699c7fc8ac4dd0ebb40a5a9bd1b7b7618794755cf485b06d9ce4"
+    },
+    "includes/qr_lib/bacon/src/Common/EcBlock.php": {
+      "before": null,
+      "sha256": "4aad2525cbf8329d9d5029b0d5c57c4edeba44e50b0c5a7d5b7705ae1cad7a4d"
+    },
+    "includes/qr_lib/bacon/src/Common/EcBlocks.php": {
+      "before": null,
+      "sha256": "b6c802eb6360b6f97dcd2c5d90036a673678ae9751d28fe6246a7c29a1902bac"
+    },
+    "includes/qr_lib/bacon/src/Common/ErrorCorrectionLevel.php": {
+      "before": null,
+      "sha256": "b2d5665585f00612801f02726a8e62575b3c4bd8a6058ef08e71cce123cdddb2"
+    },
+    "includes/qr_lib/bacon/src/Common/FormatInformation.php": {
+      "before": null,
+      "sha256": "8104bbcee9af16bc3e786b40c8f9d70f24efbeeee7090e9fa55ea3c73a4c8a1f"
+    },
+    "includes/qr_lib/bacon/src/Common/Mode.php": {
+      "before": null,
+      "sha256": "92f161ed7dacf352f7dda6ed3cc3d43a30cd92879e727b8b0753978904a83a9a"
+    },
+    "includes/qr_lib/bacon/src/Common/ReedSolomonCodec.php": {
+      "before": null,
+      "sha256": "779785ad583b98b81700b48b95730143a0e6773b14177b826f9eb625e8e67837"
+    },
+    "includes/qr_lib/bacon/src/Common/Version.php": {
+      "before": null,
+      "sha256": "a3c97701f474a454c7186f45b9bd3dc1a161efc73ab340aa42b9e8fd94ea0d51"
+    },
+    "includes/qr_lib/bacon/src/Encoder/BlockPair.php": {
+      "before": null,
+      "sha256": "c2c03a4e2cf405de61555712c2d6ff039d4b8929783ab2b6dff0a522e81bb333"
+    },
+    "includes/qr_lib/bacon/src/Encoder/ByteMatrix.php": {
+      "before": null,
+      "sha256": "3565cb4e23da44e769a888d67ca3d5f92abbf6866be5c0d2d1af82e9fd47dcf4"
+    },
+    "includes/qr_lib/bacon/src/Encoder/Encoder.php": {
+      "before": null,
+      "sha256": "89bb2beba25474ebe196fc0b2d81b8dadeaea4ce008c678a48d8e6e668f74d58"
+    },
+    "includes/qr_lib/bacon/src/Encoder/MaskUtil.php": {
+      "before": null,
+      "sha256": "ccbae354a4f0433ed030c35dfb68854c72e68b53f3c2452e7afe89753e9b11ca"
+    },
+    "includes/qr_lib/bacon/src/Encoder/MatrixUtil.php": {
+      "before": null,
+      "sha256": "c5764dd1f44a57b918646e0039a2a82cedb80959ff23bc536e866e56356cf5da"
+    },
+    "includes/qr_lib/bacon/src/Encoder/QrCode.php": {
+      "before": null,
+      "sha256": "347fe94c75b0cccc86a38c371cc939072ad30bcc2b8f02872b357670ad75283f"
+    },
+    "includes/qr_lib/bacon/src/Exception/ExceptionInterface.php": {
+      "before": null,
+      "sha256": "c834a85c399d71e0a24f3f917f6bbc587d79aed093523ab61d7dab88d14c1fbd"
+    },
+    "includes/qr_lib/bacon/src/Exception/InvalidArgumentException.php": {
+      "before": null,
+      "sha256": "ff8d83eee797fecd35bc1735cf1c4484ca3aaaf3504e929834f2f7d9749b55e6"
+    },
+    "includes/qr_lib/bacon/src/Exception/OutOfBoundsException.php": {
+      "before": null,
+      "sha256": "c0eeb51ad8b504ce7cac32554ce234d9757335e41fd913d65eca391088de3b91"
+    },
+    "includes/qr_lib/bacon/src/Exception/RuntimeException.php": {
+      "before": null,
+      "sha256": "8eeb51e804157983990fdfe1e131a17876c56bb3474f8e72b97afae40bcfcb01"
+    },
+    "includes/qr_lib/bacon/src/Exception/UnexpectedValueException.php": {
+      "before": null,
+      "sha256": "e8e1c50b55259a6f2080480d045084949b1b8a3638f584a4d83d4a5161bfa15b"
+    },
+    "includes/qr_lib/bacon/src/Exception/WriterException.php": {
+      "before": null,
+      "sha256": "76f2109c2cbaa518c40f04c4379247391aa277048e7a715a6cd2d982ddeea32a"
+    },
+    "includes/qr_lib/bacon/src/Writer.php": {
+      "before": null,
+      "sha256": "b3f968284dafcb6b010287028eacca7f4e39a7c0d2e7852309596fa9121fbeb0"
+    },
+    "includes/qr_lib/enum/LICENSE": {
+      "before": null,
+      "sha256": "6748d0268a176f839bfa1031724f9ce0963acbdadc71e503c2c3e9b59c8fcd68"
+    },
+    "includes/qr_lib/enum/README.md": {
+      "before": null,
+      "sha256": "1bafc44d59b9d75e95ac0d52c72ca94d9d1129dda2761bf1922f9e235b30bedd"
+    },
+    "includes/qr_lib/enum/composer.json": {
+      "before": null,
+      "sha256": "806922540285ebc6013d9028bbefbfb3d9ab47260c1138fb0f01e38d9c1ec1df"
+    },
+    "includes/qr_lib/enum/src/AbstractEnum.php": {
+      "before": null,
+      "sha256": "1c2d7baa5e2a9c9b9419ee6b1e49e5af35229c51ef9c77c489b087faaa6e0040"
+    },
+    "includes/qr_lib/enum/src/EnumMap.php": {
+      "before": null,
+      "sha256": "449f605b743700e428551a7adcf50898d002a3839524982f27a52224fb456a73"
+    },
+    "includes/qr_lib/enum/src/Exception/CloneNotSupportedException.php": {
+      "before": null,
+      "sha256": "a3c266842dcbc83fa57a7d4ba7314cd2c4e588d5f7e2734619b343b201f9a08e"
+    },
+    "includes/qr_lib/enum/src/Exception/ExceptionInterface.php": {
+      "before": null,
+      "sha256": "990c3de69010a72dc796c37d27c9ec3df312989e46332d3344e96810255e0359"
+    },
+    "includes/qr_lib/enum/src/Exception/ExpectationException.php": {
+      "before": null,
+      "sha256": "07874b69ba61b438a22a719d7718de7e2f17b1f7126ffbf92f56b5a5d2239d68"
+    },
+    "includes/qr_lib/enum/src/Exception/IllegalArgumentException.php": {
+      "before": null,
+      "sha256": "f5523323e738118b46c621b04bebea3b779745fc1c4dc4318cc81d69832dbd41"
+    },
+    "includes/qr_lib/enum/src/Exception/MismatchException.php": {
+      "before": null,
+      "sha256": "973256edaee9b540eb63a3901d82b53a4516f5eb2387062c16da29a797f03845"
+    },
+    "includes/qr_lib/enum/src/Exception/SerializeNotSupportedException.php": {
+      "before": null,
+      "sha256": "d6072d330097ef643df673c5c40c51729a4fdbd0aa197980ba8d8d53efa11ba9"
+    },
+    "includes/qr_lib/enum/src/Exception/UnserializeNotSupportedException.php": {
+      "before": null,
+      "sha256": "c0b225b1eab0b0cee0f11f473a7ff935697e55ad267a6eca27234585a2963c6e"
+    },
+    "includes/qr_lib/enum/src/NullValue.php": {
+      "before": null,
+      "sha256": "c2e503fab5e76a21e5e6bf45954780a8759d0c6ae7d13ba09f0a7c3d37b0e838"
+    },
+    "includes/qr_lib/qr.php": {
+      "before": null,
+      "sha256": "8ce844afecb36f2737ecb383aacb670f57eebc48f38d2217d283c1a593d344d0"
+    },
+    "includes/version.php": {
+      "before": "f92f16f59402eca18d493692fe1ff54519538c00b510aa43669c2784c4a42ec3",
+      "sha256": "dde27aa187cf089284904b210f6b0f77761fa4c4545b7294ae9db4cd6547cfb2"
+    },
+    "includes/web_login_challenge.php": {
+      "before": null,
+      "sha256": "f1e69a4027389b109db9abe298b92289b8f765f7bbb68b676370b46d226f9ba0"
+    },
+    "install/cloud-init/setup-homevlad-node.sh": {
+      "before": null,
+      "sha256": "e8dc1f85a0f75ba7c4d96e2b8e0acefad85a062464f8956ddb2ff0de259df6b8"
+    },
+    "login/login.php": {
+      "before": "2a49f316538bd27b48b656e1cca9f1d6122d72aaf606352e9c43833b22a04c3d",
+      "sha256": "e9a478f0096ccd563d3c76060d54b8b3395c7a33e53d4b1e64d2afa0161e9499"
+    },
+    "migrations/20261124_account_totp.sql": {
+      "before": null,
+      "sha256": "038a05b4b1bd87373a98086aaf0f5b35a5dc563e23fe495f910511273740aa98"
+    },
+    "migrations/20261125_web_login_attempts.sql": {
+      "before": null,
+      "sha256": "cbaa82703d9a1decbb46c9dea28669943c5c07649037905375517d708448b9f0"
+    },
+    "migrations/20261125_web_login_captcha.sql": {
+      "before": null,
+      "sha256": "c276e083973777323cf8bfb9073206d2b0b6525f4681eb65c7f528d11510eab6"
+    },
+    "templates/dashboard.php": {
+      "before": "909ab370a5b4b98ec74f7597d418de5c0285a8159f5126e892731bda144ffe48",
+      "sha256": "d3faabf444988a47b2285c400f964958a616f49afb3cb0b07adb8095d5fa75f6"
+    },
+    "templates/headers/user_header.php": {
+      "before": "fdf06f0f30ed87704e82935464af61eaae1742bc8acd2bb9d845cae46364485b",
+      "sha256": "28619c0c5bb9a6f121c86bb3d4ce078a60df4ba470d183caa55f15ea7c0bdad2"
+    },
+    "templates/my_vms.php": {
+      "before": "ae07ebc36659a1b497a3912080ad94593ad501d8cd48a3708597dccdbe3343b6",
+      "sha256": "4497f582e67ffd12102162dacd05a4b2057246e74207ac68b2b16192c975ec8e"
+    },
+    "templates/order_vm.php": {
+      "before": "56fd6eae0fd53b16f00c43bfb8b8bc0e3e4835b001da99b201ea51e1e6354373",
+      "sha256": "103700aeb93e75e624bc5940417d5480645001f1576323d1dbc30fab56c98388"
+    },
+    "templates/two_factor.php": {
+      "before": null,
+      "sha256": "4575fca100fa7051c7c6fac58a749902042629eea9aaa3a64b822e1a14733420"
+    },
+    "templates/vm_settings.php": {
+      "before": "94c0b73aa15fc7fd5eead5d0205b73f8061b7827907eb7f63d7f925f0d041281",
+      "sha256": "a1150c150336398dcf19484deab7080792f28227fb2e97495641e71a60fe8da6"
+    }
+  }
+}
