@@ -1165,6 +1165,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             border: 1px solid #8897aa; border-radius: 6px;
         }
         .guest-addresses li { font-family: monospace; padding: 2px 0; }
+        .guest-cost li { font-family: inherit; }
     </style>
 </head>
 <body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
@@ -1754,7 +1755,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 <div class="vm-specs-tf">
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-tag"></i>
-                                        <span>Тариф: ${guestTariff(vm)} · ${guestPrice(vm)}</span>
+                                        <span>Тариф: ${guestTariff(vm)}</span> ${guestPrice(vm)}
                                     </div>
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-server"></i>
@@ -2002,7 +2003,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 <div class="vm-specs-tf">
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-tag"></i>
-                                        <span>Тариф: ${guestTariff(ct)} · ${guestPrice(ct)}</span>
+                                        <span>Тариф: ${guestTariff(ct)}</span> ${guestPrice(ct)}
                                     </div>
                                     <div class="vm-spec-tf">
                                         <i class="fas fa-server"></i>
@@ -2817,8 +2818,18 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 
         function guestPrice(guest) {
             if (guest.current_price == null) return 'Стоимость недоступна';
-            const amount = Number(guest.current_price).toLocaleString('ru-RU', {maximumFractionDigits: 6});
-            return `${amount} ₽ / ${guest.billing_period === 'month' ? 'мес.' : 'ч'}`;
+            const amount = Number(guest.current_price);
+            if (!Number.isFinite(amount)) return 'Стоимость недоступна';
+            const money = value => value.toLocaleString('ru-RU', {maximumFractionDigits: 6}) + ' ₽';
+            if (guest.billing_period === 'month') return money(amount) + ' / мес.';
+            return `<details class="guest-addresses guest-cost">
+                <summary>${money(amount)} / ч</summary>
+                <ul>
+                    <li>Час · ${money(amount)}</li>
+                    <li>Сутки · ${money(amount * 24)}</li>
+                    <li>30 дней · ${money(amount * 24 * 30)}</li>
+                </ul>
+            </details>`;
         }
 
         function escapeHtml(unsafe) {
