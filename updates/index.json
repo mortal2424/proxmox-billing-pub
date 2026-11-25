@@ -288,9 +288,9 @@
     {
       "version": "2.5.1-rc1.3",
       "display_version": "2.5.1-Pre-release1.3",
-      "commit": "ca5e93d901b51dd9605e5381caf3dacd784e6a8d",
-      "sha256": "44b30411332b91cbb46d1ff950f933e813c717842130a22682337f4f8bedb4fd",
-      "summary": "Создание своих групп Linux Cloud-образов через админку HomeVlad."
+      "commit": "0755e77c3852f419ecbc3edc17100ed2197c3c98",
+      "sha256": "ad23a882ba96196958df124704e0100eec0e8da9862db1dccf31e22ff2558dac",
+      "summary": "Группы Cloud-образов и ручная проверка обновлений в админке HomeVlad."
     }
   ]
 }
