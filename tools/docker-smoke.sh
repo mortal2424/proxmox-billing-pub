@@ -43,6 +43,9 @@ function pairingRequest(...$args): string { return 'smoke'; }
 function readPairingRequest(string $request): array { return ['installation'=>str_repeat('a',32)]; }
 function currentLease(string $key, ...$args): array {
     if ($key === 'rejected-fixture') throw new DomainException('Fixture denial');
+    if ($key === 'refresh-fixture' && PHP_SAPI === 'cli' && basename($_SERVER['argv'][0]) === 'refresh_license.php') {
+        file_put_contents('/var/lib/homevlad-private/license/worker-refresh', "refreshed\n");
+    }
     return ['limits'=>['vms_running'=>0]];
 }
 PHP
@@ -175,12 +178,20 @@ verify='require "includes/db.php"; $d=(new Database())->getConnection();
     require "includes/license_guard.php";
     $c = homevladLicenseConfig();
     if (!extension_loaded("sodium") || !is_readable($c["client"]) ||
-        is_writable($c["client"]) || file_put_contents($c["cache"], "test lease") === false) exit(1);'
+        is_writable($c["client"]) || file_put_contents($c["cache"], "test lease") === false) exit(1);
+    if (file_put_contents($c["key_file"], "refresh-fixture") === false) exit(1);'
 "${compose[@]}" up -d --no-deps --force-recreate apache nginx
 ready
 "${compose[@]}" exec -T --user www-data apache php -r "$verify"
 "${compose[@]}" exec -T --user www-data apache php -l includes/mobile_admin_directory.php
 "${compose[@]}" exec -T --user www-data apache grep -Fqx "test lease" /var/lib/homevlad-private/license/lease.json
+for attempt in {1..20}; do
+    if "${compose[@]}" exec -T --user www-data apache grep -Fqx refreshed /var/lib/homevlad-private/license/worker-refresh; then
+        break
+    fi
+    sleep 1
+done
+"${compose[@]}" exec -T --user www-data apache grep -Fqx refreshed /var/lib/homevlad-private/license/worker-refresh
 "${compose[@]}" exec -T --user www-data apache php -r 'require "includes/console_settings.php"; $status=consoleBrokerStatus(); if ($status["status"]!=="ok" || consoleSettings()["ticket_ttl"]!==45) exit(1);'
 test "$image_version" = "$("${compose[@]}" exec -T apache php -r 'require "includes/version.php"; echo HOMEVLAD_VERSION;')"
 echo "Recreated the $image_version image and verified the existing database"
