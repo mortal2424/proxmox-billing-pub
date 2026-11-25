@@ -119,6 +119,12 @@ try_zone_creation trial
 jq -e '.success == true' "$qa/license-mobile.json"
 check_zone_count 2
 
+# Exercise the previous build with its matching version in the disposable database.
+"${compose[@]}" exec -T --user www-data apache php -r '
+    require "includes/db.php";
+    $db = (new Database())->getConnection();
+    $db->prepare("UPDATE system_versions SET version = ?")->execute([$argv[1]]);
+' "${base_ref#v}"
 checkout=$(git -C "$OLDPWD" rev-parse --show-toplevel)
 manifest="updates/$test_version/manifest.json"
 jq -r '.files | keys[]' "$manifest" | while IFS= read -r file; do
