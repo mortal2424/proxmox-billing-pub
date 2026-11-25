@@ -231,6 +231,11 @@ function submitGuestOrder(int $user_id, array $input): array
                 if (!zoneAllowsUser($pdo, $zoneId, $user_id)) {
                     throw new Exception('Зона доступности недоступна');
                 }
+                // Report licensing denials before contacting Proxmox. Creation checks again under the licensing lock.
+                $reason = homevladLicenseBlockReason($pdo, [
+                    'vms_created' => 1, 'vcpu' => (int)$total_cpu, 'ram_mib' => (int)$total_ram,
+                ]);
+                if ($reason !== null) throw new DomainException($reason);
                 $placement = choosePlacement($pdo, $zoneId, $vmType, $networkPool, $storagePool,
                     $media, (int)$total_cpu, (int)$total_ram, (int)$total_disk, $osType === 'windows', $cloudKey);
                 $node = $placement['node'];

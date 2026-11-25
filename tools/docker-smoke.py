@@ -175,6 +175,18 @@ async def license_power_smoke():
                                           'active': True, 'primary': False, 'orders': False}) as response:
                 node_response = await response.json()
                 assert response.status == 422 and 'Лимит лицензии' in node_response.get('error', ''), node_response
+            customer = config['sessions']['customer']
+            order = {'vm_type': 'lxc', 'zone_id': str(config['zone']), 'hostname': 'qa-order-limit',
+                     'network_pool': 'qa-public', 'storage_pool': 'qa-storage',
+                     'tariff_id': str(config['order_tariff']), 'template': 'qa-storage:vztmpl/qa.tar.zst'}
+            async with browser.post(origin + '/api/mobile_order.php', ssl=tls, headers=headers,
+                                    json={**order, 'csrf': customer['mobile_csrf']}) as response:
+                result = await response.json()
+                assert response.status == 422 and 'Лимит лицензии' in result.get('error', ''), result
+            async with browser.post(origin + '/templates/order_vm.php', ssl=tls, headers=headers,
+                                    data={**order, 'order_csrf': customer['order_csrf']}) as response:
+                assert response.status == 200 and 'Лимит лицензии' in await response.text(), response.status
+            assert eventlog.read_text() == before
             key.write_text('rejected-fixture')
             for action in ('start', 'stop'):
                 status, payload = await power(action)
