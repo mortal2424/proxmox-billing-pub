@@ -106,7 +106,7 @@ try_zone_creation() {
     "${https[@]}" "${cookie[@]}" --data-urlencode "node_csrf=$node_csrf" \
         -d "add_cluster=1&name=qa-license-web-$1" "$web/admin/add_cluster.php" -o "$qa/license-web.html"
     jq -nc --arg csrf "$mobile_csrf" --arg name "qa-license-mobile-$1" \
-        '{action:"zone_save",csrf:$csrf,name:$name,active:1,limit:20,threshold:80}' |
+        '{action:"zone_save",csrf:$csrf,name:$name,active:true,maintenance:false,limit:20,threshold:80}' |
         "${https[@]}" "${cookie[@]}" -H 'Content-Type: application/json' --data-binary @- \
             "$web/api/mobile_admin.php" -o "$qa/license-mobile.json"
 }
