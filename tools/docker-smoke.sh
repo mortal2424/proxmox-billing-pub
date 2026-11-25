@@ -95,6 +95,7 @@ fi
 "${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py test
 "${compose[@]}" exec -T --user www-data apache /usr/bin/python3 /tmp/docker-smoke.py license
 "${compose[@]}" exec -T --user www-data apache php -r '
+    require "includes/db.php";
     require "includes/proxmox_functions.php";
     $pdo = (new Database())->getConnection();
     $node = $pdo->query("SELECT * FROM proxmox_nodes WHERE node_name=\x27qa\x27")->fetch();
