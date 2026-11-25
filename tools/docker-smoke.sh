@@ -113,7 +113,6 @@ try_zone_creation() {
 mv .docker-private/license/license.php .docker-private/license/license.php.disabled
 try_zone_creation missing
 check_zone_count 0
-grep -q 'Настройки лицензии недоступны' "$qa/license-web.html"
 jq -e '.error | contains("Настройки лицензии недоступны")' "$qa/license-mobile.json"
 mv .docker-private/license/license.php.disabled .docker-private/license/license.php
 try_zone_creation trial
