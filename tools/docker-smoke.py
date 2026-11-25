@@ -122,5 +122,47 @@ async def smoke():
         print('Bundled noVNC served by Nginx')
 
 
+async def license_power_smoke():
+    config = json.loads(Path('/tmp/homevlad-docker-sessions.json').read_text())
+    tls = ssl.create_default_context(cafile=CERT)
+    origin = 'https://nginx'
+    key = Path('/var/lib/homevlad-private/license/activation.key')
+    headers = {'Cookie': 'PHPSESSID=' + config['sessions']['customer']['id']}
+
+    async with ClientSession(timeout=ClientTimeout(total=15), cookie_jar=DummyCookieJar()) as browser:
+        async with browser.get(origin + '/templates/vnc_console.php',
+                               params={'node_id': config['node'], 'vm_id': 501},
+                               headers=headers, ssl=tls) as response:
+            assert response.status == 200, await response.text()
+            fragment = (await response.json())['data']['url'].split('#')[1]
+            control = parse_qs(fragment.split('&', 1)[1])['control'][0]
+
+        async def power(action):
+            async with browser.post(origin + '/console/control.php', ssl=tls, headers=headers,
+                                    json={'control': control, 'action': action, 'type': 'qemu'}) as response:
+                return response.status, await response.json()
+
+        before = eventlog.read_text()
+        try:
+            key.write_text('limit-fixture')
+            status, payload = await power('start')
+            assert status == 400 and not payload.get('success') and 'Лимит лицензии' in str(payload), payload
+            assert eventlog.read_text() == before
+            key.write_text('rejected-fixture')
+            for action in ('start', 'stop'):
+                status, payload = await power(action)
+                assert status == 200 and payload.get('success'), payload
+        finally:
+            key.unlink(missing_ok=True)
+        assert eventlog.read_text() == before + 'qemu:501:start\nqemu:501:stop\n'
+        print('Running limit blocks Proxmox start, and restricted mode preserves existing guest controls')
+
+
 if __name__ == '__main__':
-    serve() if sys.argv[1] == 'serve' else asyncio.run(smoke())
+    mode = sys.argv[1]
+    if mode == 'serve':
+        serve()
+    elif mode == 'license':
+        asyncio.run(license_power_smoke())
+    else:
+        asyncio.run(smoke())

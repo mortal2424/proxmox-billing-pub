@@ -39,6 +39,12 @@ PHP
 cat > .docker-private/license/client.php <<'PHP'
 <?php
 function licenseTrialUntil(array $config, int $now): int { return $now + 3600; }
+function pairingRequest(...$args): string { return 'smoke'; }
+function readPairingRequest(string $request): array { return ['installation'=>str_repeat('a',32)]; }
+function currentLease(string $key, ...$args): array {
+    if ($key === 'rejected-fixture') throw new DomainException('Fixture denial');
+    return ['limits'=>['vms_running'=>0]];
+}
 PHP
 chmod 0755 .docker-private .docker-private/license
 chmod 0644 .docker-private/license/*.php
