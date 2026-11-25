@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.3",
+  "from": "2.5.1-Pre-release1.2",
+  "source_commit": "14bb5d3816fef0d90fc7c62706c4c3669a01a8cb",
+  "changelog": "## v2.5.1-Pre-release1.3\n\nВ админке **Образы ОС → Cloud-образы** можно создать свою группу Linux-образов. Укажите ключ, название и имя пользователя cloud-init. Для SelectOS используйте ключ `selectos` и название `SelectOS`. Имя пользователя возьмите из подготовленного образа.\n\nЗагрузите QCOW2 в новую группу через панель или обновите список файлов уже загруженных в Import. При загрузке через панель имя файла формируется автоматически. При ручной загрузке используйте формат `homevlad-selectos-20g-a1b2c3d4e5f6.qcow2` с фактическим виртуальным размером и началом SHA-256. Затем выберите хранилище и опубликуйте образ на нужной ноде.\n\nПосле обновления файлов примените `migrations/20261125_cloud_image_groups.sql` или выполните `php cronjobs/create_cloud_image_settings.php` от пользователя сайта. Docker применяет схему при запуске пересобранного контейнера.\n",
+  "files": {
+    "admin/cloud_image_action.php": {
+      "before": "7fe0d627082d098b8af4fdb3f6f15b3880d9a41465842f038caa86c12d14309a",
+      "sha256": "b69cb192f1e75e82b031eff10efefd4d188cd6a6c743f79a44a384e8124df1b1"
+    },
+    "admin/image.php": {
+      "before": "e393dcbd18fe6d565ac58a1e5ff3ffeb84d31b5853ee0b0457ed0c0d8d6e3769",
+      "sha256": "3dffcb4690dc757fcb157b68a9c0324ec8ddb3eb52aafffd46855bb75039079f"
+    },
+    "cronjobs/create_cloud_image_settings.php": {
+      "before": "dee917763f47b235697eb79eb31d104a295dd6c0c54ca31a4f01350b4be6aa98",
+      "sha256": "8ae058b748214272cef05684be969dcabb89cd68f6fb65a31e0ce585ccc55fb8"
+    },
+    "includes/cloud_image_import.php": {
+      "before": "82b4b87322f474d5c81f5d78e4e0f588e5ea1d19a276b40ed65edd434e731676",
+      "sha256": "9afda6d0063b9ef66033ab9fa1a3755a3259ccc735eddb413ebd2d473a93537e"
+    },
+    "includes/cloud_images.php": {
+      "before": "29eb569d525ad004d960ac9532d127c42d41db8411f5b7179ea1661280aa64e6",
+      "sha256": "3fbe0acec75071d773eaf72b1eca5a1fb8170af4987ba7cefb2e65af27836cef"
+    },
+    "includes/guest_order.php": {
+      "before": "4251010ea6082f9db187b2987a0f9cdc6fc9576206d971d116c4a76d1e7006ad",
+      "sha256": "5c586d1fec7a657460b19171177de85fb41766dab5fb70b11287a38ec28b7b5d"
+    },
+    "includes/version.php": {
+      "before": "dde27aa187cf089284904b210f6b0f77761fa4c4545b7294ae9db4cd6547cfb2",
+      "sha256": "11413a5f25b789c41e777f88f9d5e85529fb98713432ffc9a44ae061e9efb34c"
+    },
+    "includes/zone_placement.php": {
+      "before": "4df6e4096f86b2875fbe35a3a3005b2b5cc14d12ed56fa67f7d196d9b80f4c72",
+      "sha256": "d4e2690ae3b7febb6833fe604ebb154e0fa3c715e75092b1d1086525fb95b00d"
+    },
+    "migrations/20261125_cloud_image_groups.sql": {
+      "before": null,
+      "sha256": "2492075b1ecb37908c2c3af6b44f2b7256a6ceeb948ecd68e01c73c52a3d5b99"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "7b1fea35715e3337e59797d130d8b0cf78ceea07b1e8759efe1dd219b949a26a",
+      "sha256": "06c714f1bc0ba5f5bfe3c1dbfac738c2e3b7b3a460adef1bb8d431cf825eddfa"
+    }
+  }
+}
