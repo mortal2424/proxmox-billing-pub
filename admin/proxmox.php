@@ -858,14 +858,13 @@ require 'admin_header.php';
                 <div class="dashboard-stat-icon">
                     <i class="fas fa-microchip"></i>
                 </div>
-                <span class="dashboard-stat-trend dashboard-stat-trend-positive">
-                    <i class="fas fa-chart-line"></i> Активно
-                </span>
+                <span id="resource-coverage" class="dashboard-stat-trend"></span>
             </div>
-            <div class="dashboard-stat-content">
+            <div class="dashboard-stat-content" aria-live="polite">
                 <h3>Ресурсы</h3>
-                <div class="dashboard-stat-value">-</div>
-                <p class="dashboard-stat-subtext">Загрузка CPU и памяти</p>
+                <p class="dashboard-stat-subtext" id="resource-status">Загрузка данных с нод…</p>
+                <p class="dashboard-stat-subtext" id="resource-cpu" hidden></p>
+                <p class="dashboard-stat-subtext" id="resource-memory" hidden></p>
             </div>
         </div>
 
@@ -1012,6 +1011,43 @@ require 'admin_header.php';
 // Глобальные переменные
 let nodeVmsData = {};
 let nodeStatsLoading = {};
+
+async function loadResourceTotals(nodeIds) {
+    const status = document.getElementById('resource-status');
+    if (!nodeIds.length) {
+        status.textContent = 'Нет активных нод';
+        return;
+    }
+
+    const results = await Promise.allSettled(nodeIds.map(async id => {
+        const response = await fetch(`get_node_vms.php?view=resources&node_id=${encodeURIComponent(id)}`);
+        if (!response.ok) throw new Error('Данные ноды недоступны');
+        return response.json();
+    }));
+    const nodes = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+    const coverage = document.getElementById('resource-coverage');
+    coverage.textContent = `${nodes.length}/${nodeIds.length} нод`;
+    coverage.classList.add(nodes.length === nodeIds.length ? 'dashboard-stat-trend-positive' : 'dashboard-stat-trend-warning');
+    if (!nodes.length) {
+        status.textContent = 'Данные о ресурсах недоступны';
+        return;
+    }
+
+    const totals = nodes.reduce((sum, node) => ({
+        threads: sum.threads + node.threads,
+        cpu: sum.cpu + node.cpu * node.threads,
+        memoryUsed: sum.memoryUsed + node.memoryUsed,
+        memoryTotal: sum.memoryTotal + node.memoryTotal
+    }), {threads: 0, cpu: 0, memoryUsed: 0, memoryTotal: 0});
+    const number = new Intl.NumberFormat('ru-RU', {maximumFractionDigits: 1});
+    const gib = bytes => number.format(bytes / (1024 ** 3));
+    const cpu = document.getElementById('resource-cpu');
+    const memory = document.getElementById('resource-memory');
+    cpu.textContent = `CPU: ${number.format(100 * totals.cpu / totals.threads)} % · ${totals.threads} потоков`;
+    memory.textContent = `RAM: ${gib(totals.memoryUsed)} / ${gib(totals.memoryTotal)} ГиБ`;
+    cpu.hidden = memory.hidden = false;
+    status.textContent = nodes.length === nodeIds.length ? 'Сумма по всем активным нодам' : 'Сумма только по ответившим нодам';
+}
 
 // Обновление глобальной статистики (верхние карточки)
 function updateGlobalStats() {
@@ -1360,6 +1396,7 @@ function escapeHtml(unsafe) {
 // Загрузка статистики для всех нод при старте
 document.addEventListener('DOMContentLoaded', function() {
     const nodeIds = Array.from(document.querySelectorAll('.proxmox-node-card')).map(card => card.dataset.nodeId);
+    loadResourceTotals(nodeIds);
     nodeIds.forEach(id => loadNodeStats(id));
     // Обновление отступа при сворачивании сайдбара
     const sidebar = document.querySelector('.admin-sidebar');

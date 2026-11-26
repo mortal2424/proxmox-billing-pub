@@ -48,6 +48,25 @@ try {
         $pdo     // Добавляем подключение к БД
     );
 
+    if (($_GET['view'] ?? '') === 'resources') {
+        session_write_close();
+        $status = $proxmox->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/status');
+        $threads = (int)($status['cpuinfo']['cpus'] ?? 0);
+        $memoryTotal = (int)($status['memory']['total'] ?? 0);
+        $memoryUsed = $status['memory']['used'] ?? null;
+        $cpu = $status['cpu'] ?? null;
+        if ($threads < 1 || $memoryTotal < 1 || !is_numeric($cpu) || !is_numeric($memoryUsed)) {
+            throw new RuntimeException('Неполные данные о ресурсах ноды');
+        }
+        echo json_encode([
+            'threads' => $threads,
+            'cpu' => max(0, min(1, (float)$cpu)),
+            'memoryTotal' => $memoryTotal,
+            'memoryUsed' => max(0, min($memoryTotal, (int)$memoryUsed)),
+        ]);
+        exit;
+    }
+
     $vms = $proxmox->getVirtualMachines();
     foreach ($proxmox->request('GET', '/nodes/' . rawurlencode($node['node_name']) . '/lxc') as $guest) {
         $vms[] = [
