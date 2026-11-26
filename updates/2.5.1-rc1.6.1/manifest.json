@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.6.1",
+  "from": "2.5.1-Pre-release1.6",
+  "source_commit": "738d85315e9537c23af5a25aac475203e83975b0",
+  "changelog": "Обновлятор показывает режим проверки подписи Ed25519 и сообщает об ошибке доверенного ключа до постановки в очередь.\n",
+  "files": {
+    "admin/update.php": {
+      "before": "b1274ac9e1ef4460da89863e41d003d72172d9ce1b18af0671485b3a94535b42",
+      "sha256": "8eb9b6c9d1965d862184a4ec488d9800fe26939ac1f475000ce2a331ee5ceae7"
+    },
+    "includes/update_signature.php": {
+      "before": "c2ceacc762c0ad8077a1db10e8ff8ab54b483063f81c3723096d90092c56e128",
+      "sha256": "0ec928c14d37d989312b301ba4ddfdc92442d03cad2aa5996408ec5ca6fd0674"
+    },
+    "includes/version.php": {
+      "before": "06a1640e1474cac0286704a51e0fc933e2794e43985abdf7dfb37f1768bb4830",
+      "sha256": "dd92ab469e9f2583619f7d299f8b58ee6dbccd44c719653312413544a0ee0da8"
+    }
+  }
+}

@@ -10,6 +10,12 @@ $signature = base64_encode(sodium_crypto_sign_detached($document, sodium_crypto_
 $expectFailure = static function (callable $verify, string $message): void {
     try {
         $verify();
+    if (!configuredUpdateTrust()['required']) throw new RuntimeException('Required trust not reported');
+    file_put_contents($path, 'invalid key');
+    $expectFailure(static fn () => verifyConfiguredUpdateSignature($document, static function (): string {
+        throw new LogicException('Malformed key fetched a signature');
+    }), 'формат доверенного ключа');
+    file_put_contents($path, base64_encode(sodium_crypto_sign_publickey($pair)));
     } catch (RuntimeException $error) {
         if (str_contains($error->getMessage(), $message)) return;
         throw $error;

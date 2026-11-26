@@ -2,6 +2,13 @@
   "format": 1,
   "releases": [
     {
+      "version": "2.5.1-rc1.6.1",
+      "display_version": "2.5.1-Pre-release1.6.1",
+      "commit": "b55cb8f6cd160fc72750b7c47aa446f17dde626a",
+      "sha256": "c927ffc152a7a386a65b9bad275f9d6877e4a46ecc20d3dfb581991c4d26416f",
+      "summary": "Диагностика проверки подписи Ed25519 перед постановкой обновления в очередь."
+    },
+    {
       "version": "2.5.1-beta8.1",
       "commit": "8c3fe8a57c7f0a727d9f7d58d4968021d3aeb68e",
       "sha256": "1b06feb1e7bb2e9b6c46321b099f4718f13bd770d7c1649591fd0ee8fbf52fe1",
