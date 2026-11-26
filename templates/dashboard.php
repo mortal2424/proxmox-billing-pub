@@ -1646,7 +1646,7 @@ function generateVmDetailsHTML(data) {
     const vmTypeText = vm.vm_type === 'qemu' ? 'KVM (QEMU)' : 'LXC (Контейнер)';
 
     // Определение типа тарифа
-    const tariffTypeText = tariff.is_custom == 1 ? 'Кастомный (почасовая оплата)' : 'Фиксированный тариф';
+    const tariffTypeText = tariff.is_custom == 1 ? 'Почасовая оплата' : 'Фиксированный тариф';
 
     // Генерация HTML для тарифной информации
     let chargeHTML = '';
