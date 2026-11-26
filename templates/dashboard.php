@@ -503,8 +503,14 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
 
         .vm-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             margin-top: 16px;
+        }
+
+        .vm-actions a.vm-action-btn {
+            text-align: center;
+            text-decoration: none;
         }
 
         .vm-action-btn {
@@ -861,8 +867,8 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         /* Сетка информации ВМ */
         .vm-info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
             margin-bottom: 32px;
         }
 
@@ -891,8 +897,9 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         }
 
         .info-item {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: minmax(7rem, 32%) minmax(0, 1fr);
+            gap: 4px 16px;
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 1px dashed rgba(148, 163, 184, 0.2);
@@ -908,8 +915,24 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
         }
 
         .info-value {
+            min-width: 0;
+            overflow-wrap: anywhere;
             color: #172438;
             font-weight: 600;
+        }
+
+        .vm-detail-addresses {
+            display: grid;
+            gap: 4px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        @media (max-width: 480px) {
+            .info-item {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         body.dark-theme .info-value {
@@ -1335,6 +1358,16 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                                             <i class="fas fa-stop"></i> Остановить
                                         </button>
                                     <?php endif; ?>
+                                    <?php if ((int)$vm['node_id'] > 0 && (int)$vm['vm_id'] > 0 && !in_array($vm['status'], ['deleted', 'creating'], true)): ?>
+                                        <a class="vm-action-btn" target="_blank" rel="noopener"
+                                           href="/templates/vnc_console.php?<?= htmlspecialchars(http_build_query([
+                                               'node_id' => (int)$vm['node_id'],
+                                               'vm_id' => (int)$vm['vm_id'],
+                                               'redirect' => 1,
+                                           ]), ENT_QUOTES, 'UTF-8') ?>">
+                                            <i class="fas fa-terminal" aria-hidden="true"></i> Консоль
+                                        </a>
+                                    <?php endif; ?>
                                     <button class="vm-action-btn" onclick="openVmDetails(<?= $vm['id'] ?>)">
                                         <i class="fas fa-info-circle"></i> Подробнее
                                     </button>
@@ -1595,6 +1628,9 @@ function openVmDetails(vmId) {
         // Функция для генерации HTML с детальной информацией о ВМ
 function generateVmDetailsHTML(data) {
     const vm = data.vm;
+    const addresses = String(vm.ip_address ?? '').split(/[,;\s]+/).filter(Boolean);
+    const escapeAddress = value => value.replace(/[&<>"']/g, character =>
+        ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[character]);
     const tariff = data.tariff;
     const lastCharge = data.lastCharge;
     const metrics = data.metrics;
@@ -1767,8 +1803,10 @@ function generateVmDetailsHTML(data) {
             <div class="vm-info-section">
                 <h3 class="info-section-title">Сеть</h3>
                 <div class="info-item">
-                    <span class="info-label">IP адрес:</span>
-                    <span class="info-value">${vm.ip_address || 'DHCP'}</span>
+                    <span class="info-label">IP-адреса:</span>
+                    <ul class="info-value vm-detail-addresses">
+                        ${addresses.length ? addresses.map(address => `<li><code>${escapeAddress(address)}</code></li>`).join('') : '<li>DHCP</li>'}
+                    </ul>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Сетевой интерфейс:</span>

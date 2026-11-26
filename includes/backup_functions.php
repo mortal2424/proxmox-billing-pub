@@ -5,6 +5,7 @@
 //session_start();
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/backup_database.php';
+require_once __DIR__ . '/backup_activity.php';
 require_once __DIR__ . '/version.php';
 //require_once __DIR__ . '/auth.php';
 //require_once __DIR__ . '/config.php';
@@ -20,7 +21,7 @@ define('MAX_BACKUPS', 10);
 /**
  * Создание бэкапа
  */
-function createBackup($type = 'full', $comment = '', $is_auto = false, $scheduleId = null, $keepCount = MAX_BACKUPS) {
+function createBackup($type = 'full', $comment = '', $is_auto = false, $scheduleId = null, $keepCount = MAX_BACKUPS, ?string $activityId = null) {
     global $pdo;
 
     $backup_dir = BACKUP_DIR;
@@ -46,6 +47,9 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
     $filename = $backup_name . '_' . bin2hex(random_bytes(4)) . '.zip';
     $filepath = $backup_dir . $filename;
 
+    $activityId ??= bin2hex(random_bytes(8));
+    $report = static fn(string $stage, string $text) => backupActivityLog($activityId, $stage, $text);
+    $report('started', 'Начало резервного копирования, тип: ' . $type . ($is_auto ? ' (по расписанию)' : ''));
     $databaseTemporary = null; $operationLock = null;
     try {
         $operationLock = backupOperationLock($project_root);
@@ -57,12 +61,15 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
 
         // Добавляем файлы в архив (если нужно)
         if ($type === 'full' || $type === 'files') {
+            $report('files', 'Добавление файлов проекта');
             addFilesToArchive($zip, $project_root);
         }
 
         // Добавляем дамп базы данных (если нужно)
         if ($type === 'full' || $type === 'db') {
-            $databaseTemporary = addDatabaseToArchive($zip, $pdo);
+            $report('database', 'Запуск создания дампа базы данных');
+            $databaseTemporary = addDatabaseToArchive($zip, $pdo, $report);
+            $report('database', 'Дамп добавлен в архив, байт: ' . filesize($databaseTemporary));
         }
 
         // Добавляем мета-информацию
@@ -81,6 +88,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
 
         $zip->addFromString('backup_meta.json', json_encode($meta, JSON_PRETTY_PRINT));
 
+        $report('archive', 'Сжатие и сохранение архива');
         if (!$zip->close()) {
             throw new Exception("Ошибка при сохранении архива");
         }
@@ -93,13 +101,15 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
         try {
             cleanupOldBackups($backup_dir, (int) $keepCount, $scheduleId);
         } catch (Throwable $cleanupError) {
-            error_log('Backup created but retention cleanup failed: ' . $cleanupError->getMessage());
+            $report('warning', 'Архив создан, очистка старых копий не завершилась');
+            error_log('Backup created but retention cleanup failed');
         }
 
         // Записываем в лог
         $user_id = isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 0;
         logBackupAction($pdo, $user_id, 'create', $filename, $comment . ($is_auto ? ' [АВТО]' : ''));
 
+        $report('completed', 'Архив готов, байт: ' . filesize($filepath));
         return [
             'success' => true,
             'filename' => $filename,
@@ -108,6 +118,7 @@ function createBackup($type = 'full', $comment = '', $is_auto = false, $schedule
         ];
 
     } catch (Throwable $e) {
+        $report('failed', $e instanceof RuntimeException && !$e instanceof PDOException ? $e->getMessage() : 'Ошибка создания архива: ' . get_class($e));
         // Удаляем частично созданный файл
         if (isset($filepath) && file_exists($filepath)) {
             @unlink($filepath);
@@ -240,12 +251,12 @@ function addRootFilesToZip($zip, $project_root, $exclude_patterns) {
 /**
  * Добавление базы данных в архив
  */
-function addDatabaseToArchive($zip, $pdo) {
+function addDatabaseToArchive($zip, $pdo, ?callable $report = null) {
     $temporary = tempnam(BACKUP_DIR, '.database-');
     if ($temporary === false) throw new RuntimeException('Не удалось подготовить дамп БД');
     chmod($temporary, 0600);
     try {
-        backupDatabaseCommand('export', $temporary);
+        backupDatabaseCommand('export', $temporary, $report);
         if (!$zip->addFile($temporary, 'database/database_dump.sql')) throw new RuntimeException('Не удалось добавить дамп в архив');
         // ZipArchive reads addFile sources when close() is called.
         return $temporary;
@@ -298,7 +309,7 @@ function logBackupAction($pdo, $user_id, $action, $filename, $details = '') {
             INSERT INTO backup_logs (user_id, action, filename, details, ip_address)
             VALUES (?, ?, ?, ?, ?)
         ", [
-            $user_id,
+            $user_id ?: null,
             $action,
             $filename,
             $details,
@@ -313,7 +324,7 @@ function logBackupAction($pdo, $user_id, $action, $filename, $details = '') {
                 INSERT INTO backup_logs (user_id, action, filename, details, ip_address)
                 VALUES (?, ?, ?, ?, ?)
             ", [
-                $user_id,
+                $user_id ?: null,
                 $action,
                 $filename,
                 $details,

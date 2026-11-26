@@ -298,6 +298,13 @@
       "commit": "2a318d27e2324649419865bd8ef36ef9b7e4efeb",
       "sha256": "4b49d18688ba9ac10c1ad242ace1abedee03819b7d0d54bf63a6c84f46076dfa",
       "summary": "Защита форм профиля и смены пароля, исправления кабинета и таймаута обновлятора."
+    },
+    {
+      "version": "2.5.1-rc1.5",
+      "display_version": "2.5.1-Pre-release1.5",
+      "commit": "6880cd6882c2ea62e187dc4190b1c0acfeb079f1",
+      "sha256": "a2c3b6bf94cf3903fb1f623c5c10c4696410eba08690ec6fc50f68661e05ba05",
+      "summary": "Фоновые копии БД, журнал операций, IPv6 и кнопка VNC на дашборде."
     }
   ]
 }

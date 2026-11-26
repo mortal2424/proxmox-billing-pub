@@ -168,3 +168,15 @@ restore files > "$qa/restored-files.html"
 grep -q 'Восстановление завершено' "$qa/restored-files.html"
 "${fixture[@]}" verify changed restored
 echo 'DB-only and files-only modes left the unselected component intact'
+
+new_session
+if "${https[@]}" --fail "$web/admin/backup.php?action=activity" | jq -e 'has("entries")'; then
+    echo 'Unauthenticated backup journal response' >&2
+    exit 1
+fi
+job=$("${app[@]}" php -r 'require "includes/backup_activity.php"; echo enqueueManualBackup("db","QueueSmoke");')
+test -n "$job"
+"${app[@]}" php cronjobs/backup_cron.php >/dev/null
+"${https[@]}" --fail "${cookie[@]}" "$web/admin/backup.php?action=activity" |
+    jq -e --arg job "$job" '[.entries[] | select(.id==$job) | .stage] | .[0]=="completed" and index("queued")!=null and index("database")!=null and index("archive")!=null'
+echo 'Queued CLI backup completed and the authorized HTTP journal shows actual stages'
