@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.5",
+  "from": "2.5.1-Pre-release1.4",
+  "source_commit": "bb5bf6ba88e74debcfc932b06d5ee2f29ba331b0",
+  "changelog": "## v2.5.1-Pre-release1.5\n\n- На хостинге с отключённым запуском внешних процессов задания резервного копирования БД выполняются штатным CLI-заданием `cronjobs/backup_cron.php`. В PHP-FPM сохраняются существующие ограничения. На сервере всё ещё нужен клиент MariaDB/MySQL.\n- Кнопка «Показать логи» открывает журнал резервного копирования с номером заявки, временем и этапами от очереди до сохранения ZIP. Для дампа журнал показывает имя клиента, код завершения и размер. Если задание остаётся в очереди, проверьте запуск `cronjobs/backup_cron.php` от пользователя панели.\n- В окне «Подробнее» на дашборде характеристики ВМ показаны горизонтальными строками, а каждый IPv4 или IPv6 занимает отдельную строку с переносом по ширине.\n\nПакет предназначен для версии v2.5.1-Pre-release1.4. Фоновое задание копирования должно запускаться каждую минуту. Для Docker пересоберите образ с сохранением томов.\n",
+  "files": {
+    "admin/backup.php": {
+      "before": "29307a0b247e8215b8a6055fdf15205f5ae38522f3df70edb44e3abc7a419ed2",
+      "sha256": "2e9f1f68a1975becafb4dfe2441a0a398c6fe68956b7f5b36973a1965644f493"
+    },
+    "cronjobs/backup_cron.php": {
+      "before": "fcf9d63ed54648fe4d127767739bb341a813829dc493d7338a9c77944e473a0b",
+      "sha256": "025c47b0c8b1238cd51fc14fb0eba7009fd8b3a4724b806cf63c83dbcc430f50"
+    },
+    "includes/backup_activity.php": {
+      "before": null,
+      "sha256": "8f7a85c15c34599a4c1c3c214cbf9b33068c58a1c66bbdd1f057229b17d9f4e4"
+    },
+    "includes/backup_database.php": {
+      "before": "33ff50c687df8bda9c8d78db7a643c8b8b642e6f941564527e94028f7a6a8e44",
+      "sha256": "b6715ac3b2af84eb42e55f256e2920a5a51b1bbc9f9dcd8b162d0b5d541c54b5"
+    },
+    "includes/backup_functions.php": {
+      "before": "d67d05aad7fd639d4d411cf16cedc141809864cde4965fea79de12b6128299a0",
+      "sha256": "14c4a89188b51bfb40df34f62bee5e50a95bdca0e1d7b9b9da3cb961e5919437"
+    },
+    "includes/version.php": {
+      "before": "81484412062aac311110785223784d97a9d1dd11d112021c557549735651672b",
+      "sha256": "2b666d1cdfa86414508ef11fb2e4f9c45e47fa94f5ea63507635c936ae08560a"
+    },
+    "templates/dashboard.php": {
+      "before": "29e2f0314f1d94ced9b933c7f4643824970906ed479fad2d547559ef981dc0f6",
+      "sha256": "5512af03b04213aa97393bc53c1fe38f10b35e5b31b3ce86d50debf2de701fae"
+    }
+  }
+}
