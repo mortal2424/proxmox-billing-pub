@@ -305,6 +305,13 @@
       "commit": "6880cd6882c2ea62e187dc4190b1c0acfeb079f1",
       "sha256": "a2c3b6bf94cf3903fb1f623c5c10c4696410eba08690ec6fc50f68661e05ba05",
       "summary": "Фоновые копии БД, журнал операций, IPv6 и кнопка VNC на дашборде."
+    },
+    {
+      "version": "2.5.1-rc1.6",
+      "display_version": "2.5.1-Pre-release1.6",
+      "commit": "371dc31c30c091bb442bcceb9600cbda74c7a28e",
+      "sha256": "7762b5d704d0121fbed5ac3efe4deabbfa8ba75f13928faadc5a4e86b06727ec",
+      "summary": "Подписанный пакет, журнал установки и индивидуальный тариф на дашборде."
     }
   ]
 }

@@ -13,12 +13,18 @@ function updateQueuePath(string $root): string
     return $path;
 }
 
-function readUpdateJob(string $path): ?array
+function readUpdateJob(string $path, int $limit = 8192): ?array
 {
     if (!is_file($path)) return null;
-    $raw = file_get_contents($path, false, null, 0, 8193);
-    if ($raw === false || strlen($raw) > 8192) throw new RuntimeException('Не удалось прочитать состояние обновления');
+    if (is_link($path)) throw new RuntimeException('Недопустимый путь журнала');
+    $raw = file_get_contents($path, false, null, 0, $limit + 1);
+    if ($raw === false || strlen($raw) > $limit) throw new RuntimeException('Не удалось прочитать состояние обновления');
     return json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
+}
+
+function readPanelUpdateLog(string $root): ?array
+{
+    return readUpdateJob(dirname(updateQueuePath($root)) . '/last-install.json', 1048576);
 }
 
 function writeUpdateJob(string $path, array $state): void
@@ -73,9 +79,25 @@ function runQueuedPanelUpdate(string $root, Closure $connect): void
         $job = readUpdateJob($path);
         if (!in_array($job['state'] ?? null, ['queued','downloading','applying'], true)) return;
         $version = $job['version'];
-        $progress = static function (string $state, int $done = 0, int $total = 0, string $message = '') use ($path, $version): void {
+        $logPath = dirname($path) . '/last-install.json';
+        $files = [];
+        if ($job['state'] !== 'queued') {
             try {
-                writeUpdateJob($path, compact('state','version','done','total','message'));
+                $previous = readPanelUpdateLog($root);
+                if (($previous['version'] ?? null) === $version) $files = $previous['files'] ?? [];
+            } catch (Throwable) {
+                error_log('Could not read previous update log');
+            }
+        }
+        $progress = static function (string $state, int $done = 0, int $total = 0, string $message = '',
+            ?array $file = null) use ($path, $version, $logPath, &$files): void {
+            if ($file !== null) $files[] = $file;
+            try {
+                $stateData = compact('state','version','done','total','message');
+                writeUpdateJob($path, $stateData);
+                if ($file !== null || $done === 0 || $state === 'completed') {
+                    writeUpdateJob($logPath, $stateData + ['files'=>$files]);
+                }
             } catch (Throwable $error) {
                 error_log('Could not write update progress: ' . $error->getMessage());
             }

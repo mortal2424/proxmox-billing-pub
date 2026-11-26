@@ -148,7 +148,9 @@ function installUpdate(PDO $pdo, string $root, array $manifest, ?Closure $connec
                 throw new RuntimeException("Не удалось установить $path", 0, $error);
             }
             $applied[] = $path;
-            if ($progress) $progress('applying', count($applied), $total);
+            if ($progress) $progress('applying', count($applied), $total, '', [
+                'path'=>$path, 'action'=>$file['before'] === null ? 'added' : 'replaced',
+            ]);
             if (function_exists('opcache_invalidate')) {
                 opcache_invalidate($target, true);
             }

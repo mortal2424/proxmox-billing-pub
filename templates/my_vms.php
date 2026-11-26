@@ -1334,6 +1334,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                 <div class="progress-bar" id="metrics-loading-progress"></div>
             </div>
 
+            <p id="metricsError" class="empty-text" role="status" hidden></p>
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-chart">
@@ -2345,72 +2346,75 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             loadVmMetrics(vm_id, timeframe, vm_type);
         }
 
-        // Функция для загрузки метрик
-        async function loadVmMetrics(vm_id, timeframe, vm_type) {
-            try {
-                updateMetricsProgress(10);
+        let metricsRequest = 0;
 
+        async function loadVmMetrics(vm_id, timeframe, vm_type) {
+            const request = ++metricsRequest;
+            const modal = document.getElementById('metricsModal');
+            const progress = modal.querySelector('.progress-container');
+            const grid = modal.querySelector('.metrics-grid');
+            const message = document.getElementById('metricsError');
+
+            message.hidden = true;
+            grid.style.display = 'none';
+            progress.style.display = 'block';
+            progress.style.opacity = '1';
+            updateMetricsProgress(10);
+
+            try {
                 const response = await fetch(`/api/${vm_type === 'lxc' ? 'get_lxc_metrics' : 'get_vm_metrics'}.php?guest_id=${vm_id}&timeframe=${timeframe}`);
                 if (!response.ok) throw new Error('Ошибка сервера');
 
                 const data = await response.json();
+                if (request !== metricsRequest) return;
                 if (!data.success) throw new Error(data.error || 'Ошибка загрузки данных');
 
-                updateMetricsProgress(30);
-
-                // Уничтожаем старые графики, если они есть
                 if (cpuChart) cpuChart.destroy();
                 if (memoryChart) memoryChart.destroy();
                 if (networkChart) networkChart.destroy();
                 if (diskChart) diskChart.destroy();
 
-                // Создаем графики
-                createCharts(data);
-
-                updateMetricsProgress(100);
-
-                // Через 1 секунду скрываем прогресс-бар
-                setTimeout(() => {
-                    document.querySelector('#metricsModal .progress-container').style.opacity = '0';
-                    setTimeout(() => {
-                        document.querySelector('#metricsModal .progress-container').style.display = 'none';
-                    }, 500);
-                }, 1000);
-
+                grid.style.display = '';
+                createCharts(data, timeframe);
             } catch (error) {
-                console.error('Ошибка загрузки метрик:', error);
-                updateMetricsProgress(100);
-
-                const metricsGrid = document.querySelector('#metricsModal .metrics-grid');
-                metricsGrid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1;">
-                        <div class="empty-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <p class="empty-text">${error.message}</p>
-                    </div>
-                `;
-
-                setTimeout(() => {
-                    document.querySelector('#metricsModal .progress-container').style.opacity = '0';
-                    setTimeout(() => {
-                        document.querySelector('#metricsModal .progress-container').style.display = 'none';
-                    }, 500);
-                }, 1000);
+                if (request !== metricsRequest) return;
+                grid.style.display = 'none';
+                message.textContent = error.message;
+                message.hidden = false;
+            } finally {
+                if (request === metricsRequest) progress.style.display = 'none';
             }
         }
 
-        // Функция для создания графиков
-        function createCharts(data) {
+        function createCharts(data, timeframe) {
+            const dateOptions = timeframe === 'hour'
+                ? { hour: '2-digit', minute: '2-digit' }
+                : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+            const tooltipDate = new Intl.DateTimeFormat('ru-RU', { ...dateOptions, timeZone: 'UTC' });
+            const tickDate = ['month', 'year'].includes(timeframe)
+                ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+                : tooltipDate;
+            const timeAxis = () => ({
+                type: 'linear',
+                min: data.rangeStart,
+                max: data.rangeEnd,
+                title: { display: true, text: 'Время' },
+                ticks: { maxTicksLimit: 6, callback: value => tickDate.format(value) }
+            });
+            const points = values => values.map((value, index) => ({
+                x: data.timestamps[index],
+                y: value === null ? null : Number(value)
+            }));
+            const tooltipTitle = items => tooltipDate.format(items[0].parsed.x);
+
             // График CPU Usage
             const cpuCtx = document.getElementById('cpuChart').getContext('2d');
             cpuChart = new Chart(cpuCtx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
                     datasets: [{
                         label: 'Использование CPU',
-                        data: data.cpuData,
+                        data: points(data.cpuData),
                         borderColor: 'rgba(255, 99, 132, 1)',
                         backgroundColor: 'rgba(255, 99, 132, 0.2)',
                         borderWidth: 2,
@@ -2429,6 +2433,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                             mode: 'index',
                             intersect: false,
                             callbacks: {
+                                title: tooltipTitle,
                                 label: function(context) {
                                     return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' %';
                                 }
@@ -2449,12 +2454,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 }
                             }
                         },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Время'
-                            }
-                        }
+                        x: timeAxis()
                     }
                 }
             });
@@ -2466,11 +2466,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             memoryChart = new Chart(memoryCtx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
                     datasets: [
                         {
                             label: 'Используемая память',
-                            data: data.memData,
+                            data: points(data.memData),
                             borderColor: 'rgba(54, 162, 235, 1)',
                             backgroundColor: 'rgba(54, 162, 235, 0.2)',
                             borderWidth: 2,
@@ -2490,6 +2489,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                             mode: 'index',
                             intersect: false,
                             callbacks: {
+                                title: tooltipTitle,
                                 label: function(context) {
                                     return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' ГБ';
                                 }
@@ -2509,12 +2509,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 }
                             }
                         },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Время'
-                            }
-                        }
+                        x: timeAxis()
                     }
                 }
             });
@@ -2526,11 +2521,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             networkChart = new Chart(networkCtx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
                     datasets: [
                         {
                             label: 'Входящий трафик',
-                            data: data.netInData,
+                            data: points(data.netInData),
                             borderColor: 'rgba(153, 102, 255, 1)',
                             backgroundColor: 'rgba(153, 102, 255, 0.2)',
                             borderWidth: 2,
@@ -2539,7 +2533,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         },
                         {
                             label: 'Исходящий трафик',
-                            data: data.netOutData,
+                            data: points(data.netOutData),
                             borderColor: 'rgba(255, 159, 64, 1)',
                             backgroundColor: 'rgba(255, 159, 64, 0.2)',
                             borderWidth: 2,
@@ -2559,6 +2553,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                             mode: 'index',
                             intersect: false,
                             callbacks: {
+                                title: tooltipTitle,
                                 label: function(context) {
                                     return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' Mbit/s';
                                 }
@@ -2578,12 +2573,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 }
                             }
                         },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Время'
-                            }
-                        }
+                        x: timeAxis()
                     }
                 }
             });
@@ -2595,11 +2585,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             diskChart = new Chart(diskCtx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
                     datasets: [
                         {
                             label: 'Чтение с диска',
-                            data: data.diskReadData,
+                            data: points(data.diskReadData),
                             borderColor: 'rgba(255, 99, 132, 1)',
                             backgroundColor: 'rgba(255, 99, 132, 0.2)',
                             borderWidth: 2,
@@ -2608,7 +2597,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         },
                         {
                             label: 'Запись на диск',
-                            data: data.diskWriteData,
+                            data: points(data.diskWriteData),
                             borderColor: 'rgba(54, 162, 235, 1)',
                             backgroundColor: 'rgba(54, 162, 235, 0.2)',
                             borderWidth: 2,
@@ -2628,6 +2617,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                             mode: 'index',
                             intersect: false,
                             callbacks: {
+                                title: tooltipTitle,
                                 label: function(context) {
                                     return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' МБ';
                                 }
@@ -2647,12 +2637,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                 }
                             }
                         },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Время'
-                            }
-                        }
+                        x: timeAxis()
                     }
                 }
             });

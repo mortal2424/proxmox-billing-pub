@@ -19,7 +19,7 @@ $vm_id = intval($_GET['id']);
 try {
     // Получаем информацию о ВМ
     $stmt = $db->getConnection()->prepare("
-        SELECT v.*, t.name as tariff_name, t.is_custom, t.price, 
+        SELECT v.*, t.name as tariff_name, t.is_custom as tariff_is_custom, t.price,
                t.price_per_hour_cpu, t.price_per_hour_ram, t.price_per_hour_disk,
                t.vm_type as tariff_vm_type
         FROM vms v
@@ -35,9 +35,10 @@ try {
     }
 
     // Получаем информацию о тарифе
+    $isCustom = (int)($vm['is_custom'] ?? 0) === 1 || (int)($vm['tariff_is_custom'] ?? 0) === 1;
     $tariff = [
-        'name' => $vm['tariff_name'] ?: 'Без тарифа',
-        'is_custom' => $vm['is_custom'] ?? 0,
+        'name' => $isCustom ? 'Индивидуальные ресурсы' : ($vm['tariff_name'] ?: 'Без тарифа'),
+        'is_custom' => (int)$isCustom,
         'price' => $vm['price'] ?? 0,
         'price_per_hour_cpu' => $vm['price_per_hour_cpu'] ?? 0,
         'price_per_hour_ram' => $vm['price_per_hour_ram'] ?? 0,
