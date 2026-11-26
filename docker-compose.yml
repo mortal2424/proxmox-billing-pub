@@ -52,6 +52,7 @@ services:
       - ./backups/archives:/var/www/html/admin/backups
       - ./docker/proxmox-tls:/etc/proxmox-tls:ro
       - ${HOMEVLAD_LICENSE_DIR:-./.docker-private/license}:/run/homevlad-license:ro
+      - ${HOMEVLAD_UPDATE_TRUST_DIR:-./.docker-private/update-trust}:/run/homevlad-update-trust:ro
       - panel-private:/var/lib/homevlad-private
       - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
     #  - .:/var/www/html
@@ -61,6 +62,7 @@ services:
       HOMEVLAD_ENABLE_INSTALL: ${HOMEVLAD_ENABLE_INSTALL:-0}
       HOMEVLAD_PUBLIC_URL: https://${DOMAIN}
       CONSOLE_BIND: 0.0.0.0
+      HOMEVLAD_UPDATE_SIGNATURE_REQUIRED: ${HOMEVLAD_UPDATE_SIGNATURE_REQUIRED:-0}
       HOMEVLAD_UPDATE_PUBLIC_KEY: ${HOMEVLAD_UPDATE_PUBLIC_KEY:-}
       HOMEVLAD_LICENSE_REQUIRED: ${HOMEVLAD_LICENSE_REQUIRED:-0}
       HOMEVLAD_LICENSE_CONFIG: ${HOMEVLAD_LICENSE_CONFIG:-}
