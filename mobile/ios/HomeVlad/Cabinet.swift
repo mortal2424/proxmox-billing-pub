@@ -254,8 +254,9 @@ private struct MobileTurnstileView: UIViewRepresentable {
                 return
             }
             let sameOrigin = url.scheme == "https" && url.host == CloudEnvironment.host
-            let challengeFrame = action.targetFrame?.isMainFrame == false && url.scheme == "https" &&
-                url.host == "challenges.cloudflare.com"
+            let challengeFrame = action.targetFrame?.isMainFrame == false &&
+                ((url.scheme == "https" && url.host == "challenges.cloudflare.com") ||
+                    ["about:blank", "about:srcdoc"].contains(url.absoluteString))
             decisionHandler(sameOrigin || challengeFrame ? .allow : .cancel)
         }
     }

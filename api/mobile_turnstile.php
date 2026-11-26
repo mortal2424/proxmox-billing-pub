@@ -24,7 +24,7 @@ try {
     exit;
 }
 $nonce = base64_encode(random_bytes(18));
-header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$nonce' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src https://challenges.cloudflare.com; base-uri 'none'; frame-ancestors 'none'");
+header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$nonce' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com; base-uri 'none'; frame-ancestors 'none'");
 ?>
 <!doctype html>
 <html lang="ru">
@@ -36,7 +36,7 @@ function homevladCaptchaComplete(token) {
     window.location.href = 'homevlad-captcha://result?token=' + encodeURIComponent(token);
 }
 </script>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script nonce="<?= htmlspecialchars($nonce, ENT_QUOTES) ?>" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars($config['site_key'], ENT_QUOTES) ?>"
-     data-action="panel_login" data-callback="homevladCaptchaComplete"></div>
+     data-action="panel_login" data-size="compact" data-callback="homevladCaptchaComplete"></div>
 </html>

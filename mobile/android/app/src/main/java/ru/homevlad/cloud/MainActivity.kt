@@ -503,6 +503,7 @@ private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
                                         }
                                         return true
                                     }
+                                    if (!request.isForMainFrame && url.toString() in listOf("about:blank", "about:srcdoc")) return false
                                     return url.scheme != "https" ||
                                         (url.host != BuildConfig.HOST &&
                                             (request.isForMainFrame || url.host != "challenges.cloudflare.com"))
