@@ -1,0 +1,2 @@
+ALTER TABLE `system_versions` MODIFY COLUMN `version` VARCHAR(64) NOT NULL;
+ALTER TABLE `system_updates` MODIFY COLUMN `version` VARCHAR(64) NOT NULL;
