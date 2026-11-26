@@ -25,6 +25,18 @@ $_SESSION['update_csrf'] ??= bin2hex(random_bytes(32));
 $message = '';
 $error = '';
 $manifest = null;
+$trustError = '';
+$trustLabel = '';
+try {
+    $trust = configuredUpdateTrust();
+    $trustLabel = match (true) {
+        $trust['required'] => 'Проверка подписи Ed25519 обязательна.',
+        $trust['public_key'] !== null => 'Проверка подписи Ed25519 включена.',
+        default => 'Доверенный ключ обновлений не настроен.',
+    };
+} catch (RuntimeException $exception) {
+    $trustError = $exception->getMessage();
+}
 $conflicts = [];
 $releases = null;
 $version = is_string($_REQUEST['version'] ?? null) ? $_REQUEST['version'] : '';
@@ -42,6 +54,7 @@ try {
             $manifest = releaseManifest($version);
             $conflicts = previewUpdate(dirname(__DIR__), $manifest);
         } elseif ($action === 'install') {
+            if ($trustError !== '') throw new RuntimeException($trustError);
             enqueuePanelUpdate(dirname(__DIR__), $version);
             header('Location: /admin/update.php', true, 303);
             exit;
@@ -79,6 +92,11 @@ require __DIR__ . '/admin_sidebar.php';
 <p>Для установки обновления пересоберите Docker-образ и пересоздайте контейнер, сохранив тома.</p>
 <?php endif; ?>
 <p>Установлена версия <?= htmlspecialchars($currentVersion) ?></p>
+<?php if ($trustError !== ''): ?>
+<p role="alert"><?= htmlspecialchars($trustError) ?></p>
+<?php else: ?>
+<p><?= htmlspecialchars($trustLabel) ?></p>
+<?php endif; ?>
 <button id="update-log-button" type="button">Лог обновления</button>
 <p id="update-job-result" role="status" hidden></p>
 <dialog id="update-log-dialog" class="update-release" aria-labelledby="update-log-title">
@@ -117,7 +135,7 @@ require __DIR__ . '/admin_sidebar.php';
 <h3>Требуется ручное слияние</h3>
 <ul><?php foreach ($conflicts as $file): ?><li><?= htmlspecialchars($file) ?></li><?php endforeach; ?></ul>
 <p>Сохраните свои изменения и перенесите в них изменения пакета. Затем выполните проверку повторно.</p>
-<?php elseif (getenv('HOMEVLAD_IMMUTABLE_IMAGE') !== '1' && homevladCompareVersions($manifest['version'], $currentVersion) > 0): ?>
+<?php elseif ($trustError === '' && getenv('HOMEVLAD_IMMUTABLE_IMAGE') !== '1' && homevladCompareVersions($manifest['version'], $currentVersion) > 0): ?>
 <form method="post">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['update_csrf']) ?>">
 <input type="hidden" name="version" value="<?= htmlspecialchars($manifest['version']) ?>">
