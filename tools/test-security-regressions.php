@@ -171,6 +171,23 @@ expect(customerMetricsGuest($pdo,1,'qemu',['vm_id'=>100]) === 21, 'Legacy owner 
 expect(customerMetricsGuest($pdo,2,'qemu',['vm_id'=>100]) === 22, 'Second node guest was confused with first');
 expect(array_column(guestMetricRows($pdo,21,'qemu',3600),'cpu_usage') === [11.0], 'Historical metrics mixed nodes or old data');
 expect((float)guestMetricRows($pdo,22,'qemu',null)[0]['cpu_usage'] === 99.0, 'Latest metrics mixed nodes');
+$pdo->sqlite->createFunction('NOW', fn () => '2026-03-31 12:00:00', 0);
+$pdo->sqlite->exec("INSERT INTO vm_metrics VALUES
+    (21,100,'2026-03-31 10:59:59',20,1,2,0,0,0,0),
+    (21,100,'2026-03-31 11:00:00',21,1,2,0,0,0,0),
+    (21,100,'2026-03-31 11:45:00',22,1,2,0,0,0,0),
+    (21,100,'2026-03-31 12:00:01',23,1,2,0,0,0,0)");
+$originalTimezone = date_default_timezone_get();
+date_default_timezone_set('Asia/Vladivostok');
+$hour = historicalGuestMetrics($pdo, 21, 'qemu', 'hour');
+$month = historicalGuestMetrics($pdo, 21, 'qemu', 'month');
+date_default_timezone_set($originalTimezone);
+$pdo->sqlite->createFunction('NOW', fn () => date('Y-m-d H:i:s'), 0);
+expect($hour['cpuData'] === [21.0, 22.0], 'Hour included out-of-range metrics');
+expect($hour['rangeEnd'] - $hour['rangeStart'] === 3600000, 'Hour bounds are incorrect');
+expect($hour['timestamps'][1] - $hour['timestamps'][0] === 2700000, 'Sample spacing is incorrect');
+expect(gmdate('Y-m-d H:i:s', intdiv($month['rangeStart'], 1000)) === '2026-02-28 12:00:00',
+    'Calendar month should clamp to the last day');
 $pdo->sqlite->exec('INSERT INTO vms(id,user_id,node_id,vm_id,vm_type,status) VALUES(23,1,13,100,"qemu","running")');
 expect(customerMetricsGuest($pdo,1,'qemu',['vm_id'=>100]) === null, 'Ambiguous legacy ID was accepted');
 
