@@ -302,9 +302,9 @@
     {
       "version": "2.5.1-rc1.5",
       "display_version": "2.5.1-Pre-release1.5",
-      "commit": "760ca79c5fd375253cc367be2b61deb7fd852e10",
-      "sha256": "39e217573cf5a563c36554d5115fb6f55318df74600008f2a25d4b327b0fabab",
-      "summary": "Фоновые резервные копии БД на хостинге, журнал операций и IPv6 в карточке ВМ."
+      "commit": "6880cd6882c2ea62e187dc4190b1c0acfeb079f1",
+      "sha256": "a2c3b6bf94cf3903fb1f623c5c10c4696410eba08690ec6fc50f68661e05ba05",
+      "summary": "Фоновые копии БД, журнал операций, IPv6 и кнопка VNC на дашборде."
     }
   ]
 }
