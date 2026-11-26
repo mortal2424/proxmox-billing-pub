@@ -309,7 +309,7 @@ function logBackupAction($pdo, $user_id, $action, $filename, $details = '') {
             INSERT INTO backup_logs (user_id, action, filename, details, ip_address)
             VALUES (?, ?, ?, ?, ?)
         ", [
-            $user_id,
+            $user_id ?: null,
             $action,
             $filename,
             $details,
@@ -324,7 +324,7 @@ function logBackupAction($pdo, $user_id, $action, $filename, $details = '') {
                 INSERT INTO backup_logs (user_id, action, filename, details, ip_address)
                 VALUES (?, ?, ?, ?, ?)
             ", [
-                $user_id,
+                $user_id ?: null,
                 $action,
                 $filename,
                 $details,

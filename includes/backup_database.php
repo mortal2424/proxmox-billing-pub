@@ -2,7 +2,7 @@
 
 function backupNeedsCli(string $type): bool
 {
-    return PHP_SAPI !== 'cli' && in_array($type, ['db','full'], true) && !is_callable('proc_open');
+    return PHP_SAPI !== 'cli' && in_array($type, ['db','full'], true) && (!is_callable('proc_open') || !@is_readable('/dev/null'));
 }
 
 /** Run the MySQL client without putting credentials in arguments, environment or logs. */
