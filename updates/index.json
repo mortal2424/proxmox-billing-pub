@@ -305,6 +305,13 @@
       "commit": "6880cd6882c2ea62e187dc4190b1c0acfeb079f1",
       "sha256": "a2c3b6bf94cf3903fb1f623c5c10c4696410eba08690ec6fc50f68661e05ba05",
       "summary": "Фоновые копии БД, журнал операций, IPv6 и кнопка VNC на дашборде."
+    },
+    {
+      "version": "2.5.1-rc1.6",
+      "display_version": "2.5.1-Pre-release1.6",
+      "commit": "0fc2f9b76f32be058b50bdd3b2f0dd6686d83ef8",
+      "sha256": "fe435f4e11aff8bf59c91bb173ba91c12bacbf3541f21be5babf11a5a43d9409",
+      "summary": "Подписанный переход на обязательную проверку обновлений Ed25519."
     }
   ]
 }
