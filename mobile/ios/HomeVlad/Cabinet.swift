@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct Cabinet: View {
     @ObservedObject var session: CloudSession
@@ -153,7 +154,9 @@ struct NativeLogin: View {
     @ObservedObject var session: CloudSession
     @State private var email = ""
     @State private var password = ""
-    @State private var answer = ""
+    @State private var totp = ""
+    @State private var turnstile = ""
+    @State private var showTurnstile = false
 
     var body: some View {
         ScrollView {
@@ -173,28 +176,32 @@ struct NativeLogin: View {
                         .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
                     SecureField("Пароль", text: $password).textContentType(.password)
                         .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
-                    HStack {
-                        if let challenge = session.challenge {
-                            TextField("\(challenge.captcha) = ?", text: $answer).keyboardType(.numberPad)
-                                .accessibilityLabel("Ответ на проверочный вопрос")
-                                .padding(14).background(Color(red: 0.93, green: 0.98, blue: 0.96), in: RoundedRectangle(cornerRadius: 14))
-                        }
-                        Button {
-                            answer = ""
-                            Task { await session.prepareLogin() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise").padding(8)
-                        }.accessibilityLabel("Обновить CAPTCHA").disabled(session.loading)
+                    TextField("Код Google Authenticator (если включён)", text: $totp)
+                        .keyboardType(.numberPad).textContentType(.oneTimeCode)
+                        .onChange(of: totp) { _, value in totp = String(value.filter { $0.isASCII && $0.isNumber }.prefix(6)) }
+                    if session.challenge?.turnstile_required == true && turnstile.isEmpty {
+                        Button("Пройти проверку CAPTCHA") { showTurnstile = true }
                     }
                     Button {
                         Task {
-                            await session.login(email: email, password: password, answer: answer)
-                            password = ""
-                            answer = ""
+                            let token = turnstile
+                            turnstile = ""
+                            await session.login(email: email, password: password, totp: totp, turnstile: token)
+                            if session.snapshot != nil {
+                                password = ""
+                                totp = ""
+                            }
                         }
                     } label: { Text("Войти").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent).controlSize(.large)
-                    .disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty || answer.isEmpty)
+                    .disabled(session.loading || session.challenge == nil || email.isEmpty || password.isEmpty ||
+                        (session.challenge?.turnstile_required == true && turnstile.isEmpty && totp.isEmpty))
+                    .sheet(isPresented: $showTurnstile) {
+                        MobileTurnstileView { token in
+                            turnstile = token
+                            showTurnstile = false
+                        }
+                    }
                     if session.biometricEnabled, let label = session.biometricLabel {
                         Button { Task { await session.biometricLogin() } } label: {
                             Label("Войти по " + label, systemImage: label == "Face ID" ? "faceid" : "touchid")
@@ -211,5 +218,45 @@ struct NativeLogin: View {
             .padding(.vertical, 38)
             .frame(maxWidth: .infinity)
         }.background(HomeVladMintBackground())
+    }
+}
+
+
+private struct MobileTurnstileView: UIViewRepresentable {
+    let completion: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(completion: completion) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        view.navigationDelegate = context.coordinator
+        view.load(URLRequest(url: CloudEnvironment.origin.appendingPathComponent("api/mobile_turnstile.php")))
+        return view
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        let completion: (String) -> Void
+        init(completion: @escaping (String) -> Void) { self.completion = completion }
+
+        func webView(_ view: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = action.request.url else { decisionHandler(.cancel); return }
+            if url.scheme == "homevlad-captcha", url.host == "result",
+               action.sourceFrame.isMainFrame, action.sourceFrame.securityOrigin.host == CloudEnvironment.host,
+               let token = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "token" })?.value,
+               !token.isEmpty, token.utf8.count <= 2048 {
+                decisionHandler(.cancel)
+                completion(token)
+                return
+            }
+            let sameOrigin = url.scheme == "https" && url.host == CloudEnvironment.host
+            let challengeFrame = action.targetFrame?.isMainFrame == false && url.scheme == "https" &&
+                url.host == "challenges.cloudflare.com"
+            decisionHandler(sameOrigin || challengeFrame ? .allow : .cancel)
+        }
     }
 }

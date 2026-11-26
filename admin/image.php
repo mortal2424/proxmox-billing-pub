@@ -175,6 +175,17 @@ $images = [];
 $available_templates = [];
 $cloudVolumes = [];
 $cloudStores = [];
+$mountedImages = [];
+if ($image_type === 'cloud' && getenv('HOMEVLAD_CLOUD_IMAGE_SOURCE_DIR')) {
+    require_once __DIR__ . '/../includes/cloud_image_import.php';
+    try {
+        if ($pdo->query("SHOW COLUMNS FROM cloud_image_settings LIKE 'pending_source'")->fetch()) {
+            $mountedImages = mountedCloudImageNames();
+        }
+    } catch (PDOException $error) {
+        error_log('Mounted cloud image inventory unavailable');
+    }
+}
 $cloudSettings = [];
 $cloudCanDelete = [];
 $image_delete_permissions = [];
@@ -1163,6 +1174,29 @@ require __DIR__ . '/admin_header.php';
                                     <?php endif ?>
                                 </div>
                             </form>
+                            <?php if ($cloudStores && $mountedImages): ?>
+                                <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="display_name" value="<?= htmlspecialchars($label, ENT_QUOTES) ?>">
+                                    <label>Файл на подключённом хранилище
+                                        <select class="form-control" name="source_file" required>
+                                            <?php foreach ($mountedImages as $filename): ?>
+                                                <option value="<?= htmlspecialchars($filename, ENT_QUOTES) ?>"><?= htmlspecialchars($filename) ?></option>
+                                            <?php endforeach ?>
+                                        </select>
+                                    </label>
+                                    <label>Хранилище Import на ноде
+                                        <select class="form-control" name="storage" required>
+                                            <?php foreach ($cloudStores as $store): ?>
+                                                <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
+                                            <?php endforeach ?>
+                                        </select>
+                                    </label>
+                                    <button class="btn-update" name="action" value="convert_mounted">Преобразовать и добавить</button>
+                                </form>
+                            <?php endif; ?>
                             <?php if ($cloudStores): ?>
                                 <form class="cloud-image-form" method="post" action="cloud_image_action.php" enctype="multipart/form-data">
                                     <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">

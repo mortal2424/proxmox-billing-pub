@@ -1,14 +1,18 @@
 <?php
 declare(strict_types=1);
 
-function annotateGuestCardPrices(PDO $pdo, array &$guests): void
+function guestResourceRates(PDO $pdo): array
 {
-    if (!$guests) return;
-
-    $rates = $pdo->query('SELECT * FROM resource_prices ORDER BY updated_at DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC) ?: [
+    return $pdo->query('SELECT * FROM resource_prices ORDER BY updated_at DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC) ?: [
         'price_per_hour_cpu'=>0.001, 'price_per_hour_ram'=>0.000010, 'price_per_hour_disk'=>0.000050,
         'price_per_hour_lxc_cpu'=>0.000800, 'price_per_hour_lxc_ram'=>0.000008, 'price_per_hour_lxc_disk'=>0.000030,
     ];
+}
+
+function annotateGuestCardPrices(PDO $pdo, array &$guests): void
+{
+    if (!$guests) return;
+    $rates = guestResourceRates($pdo);
     foreach ($guests as &$guest) {
         $guest['billing_period'] = 'hour';
         $guest['current_price'] = null;

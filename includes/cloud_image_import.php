@@ -130,3 +130,77 @@ function importCloudImage(array $node, string $storage, string $key): string
         }
     });
 }
+
+function mountedCloudImageDirectory(): ?string
+{
+    $configured = getenv('HOMEVLAD_CLOUD_IMAGE_SOURCE_DIR');
+    if (!$configured || !str_starts_with($configured, '/')) return null;
+    $directory = realpath($configured);
+    $webRoot = realpath(dirname(__DIR__));
+    if ($directory === false || $directory === '/' || !is_dir($directory) ||
+        $directory === $webRoot || str_starts_with($directory . '/', $webRoot . '/') ||
+        str_starts_with($webRoot . '/', $directory . '/')) {
+        return null;
+    }
+    return $directory;
+}
+
+function mountedCloudImagePath(string $name): ?string
+{
+    $directory = mountedCloudImageDirectory();
+    if ($directory === null || !preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,175}\.(?:qcow2|raw|img)$/iD', $name)) {
+        return null;
+    }
+    $path = $directory . '/' . $name;
+    return !is_link($path) && realpath($path) === $path && is_file($path) && is_readable($path) ? $path : null;
+}
+
+function mountedCloudImageNames(): array
+{
+    $directory = mountedCloudImageDirectory();
+    if ($directory === null || !is_readable($directory)) return [];
+    $names = [];
+    foreach (new DirectoryIterator($directory) as $entry) {
+        $name = $entry->getFilename();
+        if (mountedCloudImagePath($name) !== null) $names[] = $name;
+    }
+    sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+    return $names;
+}
+
+function convertMountedCloudImage(array $node, string $storage, string $key, string $name): string
+{
+    $source = mountedCloudImagePath($name);
+    if ($source === null) throw new RuntimeException('Файл отсутствует в подключённом хранилище');
+    $file = fopen($source, 'rb');
+    if ($file === false) throw new RuntimeException('Не удалось открыть исходный образ');
+    try {
+        $stat = fstat($file);
+        $magic = fread($file, 4);
+        rewind($file);
+        $format = $magic === "QFI\xfb" ? 'qcow2' : 'raw';
+        if ($format === 'qcow2') {
+            validatedCloudDiskSize($file);
+        } elseif (strtolower(pathinfo($name, PATHINFO_EXTENSION)) === 'qcow2' ||
+            !$stat || $stat['size'] < 512 || $stat['size'] > 100 * 1073741824) {
+            throw new RuntimeException('Нужен RAW/IMG или самостоятельный QCOW2 до 100 ГиБ');
+        }
+        $output = tmpfile();
+        if ($output === false) throw new RuntimeException('Нет места для временного образа');
+        try {
+            $target = stream_get_meta_data($output)['uri'];
+            $process = proc_open(['/usr/bin/timeout', '20m', '/usr/bin/qemu-img', 'convert',
+                '-f', $format, '-O', 'qcow2', '/proc/self/fd/3', $target],
+                [0=>['file','/dev/null','r'], 1=>['file','/dev/null','w'],
+                 2=>['file','/dev/null','w'], 3=>$file], $pipes);
+            if (!is_resource($process) || proc_close($process) !== 0) {
+                throw new RuntimeException('Конвертация не завершилась. Проверьте qemu-img, формат и свободное место.');
+            }
+            return uploadPreparedCloudImage($node, $storage, $key, $target, (new Database())->getConnection());
+        } finally {
+            fclose($output);
+        }
+    } finally {
+        fclose($file);
+    }
+}

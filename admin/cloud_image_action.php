@@ -27,7 +27,7 @@ try {
         exit;
     }
     if (!$nodeId || !is_string($key) || !isset(cloudImageCatalog($pdo)[$key]) ||
-        !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload'], true)) {
+        !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload', 'convert_mounted'], true)) {
         throw new InvalidArgumentException('Неизвестный cloud-образ или действие');
     }
     if (!is_string($label) || mb_strlen(trim($label)) > 100 || preg_match('/[[:cntrl:]]/u', $label)) {
@@ -62,14 +62,34 @@ try {
         $api = placementClient($node, $pdo);
         $nodePath = '/nodes/' . rawurlencode($node['node_name']);
         $stores = $api->request('GET', $nodePath . '/storage');
+        if ($action === 'import' && $pdo->query("SHOW COLUMNS FROM cloud_image_settings LIKE 'pending_source'")->fetch()) {
+            $pendingSourceReset = 'pending_source=NULL,';
+        } else {
+            $pendingSourceReset = '';
+        }
         $inventories = cloudImportVolumes([$api, 'request'], $node['node_name'], $stores, $pdo);
         $sources = array_column($inventories[$key] ?? [], 'volid');
 
-        if ($action === 'import') {
+        if (in_array($action, ['import', 'convert_mounted'], true)) {
             $target = is_string($storage) ? array_column($stores, null, 'storage')[$storage] ?? null : null;
             if (!$target || empty($target['active']) || empty($target['enabled']) ||
                 !in_array('import', explode(',', $target['content'] ?? ''), true)) {
                 throw new InvalidArgumentException('Выберите активное хранилище с типом Import');
+            }
+            if ($action === 'convert_mounted') {
+                $name = $_POST['source_file'] ?? null;
+                if (!is_string($name) || mountedCloudImagePath($name) === null) {
+                    throw new InvalidArgumentException('Выберите доступный файл в подключённом хранилище');
+                }
+                $query = $pdo->prepare('INSERT INTO cloud_image_settings
+                    (node_id,image_key,display_name,enabled,pending_storage,pending_id,pending_source)
+                    VALUES (?,?,?,0,?,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),
+                    pending_storage=VALUES(pending_storage),pending_id=VALUES(pending_id),
+                    pending_source=VALUES(pending_source),import_error=NULL');
+                $query->execute([$nodeId, $key, trim($label), $storage, bin2hex(random_bytes(16)), $name]);
+                $_SESSION['cloud_image_notice'] = ['success', 'Конвертация образа поставлена в очередь.'];
+                header('Location: image.php?' . http_build_query(['type'=>'cloud','node_id'=>$nodeId]), true, 303);
+                exit;
             }
             $existing = array_filter($sources, static fn($source) => str_starts_with($source, "$storage:"));
             if (!$existing && !isset(cloudImageCatalog($pdo)[$key]['base'])) {
@@ -84,7 +104,7 @@ try {
             } else {
                 $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,display_name,enabled,pending_storage,pending_id)
                     VALUES (?,?,?,0,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),pending_storage=VALUES(pending_storage),
-                    pending_id=VALUES(pending_id),import_error=NULL');
+                    pending_id=VALUES(pending_id),' . $pendingSourceReset . 'import_error=NULL');
                 $query->execute([$nodeId, $key, trim($label), $storage, bin2hex(random_bytes(16))]);
                 $message = 'Импорт поставлен в очередь. Источник заказов переключится после загрузки.';
             }

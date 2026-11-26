@@ -12,7 +12,7 @@ private final class SameHostRedirects: NSObject, URLSessionTaskDelegate {
 
 struct CloudChallenge: Decodable {
     let csrf: String
-    let captcha: String
+    let turnstile_required: Bool?
 }
 struct CloudAcknowledgement: Decodable {
     let success: Bool
@@ -189,13 +189,13 @@ private enum BiometricTokenVault {
         }
     }
 
-    func login(email: String, password: String, answer: String) async {
+    func login(email: String, password: String, totp: String, turnstile: String) async {
         guard !loading else { return }
         loading = true
         defer { loading = false }
         do {
             let result = try await post("/api/mobile_auth.php",
-                ["email": email, "password": password, "captcha": answer])
+                ["email": email, "password": password, "totp": totp, "turnstile_token": turnstile])
             guard result.success else { throw CloudError.signIn }
             if biometricEnabled {
                 BiometricTokenVault.remove()
