@@ -15,12 +15,15 @@ try {
     }
     runQueuedPanelUpdate($root, static fn () => throw new RuntimeException('Fixture failure'));
     if (readUpdateJob($path)['state'] !== 'failed') exit(4);
+    $log = readPanelUpdateLog($root);
+    if ($log['state'] !== 'failed' || $log['message'] !== 'Fixture failure' || $log['files'] !== []) exit(6);
     enqueuePanelUpdate($root, '2.5.1-Pre-release1.4');
     if (readUpdateJob($path)['state'] !== 'queued') exit(5);
     echo "PASS enqueue, duplicate protection, error persistence and retry\n";
 } finally {
     @unlink($path);
     @unlink($path . '.lock');
+    @unlink(dirname($path) . '/last-install.json');
     @rmdir(dirname($path));
     @rmdir($root . '/backups');
     @rmdir($root);

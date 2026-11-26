@@ -8,11 +8,13 @@ if (!isAdmin()) {
     header('Location: /login/login.php');
     exit;
 }
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['status'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && (isset($_GET['status']) || isset($_GET['log']))) {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     try {
-        echo json_encode(['job'=>readUpdateJob(updateQueuePath(dirname(__DIR__)))], JSON_THROW_ON_ERROR);
+        $payload = isset($_GET['log']) ? ['log'=>readPanelUpdateLog(dirname(__DIR__))]
+            : ['job'=>readUpdateJob(updateQueuePath(dirname(__DIR__)))];
+        echo json_encode($payload, JSON_THROW_ON_ERROR);
     } catch (Throwable $error) {
         http_response_code(503);
         echo '{"error":"Состояние обновления недоступно"}';
@@ -77,6 +79,14 @@ require __DIR__ . '/admin_sidebar.php';
 <p>Для установки обновления пересоберите Docker-образ и пересоздайте контейнер, сохранив тома.</p>
 <?php endif; ?>
 <p>Установлена версия <?= htmlspecialchars($currentVersion) ?></p>
+<button id="update-log-button" type="button">Лог обновления</button>
+<p id="update-job-result" role="status" hidden></p>
+<dialog id="update-log-dialog" class="update-release" aria-labelledby="update-log-title">
+    <h2 id="update-log-title">Лог обновления</h2>
+    <p id="update-log-status" role="status"></p>
+    <ul id="update-log-files"></ul>
+    <form method="dialog"><button type="submit">Закрыть</button></form>
+</dialog>
 <section class="update-release" id="update-job" hidden>
 <h2>Ход установки</h2>
 <p id="update-job-status" role="status"></p>
@@ -123,6 +133,10 @@ require __DIR__ . '/admin_sidebar.php';
     const status = document.getElementById('update-job-status');
     const progress = document.getElementById('update-job-progress');
     const message = document.getElementById('update-job-message');
+    const result = document.getElementById('update-job-result');
+    const dialog = document.getElementById('update-log-dialog');
+    const logStatus = document.getElementById('update-log-status');
+    const logFiles = document.getElementById('update-log-files');
     const labels = {
         queued: 'Ожидает запуска фонового задания',
         downloading: 'Загрузка и проверка файлов',
@@ -130,13 +144,44 @@ require __DIR__ . '/admin_sidebar.php';
         completed: 'Обновление установлено',
         failed: 'Установка завершилась ошибкой'
     };
+    document.getElementById('update-log-button').addEventListener('click', async () => {
+        dialog.showModal();
+        logStatus.textContent = 'Загрузка…';
+        logFiles.replaceChildren();
+        try {
+            const response = await fetch('/admin/update.php?log=1', {cache:'no-store'});
+            if (!response.ok) throw Error();
+            const {log} = await response.json();
+            if (!log) {
+                logStatus.textContent = 'Журнал начнёт заполняться со следующего запуска обновлятора.';
+                return;
+            }
+            const time = log.updated_at ? ' · ' + new Date(log.updated_at * 1000).toLocaleString() : '';
+            logStatus.textContent = log.version + ' · ' + (labels[log.state] || '') + time +
+                (log.message ? ' · ' + log.message : '');
+            for (const file of log.files || []) {
+                const item = document.createElement('li');
+                const action = file.action === 'added' ? 'Добавлен' : 'Заменён';
+                item.textContent = (log.state === 'failed' ? 'Попытка установки: ' : '') + action + ' · ' + file.path;
+                logFiles.append(item);
+            }
+        } catch {
+            logStatus.textContent = 'Не удалось загрузить лог обновления.';
+        }
+    });
     async function poll() {
         try {
             const response = await fetch('/admin/update.php?status=1', {cache:'no-store'});
             if (!response.ok) throw Error();
             const {job} = await response.json();
             if (job && labels[job.state]) {
-                section.hidden = false;
+                const finished = job.state === 'completed' || job.state === 'failed';
+                section.hidden = finished;
+                result.hidden = !finished;
+                if (finished) {
+                    result.textContent = job.version + ' · ' + labels[job.state] + (job.message ? ' · ' + job.message : '');
+                    return;
+                }
                 const count = job.total ? ' · ' + job.done + '/' + job.total : '';
                 status.textContent = job.version + ' · ' + labels[job.state] + count;
                 message.textContent = job.message || '';
@@ -147,7 +192,6 @@ require __DIR__ . '/admin_sidebar.php';
                 } else {
                     progress.removeAttribute('value');
                 }
-                if (job.state === 'completed' || job.state === 'failed') return;
             }
         } catch {
             if (!section.hidden) message.textContent = 'Связь потеряна. Повторяем проверку состояния.';
@@ -160,6 +204,7 @@ require __DIR__ . '/admin_sidebar.php';
 <style>
 .updates-main { margin-left: 280px; padding: 24px; color: var(--db-text); background: var(--db-bg); min-height: 80vh; }
 .updates-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+#update-log-dialog { margin: auto; width: min(48rem, calc(100% - 2rem)); max-height: 80vh; color: var(--db-text); }
 #update-job-progress { width: 100%; max-width: 420px; }
 .update-release { padding: 20px; margin-block: 16px; background: var(--db-card-bg); border: 1px solid var(--db-border); border-radius: 12px; overflow-wrap: anywhere; }
 .updates-main button { padding: 12px 18px; border: 1px solid var(--db-border); border-radius: 8px; background: var(--db-accent-light); color: var(--db-text); cursor: pointer; }
