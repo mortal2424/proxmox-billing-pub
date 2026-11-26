@@ -16,4 +16,5 @@ $db->exec("CREATE TABLE IF NOT EXISTS cloud_image_settings (
     FOREIGN KEY (node_id) REFERENCES proxmox_nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $db->exec(file_get_contents(__DIR__ . '/../migrations/20261125_cloud_image_groups.sql'));
+$db->exec(file_get_contents(__DIR__ . '/../migrations/20261126_mounted_cloud_images.sql'));
 echo "Cloud image settings schema ready\n";

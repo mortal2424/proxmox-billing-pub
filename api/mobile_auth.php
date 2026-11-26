@@ -2,15 +2,11 @@
 require_once __DIR__ . '/../includes/mobile_api.php';
 require_once __DIR__ . '/../includes/password_login.php';
 require_once __DIR__ . '/../includes/mobile_device_login.php';
+require_once __DIR__ . '/../includes/web_login_challenge.php';
 
-function mobileChallenge(): array
+function mobileChallenge(bool $turnstileRequired = false): array
 {
-    $first = random_int(1, 10);
-    $second = random_int(1, 10);
-    $_SESSION['captcha'] = $first + $second;
-    $_SESSION['captcha_question'] = "$first + $second";
-    $_SESSION['mobile_captcha_expires'] = time() + 300;
-    return ['csrf' => $_SESSION['mobile_csrf'], 'captcha' => $_SESSION['captcha_question']];
+    return ['csrf' => $_SESSION['mobile_csrf'], 'turnstile_required' => $turnstileRequired];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -58,16 +54,21 @@ if (in_array($action, ['device_enable', 'device_login', 'device_disable'], true)
 }
 $email = is_string($input['email'] ?? null) ? trim($input['email']) : '';
 $password = is_string($input['password'] ?? null) ? $input['password'] : '';
-$answer = filter_var($input['captcha'] ?? null, FILTER_VALIDATE_INT);
+$turnstileRequired = false;
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 1 || strlen($password) > 1024) {
     mobileRespond(['error' => 'Введите email и пароль'] + mobileChallenge(), 400);
 }
-if ($answer === false || ($_SESSION['captcha'] ?? null) !== $answer ||
-    ($_SESSION['mobile_captcha_expires'] ?? 0) < time()) {
-    mobileRespond(['error' => 'Неправильный ответ или истёк срок CAPTCHA'] + mobileChallenge(), 400);
-}
 try {
-    completePasswordLogin((new Database())->getConnection(), $email, $password, $input['totp'] ?? null);
+    $pdo = (new Database())->getConnection();
+    limitWebLogin($pdo, $_SERVER['REMOTE_ADDR'] ?? '');
+    completePasswordLogin($pdo, $email, $password, $input['totp'] ?? null,
+        static function () use ($pdo, $input, &$turnstileRequired): void {
+            $config = loginCaptchaSettings($pdo);
+            if (!$config['enabled']) return;
+            $turnstileRequired = true;
+            verifyLoginTurnstile($input['turnstile_token'] ?? null, $config);
+        }
+    );
     unset($_SESSION['mobile_device_token']);
     $_SESSION['mobile_password_login_at'] = time();
     $_SESSION['mobile_csrf'] = bin2hex(random_bytes(32));
@@ -76,7 +77,7 @@ try {
     error_log('Mobile login database unavailable');
     mobileRespond(['error' => 'Сервис входа временно недоступен'] + mobileChallenge(), 503);
 } catch (RuntimeException $error) {
-    mobileRespond(['error' => $error->getMessage()] + mobileChallenge(), 401);
+    mobileRespond(['error' => $error->getMessage()] + mobileChallenge($turnstileRequired), 401);
 } catch (Throwable $error) {
     error_log('Mobile login failed: ' . get_class($error));
     mobileRespond(['error' => 'Сервис входа временно недоступен'] + mobileChallenge(), 503);

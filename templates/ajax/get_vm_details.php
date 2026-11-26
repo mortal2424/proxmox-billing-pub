@@ -3,6 +3,7 @@
 session_start();
 require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
+require_once __DIR__ . '/../../includes/guest_card_pricing.php';
 
 checkAuth();
 
@@ -36,26 +37,28 @@ try {
 
     // Получаем информацию о тарифе
     $isCustom = (int)($vm['is_custom'] ?? 0) === 1 || (int)($vm['tariff_is_custom'] ?? 0) === 1;
+    $rates = $isCustom ? guestResourceRates($db->getConnection()) : [];
+    $prefix = $vm['vm_type'] === 'lxc' ? 'price_per_hour_lxc_' : 'price_per_hour_';
     $tariff = [
         'name' => $isCustom ? 'Индивидуальные ресурсы' : ($vm['tariff_name'] ?: 'Без тарифа'),
         'is_custom' => (int)$isCustom,
         'price' => $vm['price'] ?? 0,
-        'price_per_hour_cpu' => $vm['price_per_hour_cpu'] ?? 0,
-        'price_per_hour_ram' => $vm['price_per_hour_ram'] ?? 0,
-        'price_per_hour_disk' => $vm['price_per_hour_disk'] ?? 0,
+        'price_per_hour_cpu' => $isCustom ? $rates[$prefix . 'cpu'] : ($vm['price_per_hour_cpu'] ?? 0),
+        'price_per_hour_ram' => $isCustom ? $rates[$prefix . 'ram'] : ($vm['price_per_hour_ram'] ?? 0),
+        'price_per_hour_disk' => $isCustom ? $rates[$prefix . 'disk'] : ($vm['price_per_hour_disk'] ?? 0),
         'vm_type' => $vm['tariff_vm_type'] ?? 'qemu'
     ];
 
     // Получаем последнее списание (для кастомного тарифа)
     $lastCharge = null;
-    if ($tariff['is_custom']) {
+    if ($tariff['is_custom'] && $db->getConnection()->query("SHOW COLUMNS FROM vm_billing LIKE 'guest_id'")->fetch()) {
         $stmt = $db->getConnection()->prepare("
             SELECT * FROM vm_billing 
-            WHERE vm_id = ? AND user_id = ?
+            WHERE guest_id = ? AND user_id = ?
             ORDER BY created_at DESC 
             LIMIT 1
         ");
-        $stmt->execute([$vm['vm_id'], $user_id]);
+        $stmt->execute([$vm['id'], $user_id]);
         $lastCharge = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 

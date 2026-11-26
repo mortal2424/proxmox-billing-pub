@@ -1664,43 +1664,24 @@ function generateVmDetailsHTML(data) {
                     <span class="info-value">${tariff.name}</span>
                 </div>`;
 
-        // Если есть последнее списание, показываем детали
+        const resourcePrices = [
+            ['Цена за CPU (за ядро/час)', tariff.price_per_hour_cpu],
+            ['Цена за RAM (за МБ/час)', tariff.price_per_hour_ram],
+            ['Цена за диск (за ГБ/час)', tariff.price_per_hour_disk],
+        ];
+        for (const [label, price] of resourcePrices) {
+            const amount = Number(price);
+            chargeHTML += `
+                <div class="info-item">
+                    <span class="info-label">${label}:</span>
+                    <span class="info-value">${price != null && Number.isFinite(amount) ? amount.toFixed(6) + ' ₽' : '—'}</span>
+                </div>`;
+        }
         if (lastCharge) {
             chargeHTML += `
                 <div class="info-item">
-                    <span class="info-label" style="font-weight: 700; color: #ef4444;">Последнее списание:</span>
-                    <span class="info-value" style="font-weight: 700; color: #ef4444;">${formatDate(lastCharge.created_at)}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">CPU (${lastCharge.cpu} ядер):</span>
-                    <span class="info-value">${parseFloat(lastCharge.price_per_hour_cpu).toFixed(6)} ₽/час × ${lastCharge.cpu} = ${(lastCharge.price_per_hour_cpu * lastCharge.cpu).toFixed(6)} ₽/час</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">RAM (${lastCharge.ram} MB):</span>
-                    <span class="info-value">${parseFloat(lastCharge.price_per_hour_ram).toFixed(6)} ₽/час × ${lastCharge.ram} = ${(lastCharge.price_per_hour_ram * lastCharge.ram).toFixed(6)} ₽/час</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Disk (${lastCharge.disk} GB):</span>
-                    <span class="info-value">${parseFloat(lastCharge.price_per_hour_disk).toFixed(6)} ₽/час × ${lastCharge.disk} = ${(lastCharge.price_per_hour_disk * lastCharge.disk).toFixed(6)} ₽/час</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label" style="font-weight: 700;">Итого в час:</span>
-                    <span class="info-value" style="font-weight: 700; color: #10b981;">${parseFloat(lastCharge.total_per_hour).toFixed(6)} ₽</span>
-                </div>`;
-        } else {
-            // Если нет списаний, показываем базовые цены
-            chargeHTML += `
-                <div class="info-item">
-                    <span class="info-label">Цена за CPU (за ядро/час):</span>
-                    <span class="info-value">${parseFloat(tariff.price_per_hour_cpu).toFixed(6)} ₽</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Цена за RAM (за MB/час):</span>
-                    <span class="info-value">${parseFloat(tariff.price_per_hour_ram).toFixed(6)} ₽</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Цена за Disk (за GB/час):</span>
-                    <span class="info-value">${parseFloat(tariff.price_per_hour_disk).toFixed(6)} ₽</span>
+                    <span class="info-label">Последнее списание:</span>
+                    <span class="info-value">${formatDate(lastCharge.created_at)}</span>
                 </div>`;
         }
 

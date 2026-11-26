@@ -1,6 +1,10 @@
 package ru.homevlad.cloud
 
 import android.os.Bundle
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -117,7 +121,7 @@ class CloudModel : ViewModel() {
             }
         }
         if (result.has("csrf")) csrf = result.getString("csrf")
-        if (result.has("captcha")) challenge = result
+        if (result.has("turnstile_required")) challenge = result
         if (status != 200) {
             if (status == 401 && !path.contains("mobile_auth.php") && snapshot != null) {
                 snapshot = null
@@ -157,12 +161,12 @@ class CloudModel : ViewModel() {
         }
     }
 
-    internal fun login(email: String, password: String, answer: String, vault: DeviceTokenVault) {
+    internal fun login(email: String, password: String, totp: String, turnstile: String, vault: DeviceTokenVault) {
         if (loading) return
         viewModelScope.launch {
             loading = true
             try {
-                request("/api/mobile_auth.php", JSONObject().put("email", email).put("password", password).put("captcha", answer))
+                request("/api/mobile_auth.php", JSONObject().put("email", email).put("password", password).put("totp", totp).put("turnstile_token", turnstile))
                 if (biometricEnabled) {
                     vault.forget()
                     biometricEnabled = false
@@ -457,7 +461,9 @@ private fun Cabinet(vault: DeviceTokenVault, model: CloudModel = viewModel()) {
 private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var answer by remember { mutableStateOf("") }
+    var totp by remember { mutableStateOf("") }
+    var turnstile by remember { mutableStateOf("") }
+    var showTurnstile by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 36.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Image(painterResource(R.drawable.app_icon), "HomeVlad", Modifier.size(84.dp))
@@ -470,13 +476,49 @@ private fun NativeLogin(model: CloudModel, vault: DeviceTokenVault) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
         OutlinedTextField(password, { password = it }, label = { Text("Пароль") }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-        model.challenge?.let {
-            OutlinedTextField(answer, { answer = it }, label = { Text("Проверка · ${it.getString("captcha")} = ?") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(totp, { totp = it.filter { ch -> ch in '0'..'9' }.take(6) },
+            label = { Text("Код Google Authenticator (если включён)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+        val captchaRequired = model.challenge?.optBoolean("turnstile_required") == true
+        if (captchaRequired && turnstile.isEmpty()) {
+            TextButton(onClick = { showTurnstile = true }) { Text("Пройти проверку CAPTCHA") }
         }
-        TextButton(onClick = { answer = ""; model.prepareLogin() }, enabled = !model.loading) { Text("Обновить CAPTCHA") }
-        Button(modifier = Modifier.fillMaxWidth(), onClick = { model.login(email, password, answer, vault); password = ""; answer = "" },
-            enabled = !model.loading && model.challenge != null && email.isNotBlank() && password.isNotEmpty() && answer.isNotEmpty()) {
+        if (showTurnstile) {
+            AlertDialog(onDismissRequest = { showTurnstile = false }, title = { Text("Проверка входа") },
+                text = {
+                    AndroidView(modifier = Modifier.fillMaxWidth().height(280.dp), factory = { context ->
+                        WebView(context).apply {
+                            settings.javaScriptEnabled = true
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            settings.domStorageEnabled = true
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                                    val url = request.url
+                                    if (request.isForMainFrame && url.scheme == "homevlad-captcha" && url.host == "result" &&
+                                        view.url == "$origin/api/mobile_turnstile.php") {
+                                        url.getQueryParameter("token")?.takeIf { it.isNotEmpty() && it.length <= 2048 }?.let {
+                                            turnstile = it
+                                            showTurnstile = false
+                                        }
+                                        return true
+                                    }
+                                    if (!request.isForMainFrame && url.toString() in listOf("about:blank", "about:srcdoc")) return false
+                                    return url.scheme != "https" ||
+                                        (url.host != BuildConfig.HOST &&
+                                            (request.isForMainFrame || url.host != "challenges.cloudflare.com"))
+                                }
+                            }
+                            loadUrl("$origin/api/mobile_turnstile.php")
+                        }
+                    }, onReset = null, onRelease = { it.destroy() })
+                }, confirmButton = {}, dismissButton = {
+                    TextButton(onClick = { showTurnstile = false }) { Text("Закрыть") }
+                })
+        }
+        Button(modifier = Modifier.fillMaxWidth(), onClick = { model.login(email, password, totp, turnstile, vault); turnstile = "" },
+            enabled = !model.loading && model.challenge != null && email.isNotBlank() && password.isNotEmpty() &&
+                (!captchaRequired || turnstile.isNotEmpty() || totp.isNotEmpty())) {
             Text("Войти")
         }
         if (model.biometricEnabled && vault.available) {

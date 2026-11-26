@@ -1,0 +1,1 @@
+ALTER TABLE cloud_image_settings ADD COLUMN IF NOT EXISTS pending_source VARCHAR(192) DEFAULT NULL;
