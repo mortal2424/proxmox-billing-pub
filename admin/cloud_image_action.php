@@ -27,7 +27,7 @@ try {
         exit;
     }
     if (!$nodeId || !is_string($key) || !isset(cloudImageCatalog($pdo)[$key]) ||
-        !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload', 'convert_mounted'], true)) {
+        !in_array($action, ['rename', 'import', 'hide', 'delete_file', 'upload', 'convert_mounted', 'register_existing'], true)) {
         throw new InvalidArgumentException('Неизвестный cloud-образ или действие');
     }
     if (!is_string($label) || mb_strlen(trim($label)) > 100 || preg_match('/[[:cntrl:]]/u', $label)) {
@@ -62,6 +62,26 @@ try {
         $api = placementClient($node, $pdo);
         $nodePath = '/nodes/' . rawurlencode($node['node_name']);
         $stores = $api->request('GET', $nodePath . '/storage');
+        if ($action === 'register_existing') {
+            $inventory = cloudImportInventory([$api,'request'],$node['node_name'],$stores);
+            $minimum = filter_input(INPUT_POST,'minimum_disk',FILTER_VALIDATE_INT,
+                ['options'=>['min_range'=>1,'max_range'=>1000]]);
+            if (!is_string($volume) || !isset($inventory[$volume]) || !$minimum || ($_POST['standalone']??'')!=='1') {
+                throw new InvalidArgumentException('Выберите самостоятельный диск в Import и укажите его виртуальный размер');
+            }
+            $reportedSize = (int)($inventory[$volume]['size'] ?? 0);
+            $minimum = max($minimum, (int)ceil($reportedSize / 1073741824));
+            if ($minimum > 1000) throw new InvalidArgumentException('Размер диска превышает 1000 ГиБ');
+            $query = $pdo->prepare('INSERT INTO cloud_image_settings
+                (node_id,image_key,display_name,storage,enabled,source_volume,source_minimum_disk)
+                VALUES (?,?,?,?,1,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),storage=VALUES(storage),
+                enabled=1,source_volume=VALUES(source_volume),source_minimum_disk=VALUES(source_minimum_disk),
+                pending_storage=NULL,pending_id=NULL,import_error=NULL');
+            $query->execute([$nodeId,$key,trim($label),explode(':',$volume,2)[0],$volume,$minimum]);
+            $_SESSION['cloud_image_notice']=['success','Диск добавлен под выбранным названием каталога. Исходный файл сохранён.'];
+            header('Location: image.php?' . http_build_query(['type'=>'cloud','node_id'=>$nodeId]),true,303);
+            exit;
+        }
         if ($action === 'import' && $pdo->query("SHOW COLUMNS FROM cloud_image_settings LIKE 'pending_source'")->fetch()) {
             $pendingSourceReset = 'pending_source=NULL,';
         } else {
@@ -96,9 +116,11 @@ try {
                 throw new InvalidArgumentException('Загрузите подготовленный образ в выбранное хранилище Import');
             }
             if ($existing) {
+                $aliasReset = $pdo->query("SHOW COLUMNS FROM cloud_image_settings LIKE 'source_volume'")->fetch()
+                    ? 'source_volume=NULL,source_minimum_disk=NULL,' : '';
                 $query = $pdo->prepare('INSERT INTO cloud_image_settings (node_id,image_key,display_name,storage) VALUES (?,?,?,?)
                     ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),storage=VALUES(storage),enabled=1,
-                    pending_storage=NULL,pending_id=NULL,import_error=NULL');
+                    pending_storage=NULL,pending_id=NULL,' . $aliasReset . 'import_error=NULL');
                 $query->execute([$nodeId, $key, trim($label), $storage]);
                 $message = 'Образ опубликован из выбранного хранилища.';
             } else {

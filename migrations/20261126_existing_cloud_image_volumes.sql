@@ -1,0 +1,3 @@
+ALTER TABLE cloud_image_settings
+    ADD COLUMN IF NOT EXISTS source_volume VARCHAR(255) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS source_minimum_disk INT UNSIGNED DEFAULT NULL;

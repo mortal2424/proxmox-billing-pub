@@ -90,34 +90,56 @@ function cloudGuestAgentSnippet(callable $request, string $node, array $stores):
     return null;
 }
 
-function cloudImportVolumes(callable $request, string $node, ?array $storage = null, ?PDO $db = null): array
+function cloudImportInventory(callable $request, string $node, ?array $storage = null): array
 {
     $path = '/nodes/' . rawurlencode($node) . '/storage';
     $storage ??= $request('GET', $path, []);
-    $catalog = cloudImageCatalog($db);
-    $images = [];
+    $result = [];
     foreach ($storage as $store) {
         $name = $store['storage'] ?? '';
         if (empty($store['active']) || empty($store['enabled']) ||
             !in_array('import', explode(',', $store['content'] ?? ''), true) ||
-            !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $name)) {
-            continue;
-        }
+            !preg_match('/^[A-Za-z0-9_.-]{1,64}$/D', $name)) continue;
         try {
-            $volumes = $request('GET', $path . '/' . rawurlencode($name) . '/content', ['content' => 'import']);
-            foreach ($volumes as $volume) {
+            foreach ($request('GET', $path . '/' . rawurlencode($name) . '/content', ['content'=>'import']) as $volume) {
                 $volid = $volume['volid'] ?? '';
-                if (!preg_match('#^' . preg_quote($name, '#') . ':import/homevlad-([a-z0-9.-]+)-([1-9][0-9]{0,2})g-([a-f0-9]{12})\.qcow2$#D', $volid, $parts) ||
-                    !isset($catalog[$parts[1]])) {
-                    continue;
+                if (is_string($volid) && preg_match('~^'.preg_quote($name,'~').':import/[A-Za-z0-9][A-Za-z0-9._ -]{0,174}\.(?:qcow2|raw)$~iD',$volid)) {
+                    $result[$volid] = $volume;
                 }
-                $images[$parts[1]][] = array_replace($catalog[$parts[1]], [
-                    'volid' => $volid, 'minimum_disk' => max((int)$parts[2], $catalog[$parts[1]]['minimum_disk'] ?? 1),
-                    'uploaded' => (int)($volume['ctime'] ?? 0),
-                ]);
             }
         } catch (RuntimeException $error) {
             error_log('Cloud image inventory unavailable for storage ' . $name);
+        }
+    }
+    return $result;
+}
+
+function cloudImportVolumes(callable $request, string $node, ?array $storage = null, ?PDO $db = null,
+    ?int $nodeId = null, ?array $inventory = null): array
+{
+    $inventory ??= cloudImportInventory($request, $node, $storage);
+    $catalog = cloudImageCatalog($db);
+    $images = [];
+    foreach ($inventory as $volid => $volume) {
+        if (!preg_match('#^[A-Za-z0-9_.-]+:import/homevlad-([a-z0-9.-]+)-([1-9][0-9]{0,2})g-([a-f0-9]{12})\.qcow2$#D',$volid,$parts) ||
+            !isset($catalog[$parts[1]])) continue;
+        $images[$parts[1]][] = array_replace($catalog[$parts[1]], [
+            'volid'=>$volid, 'minimum_disk'=>max((int)$parts[2],$catalog[$parts[1]]['minimum_disk']??1),
+            'uploaded'=>(int)($volume['ctime']??0),
+        ]);
+    }
+    if ($db !== null && $nodeId !== null) {
+        foreach (cloudImageSettings($db,$nodeId) as $key=>$setting) {
+            $source=$setting['source_volume']??'';
+            if ($source === '') continue;
+            if (!isset($catalog[$key],$inventory[$source])) {
+                unset($images[$key]);
+                continue;
+            }
+            $images[$key]=[array_replace($catalog[$key],[
+                'volid'=>$source, 'existing_source'=>true, 'minimum_disk'=>max((int)$setting['source_minimum_disk'],$catalog[$key]['minimum_disk']??1),
+                'uploaded'=>(int)($inventory[$source]['ctime']??0),
+            ])];
         }
     }
     foreach ($images as &$versions) {
@@ -142,7 +164,7 @@ function cloudImageCpuSupported(array $image, array $cpuInfo): bool
 
 function cloudImageSettings(PDO $db, int $nodeId): array
 {
-    $query = $db->prepare('SELECT image_key, display_name, storage, enabled, pending_storage, pending_id, import_error FROM cloud_image_settings WHERE node_id=?');
+    $query = $db->prepare('SELECT image_key, cloud_image_settings.* FROM cloud_image_settings WHERE node_id=?');
     $query->execute([$nodeId]);
     return $query->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
 }

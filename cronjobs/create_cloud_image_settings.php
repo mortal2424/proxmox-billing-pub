@@ -17,4 +17,5 @@ $db->exec("CREATE TABLE IF NOT EXISTS cloud_image_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $db->exec(file_get_contents(__DIR__ . '/../migrations/20261125_cloud_image_groups.sql'));
 $db->exec(file_get_contents(__DIR__ . '/../migrations/20261126_mounted_cloud_images.sql'));
+$db->exec(file_get_contents(__DIR__ . '/../migrations/20261126_existing_cloud_image_volumes.sql'));
 echo "Cloud image settings schema ready\n";

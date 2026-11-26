@@ -33,8 +33,9 @@ try {
         $key = [$job['node_id'], $job['image_key'], $job['pending_id']];
         $clearSource = array_key_exists('pending_source', $job) ? 'pending_source=NULL,' : '';
         if ($error === null) {
+            $clearAlias = array_key_exists('source_volume',$job) ? 'source_volume=NULL,source_minimum_disk=NULL,' : '';
             $query = $current->prepare("UPDATE cloud_image_settings SET enabled=1,storage=pending_storage,
-                pending_storage=NULL,pending_id=NULL,{$clearSource}import_error=NULL WHERE node_id=? AND image_key=? AND pending_id=?");
+                pending_storage=NULL,pending_id=NULL,{$clearSource}{$clearAlias}import_error=NULL WHERE node_id=? AND image_key=? AND pending_id=?");
             $query->execute($key);
         } else {
             $query = $current->prepare("UPDATE cloud_image_settings SET pending_storage=NULL,pending_id=NULL,{$clearSource}import_error=?

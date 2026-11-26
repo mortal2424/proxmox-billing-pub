@@ -34,3 +34,16 @@ try {
 } catch (InvalidArgumentException) {
     echo "PASS custom image inventory and explicit node publication\n";
 }
+
+$external = 'storage:import/selectos-release.raw';
+$api = static fn(): array => [['volid'=>$volume], ['volid'=>$external], ['volid'=>'storage:import/../private.raw']];
+$db->settings['selectos'] += ['source_volume'=>$external,'source_minimum_disk'=>24];
+$inventory = cloudImportInventory($api,'node3',$store);
+if (count($inventory)!==2 || !isset($inventory[$external])) exit(1);
+$registered=publishedCloudImages($db,11,cloudImportVolumes($api,'node3',$store,$db,11,$inventory));
+if (($registered['selectos'][0]['volid']??null)!==$external ||
+    ($registered['selectos'][0]['minimum_disk']??null)!==24 ||
+    empty($registered['selectos'][0]['existing_source'])) exit(1);
+unset($inventory[$external]);
+if (cloudImportVolumes($api,'node3',$store,$db,11,$inventory)!==[]) exit(1);
+echo "PASS exact registered import volume and missing-source suppression\n";
