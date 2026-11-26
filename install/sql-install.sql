@@ -649,7 +649,7 @@ CREATE TABLE `smtp_settings` (
 
 CREATE TABLE `system_updates` (
   `id` int(11) NOT NULL,
-  `version` varchar(20) NOT NULL,
+  `version` varchar(64) NOT NULL,
   `applied_at` timestamp NULL DEFAULT current_timestamp(),
   `update_type` enum('upgrade','downgrade','patch') DEFAULT 'upgrade',
   `description` text DEFAULT NULL,
@@ -666,7 +666,7 @@ CREATE TABLE `system_updates` (
 
 CREATE TABLE `system_versions` (
   `id` int(11) NOT NULL,
-  `version` varchar(20) NOT NULL,
+  `version` varchar(64) NOT NULL,
   `release_date` date DEFAULT NULL,
   `description` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
