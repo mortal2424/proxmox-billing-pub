@@ -503,8 +503,14 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
 
         .vm-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             margin-top: 16px;
+        }
+
+        .vm-actions a.vm-action-btn {
+            text-align: center;
+            text-decoration: none;
         }
 
         .vm-action-btn {
@@ -1351,6 +1357,16 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                                         <button class="vm-action-btn danger" onclick="showNotification('Функция остановки будет реализована в следующих версиях', 'info')">
                                             <i class="fas fa-stop"></i> Остановить
                                         </button>
+                                    <?php endif; ?>
+                                    <?php if ((int)$vm['node_id'] > 0 && (int)$vm['vm_id'] > 0 && !in_array($vm['status'], ['deleted', 'creating'], true)): ?>
+                                        <a class="vm-action-btn" target="_blank" rel="noopener"
+                                           href="/templates/vnc_console.php?<?= htmlspecialchars(http_build_query([
+                                               'node_id' => (int)$vm['node_id'],
+                                               'vm_id' => (int)$vm['vm_id'],
+                                               'redirect' => 1,
+                                           ]), ENT_QUOTES, 'UTF-8') ?>">
+                                            <i class="fas fa-terminal" aria-hidden="true"></i> Консоль
+                                        </a>
                                     <?php endif; ?>
                                     <button class="vm-action-btn" onclick="openVmDetails(<?= $vm['id'] ?>)">
                                         <i class="fas fa-info-circle"></i> Подробнее
