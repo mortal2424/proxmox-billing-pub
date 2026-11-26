@@ -32,7 +32,7 @@ try {
         try {
             $api = placementClient($node, $pdo);
             if ($type === 'qemu') {
-                foreach (publishedCloudImages($pdo, (int)$node['id'], cloudImportVolumes([$api, 'request'], $node['node_name'], null, $pdo)) as $key => $versions) {
+                foreach (publishedCloudImages($pdo, (int)$node['id'], cloudImportVolumes([$api, 'request'], $node['node_name'], null, $pdo, (int)$node['id'])) as $key => $versions) {
                     $minimum = min(array_column($versions, 'minimum_disk'));
                     if (isset($result['cloud'][$key]) && $result['cloud'][$key]['minimum_disk'] <= $minimum) continue;
                     $result['cloud'][$key] = [

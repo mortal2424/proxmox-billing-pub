@@ -106,7 +106,7 @@ function choosePlacement(PDO $pdo, int $zone, string $type, string $networkPool,
             $stores = $api->request('GET', $base . '/storage');
             $image = null;
             if ($cloudImage !== '') {
-                $availableImages = publishedCloudImages($pdo, (int)$node['id'], cloudImportVolumes([$api, 'request'], $node['node_name'], $stores, $pdo));
+                $availableImages = publishedCloudImages($pdo, (int)$node['id'], cloudImportVolumes([$api, 'request'], $node['node_name'], $stores, $pdo, (int)$node['id']));
                 foreach ($availableImages[$cloudImage] ?? [] as $version) {
                     if ($version['minimum_disk'] <= $disk && ($version['minimum_ram'] ?? 0) <= $ram && cloudImageCpuSupported($version, $status['cpuinfo'] ?? [])) {
                         $image = $version;

@@ -188,6 +188,7 @@ if ($image_type === 'cloud' && getenv('HOMEVLAD_CLOUD_IMAGE_SOURCE_DIR')) {
 }
 $cloudSettings = [];
 $cloudCanDelete = [];
+$cloudExisting = [];
 $image_delete_permissions = [];
 
 if ($current_node_id) {
@@ -222,7 +223,12 @@ if ($current_node_id) {
                         $cloudStores[] = $store['storage'];
                     }
                 }
-                $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage, $pdo);
+                $inStorage = cloudImportInventory([$proxmoxApi, 'request'], $current_node['node_name'], $storage);
+                $cloudVolumes = cloudImportVolumes([$proxmoxApi, 'request'], $current_node['node_name'], $storage, $pdo, (int)$current_node_id, $inStorage);
+                if ($pdo->query("SHOW COLUMNS FROM cloud_image_settings LIKE 'source_volume'")->fetch()) {
+                    $cloudExisting = array_filter(array_keys($inStorage), static fn(string $volume): bool =>
+                        !preg_match('~:import/homevlad-.*-[a-f0-9]{12}\.qcow2$~D',$volume));
+                }
                 $cloudSettings = cloudImageSettings($pdo, (int)$current_node_id);
                 $permissions = $proxmoxApi->request('GET', '/access/permissions');
                 foreach ($cloudStores as $store) {
@@ -1174,6 +1180,28 @@ require __DIR__ . '/admin_header.php';
                                     <?php endif ?>
                                 </div>
                             </form>
+                            <?php if ($cloudExisting): ?>
+                                <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                    <label>Название в каталоге
+                                        <input class="form-control" name="display_name" maxlength="100" value="<?= htmlspecialchars($label ?: $cloud['label'], ENT_QUOTES) ?>">
+                                    </label>
+                                    <label>Готовый диск в хранилище Proxmox
+                                        <select class="form-control" name="volume" required>
+                                            <?php foreach ($cloudExisting as $volume): ?>
+                                                <option value="<?= htmlspecialchars($volume, ENT_QUOTES) ?>"><?= htmlspecialchars($volume) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </label>
+                                    <label>Минимальный размер диска (ГиБ)
+                                        <input class="form-control" type="number" name="minimum_disk" min="1" max="1000" required>
+                                    </label>
+                                    <label><input type="checkbox" name="standalone" value="1" required> Образ самостоятельный и подготовлен для Cloud-Init или Cloudbase-Init</label>
+                                    <button class="btn-update" name="action" value="register_existing">Добавить файл в каталог</button>
+                                </form>
+                            <?php endif; ?>
                             <?php if ($cloudStores && $mountedImages): ?>
                                 <form class="cloud-image-form" method="post" action="cloud_image_action.php">
                                     <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
@@ -1218,7 +1246,7 @@ require __DIR__ . '/admin_header.php';
                                 <?php $store = explode(':', $file['volid'], 2)[0]; ?>
                                 <form class="cloud-image-file" method="post" action="cloud_image_action.php">
                                     <code><?= htmlspecialchars($file['volid']) ?></code> · диск от <?= (int)$file['minimum_disk'] ?> ГБ
-                                    <?php if (isset($cloudCanDelete[$store])): ?>
+                                    <?php if (empty($file['existing_source']) && isset($cloudCanDelete[$store])): ?>
                                         <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf']) ?>">
                                         <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
                                         <input type="hidden" name="image_key" value="<?= htmlspecialchars($key) ?>">
