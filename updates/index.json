@@ -309,8 +309,8 @@
     {
       "version": "2.5.1-rc1.6",
       "display_version": "2.5.1-Pre-release1.6",
-      "commit": "76dd8d21614eb847f7c4f62bc78c4dadfa6262c4",
-      "sha256": "09a290d47803b46684645c821acf5e0d6218ee26192c78f00f73956fa5370958",
+      "commit": "371dc31c30c091bb442bcceb9600cbda74c7a28e",
+      "sha256": "7762b5d704d0121fbed5ac3efe4deabbfa8ba75f13928faadc5a4e86b06727ec",
       "summary": "Подписанный пакет, журнал установки и индивидуальный тариф на дашборде."
     }
   ]
