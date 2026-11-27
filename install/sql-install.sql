@@ -984,6 +984,7 @@ CREATE TABLE `vms` (
   `suspend_reason` varchar(255) DEFAULT NULL,
   `last_charged_at` timestamp NULL DEFAULT current_timestamp(),
   `ip_address` varchar(255) DEFAULT NULL COMMENT 'IP адрес виртуальной машины',
+  `installation_image` varchar(320) DEFAULT NULL,
   `os_version` varchar(20) DEFAULT NULL COMMENT 'Версия операционной системы (например: 6.x, 11, 2022)',
   `vm_type` enum('qemu','lxc') NOT NULL DEFAULT 'qemu' COMMENT 'Тип виртуальной машины (KVM или LXC)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Виртуальные машины Proxmox';

@@ -88,6 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_switching_vm_type) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isLoggedIn()) {
+    if (empty($_SESSION['user'])) {
+        header('Location: /login/login.php', true, 303);
+    } else {
+        http_response_code(503);
+        echo 'Не удалось проверить сессию. Проверьте заказ в разделе «Мои ВМ» перед повторной отправкой.';
+    }
+    exit;
+}
+
 $title = "Заказ виртуальной машины | HomeVlad Cloud";
 ?>
 <!DOCTYPE html>

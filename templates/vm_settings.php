@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/guest_install_image.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/proxmox_functions.php';
@@ -758,7 +759,7 @@ try {
                     <i class="fas fa-cog"></i> Настройки <?= $vm['vm_type'] === 'qemu' ? 'Виртуальной машины' : 'Контейнера' ?> #<?= $vm['vm_id'] ?>
                     <small><?= htmlspecialchars($vm['name'] ?? '') ?></small>
                 </h1>
-                    <p>Проверьте конфигурацию и параметры выбранного сервера.</p>
+                    <p>Образ: <strong style="overflow-wrap: anywhere"><?= htmlspecialchars(guestInstallImageLabel($vm), ENT_QUOTES, 'UTF-8') ?></strong></p>
                     <p>IP <strong id="guest-ip"><?= htmlspecialchars($vm['ip_address'] ?: 'Пока не определён') ?></strong>
                         <small id="guest-ip-source"><?= $vm['ip_address'] ? 'Последний известный' : '' ?></small>
                     </p>

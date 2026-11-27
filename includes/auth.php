@@ -23,15 +23,25 @@ function currentSessionAccount(?PDO $pdo = null): ?array
         if (isset($_SESSION['user'])) $_SESSION = [];
         return null;
     }
-    try {
-        if ($pdo === null) {
-            require_once __DIR__ . '/db.php';
-            static $database;
-            $pdo = $database ??= (new Database())->getConnection();
-        }
-        $query = $pdo->prepare('SELECT id,is_active,is_admin,auth_generation FROM users WHERE id=?');
+    static $database;
+    $readAccount = static function (PDO $connection) use ($session): array|false {
+        $query = $connection->prepare('SELECT id,is_active,is_admin,auth_generation FROM users WHERE id=?');
         $query->execute([(int) $session['id']]);
-        $account = $query->fetch(PDO::FETCH_ASSOC);
+        return $query->fetch(PDO::FETCH_ASSOC);
+    };
+    try {
+        if ($pdo !== null) {
+            $account = $readAccount($pdo);
+        } else {
+            require_once __DIR__ . '/db.php';
+            try {
+                $account = $readAccount($database ??= (new Database())->getConnection());
+            } catch (PDOException $error) {
+                if (!in_array((int)($error->errorInfo[1] ?? 0), [2006, 2013, 2055], true)) throw $error;
+                $database = null;
+                $account = $readAccount($database = (new Database())->getConnection());
+            }
+        }
         if ($account && $account['is_active'] &&
             (string) $session['auth_generation'] === (string) $account['auth_generation']) {
             $_SESSION['user']['is_admin'] = (int) $account['is_admin'];
@@ -39,6 +49,7 @@ function currentSessionAccount(?PDO $pdo = null): ?array
         }
     } catch (Throwable $error) {
         error_log('Account session validation failed: ' . $error::class);
+        return null;
     }
     $_SESSION = [];
     return null;

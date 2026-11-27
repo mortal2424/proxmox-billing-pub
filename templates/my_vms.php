@@ -358,6 +358,9 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             margin-bottom: 16px;
         }
 
+        .vm-identity { min-width: 0; }
+        .vm-image { display: block; overflow-wrap: anywhere; opacity: .8; }
+
         .vm-name {
             font-size: 16px;
             font-weight: 600;
@@ -1682,7 +1685,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                         </span>
                                         <span class="vm-id">VMID: ${vm.vm_id}</span>
                                     </div>
-                                    <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
+                                    <div class="vm-identity">
+                                        <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
+                                        <small class="vm-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
+                                    </div>
                                 </div>
 
                                 <div class="vm-specs">
@@ -1801,7 +1807,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         const compactHtml = `
                             <div class="vm-card compact" data-status="${vm.status}" data-vmid="${vm.vm_id}" data-nodeid="${vm.node_id}" data-id="${vm.id}" data-vmtype="qemu">
                                 <div class="vm-card-header">
-                                    <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
+                                    <div class="vm-identity">
+                                        <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
+                                        <small class="vm-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
+                                    </div>
                                     <div>
                                         <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
                                             ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
@@ -1930,7 +1939,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                         </span>
                                         <span class="vm-id">CTID: ${ct.vm_id}</span>
                                     </div>
-                                    <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
+                                    <div class="vm-identity">
+                                        <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
+                                        <small class="vm-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
+                                    </div>
                                 </div>
 
                                 <div class="vm-specs">
@@ -2049,7 +2061,10 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         const compactHtml = `
                             <div class="vm-card compact" data-status="${ct.status}" data-vmid="${ct.vm_id}" data-nodeid="${ct.node_id}" data-id="${ct.id}" data-vmtype="lxc">
                                 <div class="vm-card-header">
-                                    <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
+                                    <div class="vm-identity">
+                                        <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
+                                        <small class="vm-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
+                                    </div>
                                     <div>
                                         <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
                                             ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}

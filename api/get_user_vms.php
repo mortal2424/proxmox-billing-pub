@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/guest_install_image.php';
 
 checkAuth();
 
@@ -11,10 +12,11 @@ $pdo = $db->getConnection();
 $user_id = $_SESSION['user']['id'];
 
 try {
+    $imageColumn = guestInstallImageColumn($pdo) ? 'v.installation_image' : 'NULL AS installation_image';
     $stmt = $pdo->prepare("
         SELECT 
             v.id, v.vm_id, v.vm_type, v.hostname, v.cpu, v.ram, v.disk, v.status, 
-            v.created_at, v.node_id, v.ip_address,
+            v.created_at, v.node_id, v.ip_address, v.os_version, $imageColumn,
             t.name as tariff_name, t.price AS tariff_price, v.is_custom, 
             n.node_name
         FROM vms v
@@ -28,6 +30,8 @@ try {
     
     require_once __DIR__ . '/../includes/guest_card_pricing.php';
     annotateGuestCardPrices($pdo, $vms);
+    foreach ($vms as &$guest) $guest['image_label'] = guestInstallImageLabel($guest);
+    unset($guest);
 
     echo json_encode([
         'success' => true,

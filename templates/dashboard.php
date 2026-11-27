@@ -6,6 +6,7 @@ if ($workspaceLite) {
 }
 
 session_start();
+require_once __DIR__ . '/../includes/guest_install_image.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 
@@ -446,6 +447,10 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
             align-items: center;
             margin-bottom: 16px;
         }
+
+        .vm-identity { min-width: 0; }
+        .vm-image { display: block; overflow-wrap: anywhere; opacity: .8; }
+        .vm-status { flex-shrink: 0; }
 
         .vm-name {
             font-size: 16px;
@@ -1297,7 +1302,10 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                         <?php foreach ($vms as $vm): ?>
                             <div class="vm-card">
                                 <div class="vm-header">
-                                    <h3 class="vm-name"><?= htmlspecialchars($vm['hostname']) ?></h3>
+                                    <div class="vm-identity">
+                                        <h3 class="vm-name"><?= htmlspecialchars($vm['hostname']) ?></h3>
+                                        <small class="vm-image">Образ: <?= htmlspecialchars(guestInstallImageLabel($vm), ENT_QUOTES, 'UTF-8') ?></small>
+                                    </div>
                                     <span class="vm-status <?= $vm['status'] === 'running' ? 'status-running' : 'status-stopped' ?>">
                                         <?= $vm['status'] === 'running' ? 'Запущена' : 'Остановлена' ?>
                                     </span>

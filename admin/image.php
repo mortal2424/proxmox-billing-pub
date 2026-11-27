@@ -1023,14 +1023,35 @@ ob_start();
                 overflow-x: auto;
             }
         }
-        .cloud-image-entry { border: 1px solid #8799b254; border-radius: .6rem; margin-block: .55rem; padding: .65rem .85rem; }
-        .cloud-image-entry summary { cursor: pointer; }
-        .cloud-image-entry p { margin-block: .6rem; }
-        .cloud-image-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .6rem; }
-        .cloud-image-form label { display: grid; gap: .3rem; }
-        .cloud-image-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; }
-        .cloud-image-actions button { margin: 0; }
-        .cloud-image-file { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin-block: .55rem; overflow-wrap: anywhere; }
+        .cloud-toolbar, .cloud-image-actions, .cloud-image-file {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .5rem;
+        }
+        .cloud-toolbar { justify-content: space-between; margin-bottom: .75rem; }
+        .cloud-toolbar h3 { margin: 0; }
+        .cloud-image-entry { border: 1px solid #8799b254; border-radius: .6rem; margin-block: .4rem; }
+        .cloud-image-entry > summary { padding: .55rem .75rem; cursor: pointer; overflow-wrap: anywhere; }
+        .cloud-image-entry > summary small { margin-inline-start: .35rem; opacity: .85; }
+        .cloud-image-entry > :not(summary) { margin-inline: .75rem; }
+        .cloud-image-entry p { margin-block: .5rem; overflow-wrap: anywhere; }
+        .cloud-image-form {
+            display: grid;
+            align-items: end;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+            gap: .5rem .65rem;
+            margin-block: .5rem .75rem;
+        }
+        .cloud-image-form label { display: grid; min-width: 0; gap: .25rem; }
+        .cloud-image-form .form-control { min-width: 0; width: 100%; }
+        .cloud-image-actions, .cloud-image-form .cloud-checkbox { grid-column: 1 / -1; }
+        .cloud-image-form .cloud-checkbox { display: flex; align-items: baseline; gap: .45rem; }
+        .cloud-image-form > button { justify-self: start; }
+        .cloud-images :is(.btn-update, .btn-delete) { margin: 0; padding: .4rem .7rem; max-width: 100%; white-space: normal; }
+        .cloud-image-method { border-top: 1px solid #8799b254; padding-block: .4rem; }
+        .cloud-image-method summary { cursor: pointer; }
+        .cloud-image-file { margin-block: .5rem; overflow-wrap: anywhere; }
     </style>
 <?php
 $adminHeadContent = ob_get_clean();
@@ -1113,11 +1134,11 @@ require __DIR__ . '/admin_header.php';
                     Выберите ноду для управления образами.
                 </div>
             <?php elseif ($image_type === 'cloud'): ?>
-                <section class="card">
-                    <h3><i class="fas fa-cloud"></i> Cloud-образы QEMU</h3>
-                    <p>Выберите образ из каталога издателей. Импорт выполняется в фоне. При смене хранилища старый источник доступен заказам до завершения загрузки.</p>
-                    <p><a class="btn-update" href="?node_id=<?= (int)$current_node_id ?>&amp;type=cloud">Обновить из хранилища Import</a></p>
-                    <p>Для готового QCOW2 загрузите файл в Import через Proxmox. Используйте имя формата <code>homevlad-&lt;ключ&gt;-&lt;диск-ГиБ&gt;g-&lt;12-hex&gt;.qcow2</code>. Ключи перечислены в карточках ниже.</p>
+                <section class="card cloud-images">
+                    <div class="cloud-toolbar">
+                        <h3><i class="fas fa-cloud"></i> Cloud-образы QEMU</h3>
+                        <a class="btn-update" href="?node_id=<?= (int)$current_node_id ?>&amp;type=cloud">Обновить из Import</a>
+                    </div>
                     <?php if (!$cloudStores): ?>
                         <p class="notification notification-warning">На ноде нет активного хранилища с типом Import.</p>
                     <?php endif ?>
@@ -1146,7 +1167,7 @@ require __DIR__ . '/admin_header.php';
                         ?>
                         <details class="cloud-image-entry" <?= !empty($setting['pending_storage']) || !empty($setting['import_error']) ? 'open' : '' ?>>
                             <summary><strong><?= htmlspecialchars($label === '' ? $cloud['label'] : $label) ?></strong>
-                                · <?= $published ? 'В каталоге заказов' : 'Скрыт или отсутствует' ?>
+                                <small><?= $published ? 'В каталоге заказов' : 'Скрыт или отсутствует' ?></small>
                             </summary>
                             <p><?= htmlspecialchars($cloud['label']) ?> · ключ <code><?= htmlspecialchars($key) ?></code> · пользователь <code><?= htmlspecialchars($cloud['user']) ?></code>
                                 <?php if ($source !== ''): ?> · источник <code><?= htmlspecialchars($source) ?></code><?php endif ?>
@@ -1181,66 +1202,75 @@ require __DIR__ . '/admin_header.php';
                                 </div>
                             </form>
                             <?php if ($cloudExisting): ?>
-                                <form class="cloud-image-form" method="post" action="cloud_image_action.php">
-                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
-                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
-                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
-                                    <label>Название в каталоге
-                                        <input class="form-control" name="display_name" maxlength="100" value="<?= htmlspecialchars($label ?: $cloud['label'], ENT_QUOTES) ?>">
-                                    </label>
-                                    <label>Готовый диск в хранилище Proxmox
-                                        <select class="form-control" name="volume" required>
-                                            <?php foreach ($cloudExisting as $volume): ?>
-                                                <option value="<?= htmlspecialchars($volume, ENT_QUOTES) ?>"><?= htmlspecialchars($volume) ?></option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </label>
-                                    <label>Минимальный размер диска (ГиБ)
-                                        <input class="form-control" type="number" name="minimum_disk" min="1" max="1000" required>
-                                    </label>
-                                    <label><input type="checkbox" name="standalone" value="1" required> Образ самостоятельный и подготовлен для Cloud-Init или Cloudbase-Init</label>
-                                    <button class="btn-update" name="action" value="register_existing">Добавить файл в каталог</button>
-                                </form>
+                                <details class="cloud-image-method">
+                                    <summary>Добавить готовый диск из Import</summary>
+                                    <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                                        <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                        <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                        <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                        <label>Название в каталоге
+                                            <input class="form-control" name="display_name" maxlength="100" value="<?= htmlspecialchars($label ?: $cloud['label'], ENT_QUOTES) ?>">
+                                        </label>
+                                        <label>Готовый диск в хранилище Proxmox
+                                            <select class="form-control" name="volume" required>
+                                                <?php foreach ($cloudExisting as $volume): ?>
+                                                    <option value="<?= htmlspecialchars($volume, ENT_QUOTES) ?>"><?= htmlspecialchars($volume) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </label>
+                                        <label>Минимальный размер диска (ГиБ)
+                                            <input class="form-control" type="number" name="minimum_disk" min="1" max="1000" required>
+                                        </label>
+                                        <label class="cloud-checkbox"><input type="checkbox" name="standalone" value="1" required> Образ самостоятельный и подготовлен для Cloud-Init или Cloudbase-Init</label>
+                                        <button class="btn-update" name="action" value="register_existing">Добавить файл в каталог</button>
+                                    </form>
+                                </details>
                             <?php endif; ?>
                             <?php if ($cloudStores && $mountedImages): ?>
-                                <form class="cloud-image-form" method="post" action="cloud_image_action.php">
-                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
-                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
-                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
-                                    <input type="hidden" name="display_name" value="<?= htmlspecialchars($label, ENT_QUOTES) ?>">
-                                    <label>Файл на подключённом хранилище
-                                        <select class="form-control" name="source_file" required>
-                                            <?php foreach ($mountedImages as $filename): ?>
-                                                <option value="<?= htmlspecialchars($filename, ENT_QUOTES) ?>"><?= htmlspecialchars($filename) ?></option>
-                                            <?php endforeach ?>
-                                        </select>
-                                    </label>
-                                    <label>Хранилище Import на ноде
-                                        <select class="form-control" name="storage" required>
-                                            <?php foreach ($cloudStores as $store): ?>
-                                                <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
-                                            <?php endforeach ?>
-                                        </select>
-                                    </label>
-                                    <button class="btn-update" name="action" value="convert_mounted">Преобразовать и добавить</button>
-                                </form>
+                                <details class="cloud-image-method">
+                                    <summary>Преобразовать файл из хранилища</summary>
+                                    <form class="cloud-image-form" method="post" action="cloud_image_action.php">
+                                        <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                        <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                        <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="display_name" value="<?= htmlspecialchars($label, ENT_QUOTES) ?>">
+                                        <label>Файл на подключённом хранилище
+                                            <select class="form-control" name="source_file" required>
+                                                <?php foreach ($mountedImages as $filename): ?>
+                                                    <option value="<?= htmlspecialchars($filename, ENT_QUOTES) ?>"><?= htmlspecialchars($filename) ?></option>
+                                                <?php endforeach ?>
+                                            </select>
+                                        </label>
+                                        <label>Хранилище Import на ноде
+                                            <select class="form-control" name="storage" required>
+                                                <?php foreach ($cloudStores as $store): ?>
+                                                    <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
+                                                <?php endforeach ?>
+                                            </select>
+                                        </label>
+                                        <button class="btn-update" name="action" value="convert_mounted">Преобразовать и добавить</button>
+                                    </form>
+                                </details>
                             <?php endif; ?>
                             <?php if ($cloudStores): ?>
-                                <form class="cloud-image-form" method="post" action="cloud_image_action.php" enctype="multipart/form-data">
-                                    <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
-                                    <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
-                                    <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
-                                    <label>Хранилище Import
-                                        <select class="form-control" name="storage" required>
-                                            <option value="">Выберите хранилище</option>
-                                            <?php foreach ($cloudStores as $store): ?>
-                                                <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
-                                            <?php endforeach ?>
-                                        </select>
-                                    </label>
-                                    <label>Готовый файл QCOW2 <input type="file" name="image_file" accept=".qcow2" required></label>
-                                    <button class="btn-update" name="action" value="upload">Загрузить образ</button>
-                                </form>
+                                <details class="cloud-image-method">
+                                    <summary>Загрузить QCOW2 с компьютера</summary>
+                                    <form class="cloud-image-form" method="post" action="cloud_image_action.php" enctype="multipart/form-data">
+                                        <input type="hidden" name="node_csrf" value="<?= htmlspecialchars($_SESSION['node_csrf'], ENT_QUOTES) ?>">
+                                        <input type="hidden" name="node_id" value="<?= (int)$current_node_id ?>">
+                                        <input type="hidden" name="image_key" value="<?= htmlspecialchars($key, ENT_QUOTES) ?>">
+                                        <label>Хранилище Import
+                                            <select class="form-control" name="storage" required>
+                                                <option value="">Выберите хранилище</option>
+                                                <?php foreach ($cloudStores as $store): ?>
+                                                    <option value="<?= htmlspecialchars($store, ENT_QUOTES) ?>"><?= htmlspecialchars($store) ?></option>
+                                                <?php endforeach ?>
+                                            </select>
+                                        </label>
+                                        <label>Готовый файл QCOW2 <input type="file" name="image_file" accept=".qcow2" required></label>
+                                        <button class="btn-update" name="action" value="upload">Загрузить образ</button>
+                                    </form>
+                                </details>
                             <?php endif ?>
                             <?php foreach ($files as $file): ?>
                                 <?php $store = explode(':', $file['volid'], 2)[0]; ?>

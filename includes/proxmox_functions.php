@@ -7,6 +7,7 @@ require_once __DIR__ . '/ProxmoxAuth.php';
 require_once __DIR__ . '/guest_mutations.php';
 require_once __DIR__ . '/guest_initial_password.php';
 require_once __DIR__ . '/cloud_images.php';
+require_once __DIR__ . '/guest_install_image.php';
 
 class ProxmoxAPI {
     use ProxmoxGuestMutations;
@@ -418,6 +419,15 @@ class ProxmoxAPI {
         ]);
 
         $guestId = (int) $this->pdo->lastInsertId();
+        if (!empty($image)) {
+            $filename = basename($image['volid']);
+            $label = trim((string)($image['label'] ?? ''));
+            $imageName = $label !== '' && $label !== $filename ? "$label · $filename" : $filename;
+        } else {
+            $media = $cdromsInput[0] ?? ($params['iso'] ?? '');
+            $imageName = is_string($media) && $media !== '' ? basename($media) : '';
+        }
+        saveGuestInstallImage($this->pdo, $guestId, $imageName);
         if (!empty($params['show_initial_password'])) {
             $image = $params['cloud_image'] ?? null;
             saveGuestPassword($this->pdo, $guestId, $params['password'],
@@ -629,6 +639,7 @@ private function createLicensedLXC($params) {
         ]);
 
         $guestId = (int) $this->pdo->lastInsertId();
+        saveGuestInstallImage($this->pdo, $guestId, basename($template));
         if (!empty($params['show_initial_password'])) {
             saveGuestPassword($this->pdo, $guestId, $password, 'root', true);
         }
