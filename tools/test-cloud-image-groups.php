@@ -44,6 +44,21 @@ $registered=publishedCloudImages($db,11,cloudImportVolumes($api,'node3',$store,$
 if (($registered['selectos'][0]['volid']??null)!==$external ||
     ($registered['selectos'][0]['minimum_disk']??null)!==24 ||
     empty($registered['selectos'][0]['existing_source'])) exit(1);
+validateCloudImageForGuest($registered['selectos'][0], false, false, 24);
+validateCloudImageForGuest($images['selectos'][0], false, false, 20);
+foreach ([
+    [array_replace($registered['selectos'][0], ['volid'=>'storage:import/selectos.raw,cache=unsafe']), 24],
+    [array_replace($registered['selectos'][0], ['volid'=>'storage:import/../selectos.raw']), 24],
+    [array_replace($registered['selectos'][0], ['user'=>'cloud,invalid']), 24],
+    [$registered['selectos'][0], 23],
+] as [$image, $disk]) {
+    try {
+        validateCloudImageForGuest($image, false, false, $disk);
+        throw new RuntimeException('Invalid image or disk size was accepted');
+    } catch (InvalidArgumentException) {
+    }
+}
+echo "PASS SelectOS provisioning validation and invalid parameters\n";
 unset($inventory[$external]);
 if (cloudImportVolumes($api,'node3',$store,$db,11,$inventory)!==[]) exit(1);
 echo "PASS exact registered import volume and missing-source suppression\n";

@@ -6,6 +6,7 @@ require_once __DIR__ . '/node_api_credentials.php';
 require_once __DIR__ . '/ProxmoxAuth.php';
 require_once __DIR__ . '/guest_mutations.php';
 require_once __DIR__ . '/guest_initial_password.php';
+require_once __DIR__ . '/cloud_images.php';
 
 class ProxmoxAPI {
     use ProxmoxGuestMutations;
@@ -206,6 +207,13 @@ class ProxmoxAPI {
         }
     }
 
+    $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
+    $image = $params['cloud_image'] ?? null;
+    $hasIso = !empty($params['iso']) || $cdromsInput !== [];
+    if (!empty($image)) {
+        validateCloudImageForGuest($image, $isWindows, $hasIso, (int)$diskSize);
+    }
+
     $marker = 'HomeVlad provisioning ' . bin2hex(random_bytes(16));
     $commitAttempted = false;
 
@@ -216,8 +224,6 @@ class ProxmoxAPI {
 
         // 3. Подготовка параметров
         $nodeId = $this->nodeId;
-        $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
-        $hasIso = !empty($params['iso']) || !empty($params['cdroms']);
         $storage = (string)($params['storage'] ?? 'local');
         $network = (string)($params['network'] ?? 'vmbr0');
         $sdn = $params['sdn'] ?? null;
@@ -248,13 +254,6 @@ class ProxmoxAPI {
         $this->execSSHCommand($createCmd);
 
         if (!empty($params['cloud_image'])) {
-            $image = $params['cloud_image'];
-            if ($hasIso || ($image['os_type'] ?? 'linux') !== ($isWindows ? 'windows' : 'linux') ||
-                !in_array($image['user'] ?? '', $isWindows ? ['Administrator'] : ['ubuntu', 'debian', 'cloud-user'], true) ||
-                !preg_match('#^[A-Za-z0-9_.-]{1,64}:import/homevlad-[a-z0-9.-]+\.qcow2$#D', $image['volid'] ?? '') ||
-                (int)$diskSize < (int)($image['minimum_disk'] ?? PHP_INT_MAX)) {
-                throw new InvalidArgumentException('Некорректный cloud-образ или недостаточный размер диска');
-            }
             $guestPath = $this->guestApi()->base($vmid, 'qemu');
             $cloudConfig = [
                 'scsi0' => "$storage:0,import-from=" . $image['volid'],

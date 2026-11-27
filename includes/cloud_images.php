@@ -48,11 +48,41 @@ function cloudImageCatalog(?PDO $db = null): array
     return $images;
 }
 
+function cloudImageLinuxUserValid(mixed $user): bool
+{
+    return is_string($user) && preg_match('/^[a-z_][a-z0-9_-]{0,31}$/D', $user) === 1;
+}
+
+function cloudImportVolumeIdValid(mixed $volume): bool
+{
+    return is_string($volume) &&
+        preg_match('~^[A-Za-z0-9_.-]{1,64}:import/[A-Za-z0-9][A-Za-z0-9._ -]{0,174}\.(?:qcow2|raw)$~iD', $volume) === 1;
+}
+
+function validateCloudImageForGuest(array $image, bool $windows, bool $hasIso, int $diskSize): void
+{
+    $user = $image['user'] ?? null;
+    $volume = $image['volid'] ?? null;
+    $minimum = filter_var($image['minimum_disk'] ?? null, FILTER_VALIDATE_INT);
+    if ($hasIso || ($image['os_type'] ?? 'linux') !== ($windows ? 'windows' : 'linux') ||
+        ($windows ? $user !== 'Administrator' : !cloudImageLinuxUserValid($user)) ||
+        !cloudImportVolumeIdValid($volume) ||
+        (empty($image['existing_source']) && !preg_match('~:import/homevlad-[a-z0-9.-]+\.qcow2$~D', $volume))) {
+        throw new InvalidArgumentException('Некорректный cloud-образ');
+    }
+    if ($minimum === false || $minimum < 1) {
+        throw new InvalidArgumentException('Для cloud-образа не задан минимальный размер диска');
+    }
+    if ($diskSize < $minimum) {
+        throw new InvalidArgumentException("Для cloud-образа нужен диск не менее {$minimum} ГиБ");
+    }
+}
+
 function createCloudImageGroup(PDO $db, mixed $key, mixed $label, mixed $guestUser): void
 {
     if (!is_string($key) || !preg_match('/^[a-z][a-z0-9-]{0,31}$/D', $key) ||
         !is_string($label) || trim($label) === '' || mb_strlen($label) > 100 || preg_match('/[[:cntrl:]]/u', $label) ||
-        !is_string($guestUser) || !preg_match('/^[a-z_][a-z0-9_-]{0,31}$/D', $guestUser)) {
+        !cloudImageLinuxUserValid($guestUser)) {
         throw new InvalidArgumentException('Укажите ключ образа, название и имя пользователя cloud-init.');
     }
     if (isset(cloudImageCatalog()[$key])) throw new InvalidArgumentException('Этот ключ уже используется встроенной группой.');
@@ -103,7 +133,7 @@ function cloudImportInventory(callable $request, string $node, ?array $storage =
         try {
             foreach ($request('GET', $path . '/' . rawurlencode($name) . '/content', ['content'=>'import']) as $volume) {
                 $volid = $volume['volid'] ?? '';
-                if (is_string($volid) && preg_match('~^'.preg_quote($name,'~').':import/[A-Za-z0-9][A-Za-z0-9._ -]{0,174}\.(?:qcow2|raw)$~iD',$volid)) {
+                if (cloudImportVolumeIdValid($volid) && str_starts_with($volid, $name . ':')) {
                     $result[$volid] = $volume;
                 }
             }
