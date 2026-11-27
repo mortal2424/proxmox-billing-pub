@@ -81,6 +81,7 @@ safeQuery($pdo, "CREATE TABLE IF NOT EXISTS resource_prices (
     price_per_hour_lxc_cpu DECIMAL(10,6) NOT NULL DEFAULT 0.000800,
     price_per_hour_lxc_ram DECIMAL(10,6) NOT NULL DEFAULT 0.000008,
     price_per_hour_lxc_disk DECIMAL(10,6) NOT NULL DEFAULT 0.000030,
+    price_per_hour_ipv4 DECIMAL(10,6) NOT NULL DEFAULT 0.000000,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )");
 
@@ -273,13 +274,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Обработка установки базовых цен
         elseif (isset($_POST['set_default_prices'])) {
+            $ipv4 = $_POST['default_price_per_hour_ipv4'] ?? null;
+            if (!is_string($ipv4) || !preg_match('/^[0-9]{1,4}(?:[.,][0-9]{1,6})?$/D', trim($ipv4))) {
+                $_SESSION['error'] = 'Введите цену IPv4 от 0 до 9999,999999 ₽ за час.';
+                header('Location: settings.php');
+                exit;
+            }
+            $ipv4 = str_replace(',', '.', trim($ipv4));
             $stmt = $pdo->prepare("UPDATE resource_prices SET
                 price_per_hour_cpu = ?,
                 price_per_hour_ram = ?,
                 price_per_hour_disk = ?,
                 price_per_hour_lxc_cpu = ?,
                 price_per_hour_lxc_ram = ?,
-                price_per_hour_lxc_disk = ?
+                price_per_hour_lxc_disk = ?,
+                price_per_hour_ipv4 = ?
                 WHERE id = 1");
             $stmt->execute([
                 $_POST['default_price_per_hour_cpu'],
@@ -287,7 +296,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['default_price_per_hour_disk'],
                 $_POST['default_price_per_hour_lxc_cpu'],
                 $_POST['default_price_per_hour_lxc_ram'],
-                $_POST['default_price_per_hour_lxc_disk']
+                $_POST['default_price_per_hour_lxc_disk'],
+                $ipv4
             ]);
             $_SESSION['success'] = "Базовые цены на ресурсы сохранены";
         }
@@ -1255,7 +1265,7 @@ require 'admin_header.php';
 .settings-wrapper .header-left p { font-size: 13px; }
 .settings-wrapper .dashboard-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .settings-wrapper .settings-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 12px;
     margin-bottom: 16px;
@@ -1266,17 +1276,67 @@ require 'admin_header.php';
 .settings-wrapper .card-body,
 .settings-wrapper .table-container { padding: 12px 14px; }
 .settings-wrapper .setting-form { gap: 9px; }
-.settings-wrapper .form-row { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr)); }
+.settings-wrapper .form-row { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
 .settings-wrapper .form-label { margin-bottom: 3px; font-size: 13px; }
 .settings-wrapper .form-input { padding: 7px 9px; }
 .settings-wrapper .btn { padding: 7px 12px; }
 .settings-wrapper .table-section { margin-bottom: 14px; }
+
+.settings-wrapper :is(.card-header,.table-header) {
+    background: var(--db-card-bg);
+    color: var(--db-text);
+    border-bottom: 1px solid var(--db-border);
+    gap: 8px 14px;
+    flex-wrap: wrap;
+}
+.settings-wrapper :is(.card-header,.table-header) h3 {
+    color: var(--db-text);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.settings-wrapper .table-container { overflow: visible; }
+.settings-wrapper :is(.table-section,.form-group,.pricing-group) { min-width: 0; }
+.settings-wrapper .form-label, .modal-body .form-label { line-height: 1.35; white-space: normal; }
+.pricing-group { border: 1px solid var(--db-border); border-radius: 8px; margin: 0; padding: 8px 12px 12px; }
+.pricing-group legend { color: var(--db-text); font-size: 13px; font-weight: 650; padding-inline: 4px; }
+.settings-table-scroll { overflow-x: auto; }
 @media (max-width: 992px) {
     body:has(#adminSidebar) .settings-wrapper { margin-left: 0 !important; }
 }
 @media (max-width: 520px) {
     .settings-wrapper .form-row { grid-template-columns: minmax(0,1fr); }
 }
+
+.settings-tabs[hidden], .settings-panel[hidden] { display: none !important; }
+.settings-tabs {
+    display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 12px; padding: 5px;
+    border: 1px solid var(--db-border); border-radius: 9px; background: var(--db-card-bg);
+}
+.settings-tabs button {
+    border: 1px solid transparent; border-radius: 6px; padding: 6px 10px;
+    background: transparent; color: var(--db-text);
+    font: 600 13px/1.35 system-ui; cursor: pointer;
+}
+.settings-tabs button[aria-selected="true"] { background: var(--db-hover); border-color: var(--db-border); }
+.settings-tabs button:focus-visible { outline: 2px solid var(--db-accent); outline-offset: 2px; }
+.settings-wrapper .settings-telegram-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); }
+.settings-panel .table-container > div:first-child { padding: 12px !important; margin-bottom: 12px !important; }
+
+
+.tariff-create {
+    margin-bottom: 10px; padding: 0 !important;
+    background: var(--db-hover); border: 1px solid var(--db-border); border-radius: 8px;
+}
+.tariff-create summary { padding: 8px 10px; color: var(--db-text); font-size: 13px; font-weight: 650; cursor: pointer; }
+.tariff-create summary i { margin-inline: 4px; }
+.tariff-create .setting-form { padding: 4px 10px 10px; }
+.settings-wrapper .tariffs-table { min-width: 530px; }
+.settings-wrapper .tariffs-table :is(th, td) { padding: 6px 9px; line-height: 1.25; }
+.tariffs-table .tariff-meta { display: block; color: var(--db-text-secondary); font-size: 11px; margin-top: 2px; }
+.tariffs-table .tariff-resources { white-space: nowrap; }
+.tariffs-table .actions { white-space: nowrap; }
+.tariffs-table .action-btn { margin: 0 2px 0 0; width: 28px; height: 28px; }
+
 </style>
 
 <!-- Основной контент -->
@@ -1316,8 +1376,17 @@ require 'admin_header.php';
         <?php unset($_SESSION['error']); ?>
     <?php endif; ?>
 
-    <!-- Основные настройки в сетке -->
-    <div class="settings-grid">
+    <div class="settings-tabs" role="tablist" aria-label="Разделы системных настроек" hidden>
+        <button type="button" role="tab" id="settings-tab-tariffs" aria-controls="settings-panel-tariffs" aria-selected="false" tabindex="-1">Тарифы</button>
+        <button type="button" role="tab" id="settings-tab-prices" aria-controls="settings-panel-prices" aria-selected="false" tabindex="-1">Базовые цены</button>
+        <button type="button" role="tab" id="settings-tab-features" aria-controls="settings-panel-features" aria-selected="false" tabindex="-1">Возможности</button>
+        <button type="button" role="tab" id="settings-tab-promos" aria-controls="settings-panel-promos" aria-selected="false" tabindex="-1">Акции</button>
+        <button type="button" role="tab" id="settings-tab-custom" aria-controls="settings-panel-custom" aria-selected="false" tabindex="-1">Конфигурации</button>
+        <button type="button" role="tab" id="settings-tab-telegram" aria-controls="settings-panel-telegram" aria-selected="false" tabindex="-1">Telegram</button>
+        <button type="button" role="tab" id="settings-tab-smtp" aria-controls="settings-panel-smtp" aria-selected="false" tabindex="-1">SMTP</button>
+    </div>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-telegram" aria-labelledby="settings-tab-telegram">
+    <div class="settings-grid settings-telegram-grid">
         <!-- Telegram Support Bot -->
         <div class="setting-card fade-in">
             <div class="card-header">
@@ -1420,6 +1489,9 @@ require 'admin_header.php';
             </div>
         </div>
 
+    </div>
+    </section>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-smtp" aria-labelledby="settings-tab-smtp">
         <!-- SMTP Настройки -->
         <div class="setting-card fade-in">
             <div class="card-header">
@@ -1500,6 +1572,8 @@ require 'admin_header.php';
             </div>
         </div>
 
+    </section>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-prices" aria-labelledby="settings-tab-prices">
         <!-- Базовые цены на ресурсы -->
         <div class="setting-card fade-in">
             <div class="card-header">
@@ -1508,45 +1582,55 @@ require 'admin_header.php';
             <div class="card-body">
                 <form method="POST" class="setting-form">
                     <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
+                    <fieldset class="pricing-group"><legend>Виртуальные машины QEMU</legend>
                     <div class="form-row">
                         <!-- Цены для QEMU (KVM) -->
                         <div class="form-group">
-                            <label class="form-label">1 vCPU в час (QEMU)</label>
+                            <label class="form-label">vCPU · ₽/ед. в час</label>
                             <input type="number" name="default_price_per_hour_cpu" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_cpu'] ?? '0.001000' ?>" required>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">1 MB RAM в час (QEMU)</label>
+                            <label class="form-label">RAM · ₽/МиБ в час</label>
                             <input type="number" name="default_price_per_hour_ram" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_ram'] ?? '0.000010' ?>" required>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">1 ГБ Диска в час (QEMU)</label>
+                            <label class="form-label">Диск · ₽/ГиБ в час</label>
                             <input type="number" name="default_price_per_hour_disk" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_disk'] ?? '0.000050' ?>" required>
                         </div>
 
-                        <!-- Цены для LXC -->
+                    </div></fieldset>
+                    <fieldset class="pricing-group"><legend>Контейнеры LXC</legend>
+                    <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">1 vCPU в час (LXC)</label>
+                            <label class="form-label">vCPU · ₽/ед. в час</label>
                             <input type="number" name="default_price_per_hour_lxc_cpu" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_lxc_cpu'] ?? '0.000800' ?>" required>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">1 MB RAM в час (LXC)</label>
+                            <label class="form-label">RAM · ₽/МиБ в час</label>
                             <input type="number" name="default_price_per_hour_lxc_ram" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_lxc_ram'] ?? '0.000008' ?>" required>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">1 ГБ Диска в час (LXC)</label>
+                            <label class="form-label">Диск · ₽/ГиБ в час</label>
                             <input type="number" name="default_price_per_hour_lxc_disk" min="0.000001" step="0.000001" class="form-input"
                                    value="<?= $defaultPrices['price_per_hour_lxc_disk'] ?? '0.000030' ?>" required>
                         </div>
-                    </div>
+                    </div></fieldset>
+                    <fieldset class="pricing-group"><legend>Сеть</legend>
+                        <div class="form-row"><div class="form-group">
+                            <label class="form-label" for="default-price-ipv4">IPv4 · ₽/адрес в час</label>
+                            <input id="default-price-ipv4" type="number" name="default_price_per_hour_ipv4" min="0" max="9999.999999" step="0.000001" class="form-input"
+                                   value="<?= htmlspecialchars((string)($defaultPrices['price_per_hour_ipv4'] ?? '0.000000'), ENT_QUOTES) ?>" required>
+                        </div></div>
+                    </fieldset>
 
                     <div class="info-block">
                         <h5><i class="fas fa-info-circle"></i> Информация о ценах</h5>
@@ -1563,8 +1647,9 @@ require 'admin_header.php';
                 </form>
             </div>
         </div>
-    </div>
+    </section>
 
+    <section class="settings-panel" role="tabpanel" id="settings-panel-tariffs" aria-labelledby="settings-tab-tariffs">
     <!-- Секция: Тарифы -->
     <div class="table-section fade-in">
         <div class="table-header">
@@ -1573,10 +1658,8 @@ require 'admin_header.php';
         </div>
         <div class="table-container">
             <!-- Форма добавления тарифа -->
-            <div style="background: var(--db-hover); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                <h4 style="color: var(--db-text); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-plus-circle"></i> Добавить новый тариф
-                </h4>
+            <details class="tariff-create" <?= empty($tariffs) ? 'open' : '' ?>>
+                <summary><i class="fas fa-plus-circle" aria-hidden="true"></i> Добавить тариф</summary>
                 <form method="POST" class="setting-form">
                     <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                     <div class="form-row">
@@ -1646,17 +1729,17 @@ require 'admin_header.php';
 
                         <!-- Цены за час для кастомного тарифа -->
                         <div class="form-group">
-                            <label class="form-label">Цена за 1 vCPU в час</label>
+                            <label class="form-label">vCPU · ₽/ед. в час</label>
                             <input type="number" name="price_per_hour_cpu" min="0.0000" step="0.0001" class="form-input" value="0.0000" disabled>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Цена за 1 MB RAM в час</label>
+                            <label class="form-label">RAM · ₽/МиБ в час</label>
                             <input type="number" name="price_per_hour_ram" min="0.000000" step="0.000001" class="form-input" value="0.000000" disabled>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Цена за 1 ГБ Диска в час</label>
+                            <label class="form-label">Диск · ₽/ГиБ в час</label>
                             <input type="number" name="price_per_hour_disk" min="0.000000" step="0.000001" class="form-input" value="0.000000" disabled>
                         </div>
 
@@ -1682,22 +1765,17 @@ require 'admin_header.php';
                         </button>
                     </div>
                 </form>
-            </div>
+            </details>
 
             <!-- Список тарифов -->
             <?php if (!empty($tariffs)): ?>
                 <div class="table-responsive">
-                    <table class="admin-table">
+                    <div class="settings-table-scroll" tabindex="0" role="region" aria-label="Список тарифов"><table class="admin-table tariffs-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Название</th>
-                                <th>Тип</th>
-                                <th>CPU</th>
-                                <th>RAM</th>
-                                <th>Диск</th>
-                                <th>Цена</th>
-                                <th>Тип ОС</th>
+                                <th>Тариф</th>
+                                <th>Ресурсы</th>
+                                <th>Оплата</th>
                                 <th>Статус</th>
                                 <th>Действия</th>
                             </tr>
@@ -1705,24 +1783,19 @@ require 'admin_header.php';
                         <tbody>
                             <?php foreach ($tariffs as $tariff): ?>
                             <tr>
-                                <td><?= $tariff['id'] ?></td>
                                 <td>
                                     <strong><?= htmlspecialchars($tariff['name']) ?></strong>
-                                    <?php if ($tariff['is_custom']): ?>
-                                        <br><small style="color: var(--db-warning);">Почасовая оплата</small>
-                                    <?php endif; ?>
+                                    <small class="tariff-meta">#<?= (int)$tariff['id'] ?> · <?= $tariff['vm_type'] === 'qemu' ? 'QEMU' : 'LXC' ?> · <?= $tariff['os_type'] ? htmlspecialchars($tariff['os_type']) : 'ОС на выбор' ?></small>
                                 </td>
-                                <td><?= $tariff['vm_type'] == 'qemu' ? 'QEMU' : 'LXC' ?></td>
-                                <td><?= $tariff['cpu'] ?> ядер</td>
-                                <td><?= $tariff['ram'] ?> MB</td>
-                                <td><?= $tariff['disk'] ?> GB</td>
+                                <td class="tariff-resources"><?= (int)$tariff['cpu'] ?> vCPU · <?= (int)$tariff['ram'] ?> МиБ · <?= (int)$tariff['disk'] ?> ГиБ</td>
                                 <td>
-                                    <strong><?= number_format($tariff['price'], 2) ?> руб.</strong>
                                     <?php if ($tariff['is_custom']): ?>
-                                        <br><small>CPU: <?= number_format($tariff['price_per_hour_cpu'], 4) ?>/час</small>
+                                        <strong>Почасовая</strong>
+                                        <small class="tariff-meta">vCPU: <?= number_format((float)$tariff['price_per_hour_cpu'], 6, ',', ' ') ?> ₽/ч</small>
+                                    <?php else: ?>
+                                        <strong><?= number_format((float)$tariff['price'], 2, ',', ' ') ?> ₽</strong>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= $tariff['os_type'] ? htmlspecialchars($tariff['os_type']) : 'Ручной выбор' ?></td>
                                 <td>
                                     <span class="status-badge <?= $tariff['is_active'] ? 'status-active' : 'status-inactive' ?>">
                                         <?= $tariff['is_active'] ? 'Активен' : 'Неактивен' ?>
@@ -1730,14 +1803,14 @@ require 'admin_header.php';
                                     </span>
                                 </td>
                                 <td class="actions">
-                                    <button type="button" class="action-btn action-btn-edit"
+                                    <button type="button" class="action-btn action-btn-edit" aria-label="Редактировать тариф" title="Редактировать тариф"
                                             onclick="openEditModal('tariff', <?= htmlspecialchars(json_encode($tariff)) ?>)">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display:inline;">
                                         <input type="hidden" name="form_csrf" value="<?= htmlspecialchars(formCsrfToken()) ?>">
                                         <input type="hidden" name="id" value="<?= $tariff['id'] ?>">
-                                        <button type="submit" name="delete_tariff" class="action-btn action-btn-delete"
+                                        <button type="submit" name="delete_tariff" class="action-btn action-btn-delete" aria-label="Удалить тариф" title="Удалить тариф"
                                                 onclick="return confirm('Удалить этот тариф?')">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -1746,7 +1819,7 @@ require 'admin_header.php';
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
-                    </table>
+                    </table></div>
                 </div>
             <?php else: ?>
                 <div class="empty-state">
@@ -1758,6 +1831,8 @@ require 'admin_header.php';
         </div>
     </div>
 
+    </section>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-features" aria-labelledby="settings-tab-features">
     <!-- Секция: Возможности -->
     <div class="table-section fade-in" style="margin-top: 25px;">
         <div class="table-header">
@@ -1803,7 +1878,7 @@ require 'admin_header.php';
 
             <!-- Список возможностей -->
             <?php if (!empty($features)): ?>
-                <table class="admin-table">
+                <div class="settings-table-scroll" tabindex="0" role="region" aria-label="Таблица настроек"><table class="admin-table">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -1843,7 +1918,7 @@ require 'admin_header.php';
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </table>
+                </table></div>
             <?php else: ?>
                 <div class="empty-state">
                     <i class="fas fa-star"></i>
@@ -1854,6 +1929,8 @@ require 'admin_header.php';
         </div>
     </div>
 
+    </section>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-promos" aria-labelledby="settings-tab-promos">
     <!-- Секция: Акции -->
     <div class="table-section fade-in" style="margin-top: 25px;">
         <div class="table-header">
@@ -1908,7 +1985,7 @@ require 'admin_header.php';
 
             <!-- Список акций -->
             <?php if (!empty($promotions)): ?>
-                <table class="admin-table">
+                <div class="settings-table-scroll" tabindex="0" role="region" aria-label="Таблица настроек"><table class="admin-table">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -1957,7 +2034,7 @@ require 'admin_header.php';
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </table>
+                </table></div>
             <?php else: ?>
                 <div class="empty-state">
                     <i class="fas fa-percentage"></i>
@@ -1968,6 +2045,8 @@ require 'admin_header.php';
         </div>
     </div>
 
+    </section>
+    <section class="settings-panel" role="tabpanel" id="settings-panel-custom" aria-labelledby="settings-tab-custom">
     <!-- Секция: Кастомные конфигурации -->
     <div class="table-section fade-in" style="margin-top: 25px;">
         <div class="table-header">
@@ -1976,7 +2055,7 @@ require 'admin_header.php';
         </div>
         <div class="table-container">
             <?php if (!empty($customResources)): ?>
-                <table class="admin-table">
+                <div class="settings-table-scroll" tabindex="0" role="region" aria-label="Таблица настроек"><table class="admin-table">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -2036,7 +2115,7 @@ require 'admin_header.php';
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
-                </table>
+                </table></div>
             <?php else: ?>
                 <div class="empty-state">
                     <i class="fas fa-cogs"></i>
@@ -2046,7 +2125,44 @@ require 'admin_header.php';
             <?php endif; ?>
         </div>
     </div>
+    </section>
 </div>
+
+<script>
+(() => {
+    const list = document.querySelector('.settings-tabs');
+    const buttons = [...list.querySelectorAll('[role="tab"]')];
+    const storageKey = 'homevlad-admin-settings-tab';
+    function select(button, focus = false) {
+        for (const item of buttons) {
+            const active = item === button;
+            item.setAttribute('aria-selected', String(active));
+            item.tabIndex = active ? 0 : -1;
+            document.getElementById(item.getAttribute('aria-controls')).hidden = !active;
+        }
+        try { sessionStorage.setItem(storageKey, button.id); } catch {}
+        if (focus) button.focus();
+    }
+    let remembered;
+    try { remembered = sessionStorage.getItem(storageKey); } catch {}
+    select(buttons.find(button => button.id === remembered) || buttons[0]);
+    list.hidden = false;
+    buttons.forEach((button, index) => {
+        button.addEventListener('click', () => select(button, true));
+        button.addEventListener('keydown', event => {
+            const target = {
+                ArrowLeft: (index + buttons.length - 1) % buttons.length,
+                ArrowRight: (index + 1) % buttons.length,
+                Home: 0,
+                End: buttons.length - 1
+            }[event.key];
+            if (target === undefined) return;
+            event.preventDefault();
+            select(buttons[target], true);
+        });
+    });
+})();
+</script>
 
 <!-- Модальное окно редактирования тарифа -->
 <div id="editTariffModal" class="modal-overlay">
@@ -2127,19 +2243,19 @@ require 'admin_header.php';
                     <!-- КОНЕЦ ДОБАВЛЕННЫХ ПОЛЕЙ -->
 
                     <div class="form-group">
-                        <label class="form-label">Цена за 1 vCPU в час</label>
+                        <label class="form-label">vCPU · ₽/ед. в час</label>
                         <input type="number" name="price_per_hour_cpu" id="editTariffPricePerHourCpu"
                                min="0.0000" step="0.0001" class="form-input" value="0.0000" disabled>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Цена за 1 MB RAM в час</label>
+                        <label class="form-label">RAM · ₽/МиБ в час</label>
                         <input type="number" name="price_per_hour_ram" id="editTariffPricePerHourRam"
                                min="0.000000" step="0.000001" class="form-input" value="0.000000" disabled>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Цена за 1 ГБ Диска в час</label>
+                        <label class="form-label">Диск · ₽/ГиБ в час</label>
                         <input type="number" name="price_per_hour_disk" id="editTariffPricePerHourDisk"
                                min="0.000000" step="0.000001" class="form-input" value="0.000000" disabled>
                     </div>

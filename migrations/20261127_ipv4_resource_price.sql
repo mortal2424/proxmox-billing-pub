@@ -1,0 +1,2 @@
+ALTER TABLE resource_prices
+    ADD COLUMN IF NOT EXISTS price_per_hour_ipv4 DECIMAL(10,6) NOT NULL DEFAULT 0.000000;
