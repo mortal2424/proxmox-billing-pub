@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.6.5",
+  "from": "2.5.1-Pre-release1.6.4",
+  "source_commit": "b272f5e08c9e318527f3475b60ef06d8a514e70a",
+  "changelog": "- На формах входа и регистрации доступны кнопки Google и Telegram. Для существующих аккаунтов первая привязка Google требует текущий пароль и код двухфакторной аутентификации, если она включена.\n- Настройки CAPTCHA и Google открываются во всплывающих окнах из системных настроек.\n- Консоль VNC открывается в окне поверх дашборда или «Моих ВМ». Из окна консоль можно открыть отдельно.\n- В режиме «Строки» показаны тариф, стоимость, сервер и дата создания ВМ или LXC.\n",
+  "files": {
+    "admin/google_settings.php": {
+      "before": "89154dfa837683fea5459a8c2ce88b57d510efe4daecb6419307aa2de01349a3",
+      "sha256": "89154dfa837683fea5459a8c2ce88b57d510efe4daecb6419307aa2de01349a3"
+    },
+    "admin/settings.php": {
+      "before": "f51f7c41b5c49e6ffae4cb501c68876fe690aa01d1bfaf5e9c241b47aed8f6c8",
+      "sha256": "bdd8e2176f1cfab0fbf9577287f573cc5a59210c5fb7ff45a0d75afc584385f7"
+    },
+    "css/panel-dialog.css": {
+      "before": null,
+      "sha256": "c54bc134643d9220f304ed4c28dc183d302e61262cbac7542e6d7b3cb18b741c"
+    },
+    "includes/captcha_admin_view.php": {
+      "before": "be84c5767b9ae65d9818098b294c2cbc81e2ef02050b08ec487d569e0aafc606",
+      "sha256": "3928412183bb5b54e8423cd0feff7e8f4169625797614857d9b20fdf777803f9"
+    },
+    "includes/google_admin_view.php": {
+      "before": "cd8e9b0265909365ec2e90bcdd059189f6569e3fb3312089444f5317f1facbd4",
+      "sha256": "f35ea1433e242bcca5c57403fa409d82f32356ead0e7f637e042a875040e3ab8"
+    },
+    "includes/google_flow.php": {
+      "before": "05f7ea92c8009be7a86f3e863d2e4d11efe49db2b9358058ac4e58899f115b84",
+      "sha256": "05f7ea92c8009be7a86f3e863d2e4d11efe49db2b9358058ac4e58899f115b84"
+    },
+    "includes/social_login_icons.php": {
+      "before": "5218d0e3d85fc4a28cceb1cf30145b3952050d44870053f4dc2526295ef5dbeb",
+      "sha256": "f1fa8761aa34c35a1559fcd0012512e8b09fb5d16f69a8076a09c3b09f2d8057"
+    },
+    "includes/social_oidc.php": {
+      "before": "35750a5fa6414d3d8d2f01b1f26f7c7d7bfd93a97a6f1cea7d07e064fd71b659",
+      "sha256": "35750a5fa6414d3d8d2f01b1f26f7c7d7bfd93a97a6f1cea7d07e064fd71b659"
+    },
+    "includes/version.php": {
+      "before": "f11b4a78e4e6f52f9e063ef282ea8a9b3807a36c8f6e5cb59b6d750cad3a5c86",
+      "sha256": "bcdcee366311ced26508ee83a33f3141bcc0ba61c06b9380e6fa40128341272a"
+    },
+    "js/panel-dialog.js": {
+      "before": null,
+      "sha256": "dee9eb63f2ad80a4c5d6cb8c5cc5f1c4c78f8763555cc4af580c5785a3471338"
+    },
+    "login/google.php": {
+      "before": "d86560e1517d0ae94339f9e878ae151ec35af78c56c4eb4ca17f81cfd3691f67",
+      "sha256": "d86560e1517d0ae94339f9e878ae151ec35af78c56c4eb4ca17f81cfd3691f67"
+    },
+    "login/login.php": {
+      "before": "30da2997b5d94c5d24e6222e6bdd09a19fc546f0acb80198aab3158f2b9262fc",
+      "sha256": "e4eed36e6635b23f62987376ccca203f9a40d6340788f4bad4855b5cec08c09a"
+    },
+    "login/register.php": {
+      "before": "f4616be5a3b08a7641fc4fb98c4824830e6a75ab26bd576bbb5d94a2508f1588",
+      "sha256": "f775fe3dec50e4eb94821289cad7cf06c8fb93788afb1d1fb1e2eff7139ba1cf"
+    },
+    "migrations/20261127_web_google_identities.sql": {
+      "before": null,
+      "sha256": "a8a0d0677047a6e7b70e5e7fbc0424168521553530647ec005001e0872a31b8c"
+    },
+    "migrations/20261127_web_login_google.sql": {
+      "before": null,
+      "sha256": "4593ff15277ee489293fc0a66390d573179541d105d7de1e1677800c9add988d"
+    },
+    "templates/dashboard.php": {
+      "before": "93a3f7970e6a003046882fd68ae82dbee25a9f25ad07a035dac1e6edf137f662",
+      "sha256": "acf70d8c1ce03095e9e0ad5015800559cc7f71068947242a3f6301ae64d66330"
+    },
+    "templates/my_vms.php": {
+      "before": "36342a21142e7f5164c11a1abcbc0e8bd7124a4f3135553ce30ec3cedb00e133",
+      "sha256": "6f1d27812d14b4b89ca5f3fc4a31932663e7aa5c493aa108e10e708089ecaae7"
+    }
+  }
+}
