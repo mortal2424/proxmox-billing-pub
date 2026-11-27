@@ -1291,7 +1291,7 @@ require 'admin_header.php';
             <a href="/admin/console_settings.php" class="btn btn-primary">
                 <i class="fas fa-terminal" aria-hidden="true"></i> Настройки VNC
             </a>
-            <a class="btn btn-primary" href="/admin/captcha_settings.php"><i class="fas fa-shield-alt" aria-hidden="true"></i> Настройки CAPTCHA</a>
+            <a class="btn btn-primary" href="/admin/captcha_settings.php" data-panel-dialog="Настройки CAPTCHA"><i class="fas fa-shield-alt" aria-hidden="true"></i> Настройки CAPTCHA</a> <a class="btn btn-primary" href="/admin/google_settings.php" data-panel-dialog="Вход через Google">Вход через Google</a>
             <a href="/admin/" class="btn btn-primary">
                 <i class="fas fa-arrow-left"></i> Назад в дашборд
             </a>

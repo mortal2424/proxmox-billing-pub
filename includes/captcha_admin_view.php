@@ -1,7 +1,8 @@
 <?php
 if (!isset($db, $hostname, $backUrl)) { http_response_code(404); exit; }
 header('Cache-Control: no-store');
-header('X-Frame-Options: DENY');
+header('X-Frame-Options: SAMEORIGIN');
+header("Content-Security-Policy: frame-ancestors 'self'");
 $e = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 $csrf = $_SESSION['captcha_settings_csrf'] ??= bin2hex(random_bytes(32));
 $settings = loginCaptchaSettings($db);
@@ -43,7 +44,7 @@ button{margin-top:.65rem;padding:.45rem .85rem;border:0;border-radius:6px;backgr
 footer{width:100%;box-sizing:border-box;margin-top:auto;padding:.75rem clamp(1rem,4vw,2rem);border-top:1px solid #cbd5e1;background:#fff;color:#4b6077}
 @media(max-width:520px){.captcha-fields{grid-template-columns:minmax(0,1fr)}}
 </style>
-<main><a href="<?= $e($backUrl) ?>">Настройки панели</a><h1>Защита входа</h1>
+<main><a target="_top" href="<?= $e($backUrl) ?>">Настройки панели</a><h1>Защита входа</h1>
 <p>Cloudflare Turnstile для <?= $e($hostname) ?>. Вход с Google Authenticator проходит без капчи.</p>
 <?php if ($message): ?><p role="status"><?= $e($message) ?></p><?php endif ?>
 <form method="post">

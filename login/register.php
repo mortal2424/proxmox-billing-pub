@@ -1413,27 +1413,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step']) && $_POST['st
 
                 <!-- Шаг 1: Основные данные / Telegram -->
                 <?php if ($current_step == 1): ?>
-                    <!-- Telegram авторизация (показываем только если есть username бота) -->
-                    <?php if ($telegram_bot_username): ?>
-                    <div class="telegram-login-container">
-                        <div class="telegram-widget">
-                            <script async src="https://telegram.org/js/telegram-widget.js?19"
+                    <?php
+                    require_once __DIR__ . '/../includes/social_oidc.php';
+                    $telegramLoginAvailable = (bool)$telegram_bot_username;
+                    $googleLoginAvailable = googleLoginEnabled((new Database())->getConnection());
+                    require __DIR__ . '/../includes/social_login_icons.php';
+                    ?>
+                    <?php if ($telegramLoginAvailable): ?>
+                    <div id="panelTelegramWidget" class="telegram-widget" hidden>
+                        <script async src="https://telegram.org/js/telegram-widget.js?19"
                                     data-telegram-login="<?php echo htmlspecialchars($telegram_bot_username); ?>"
                                     data-size="large"
                                     data-userpic="false"
                                     data-radius="12"
                                     data-onauth="onTelegramAuth(user)"
                                     data-request-access="write"></script>
-                        </div>
-                        <div class="telegram-divider">
-                            <span>или</span>
-                        </div>
                     </div>
-                    <?php else: ?>
-                        <div class="notification warning">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Telegram авторизация временно недоступна
-                        </div>
                     <?php endif; ?>
 
                     <!-- Обычная регистрация -->

@@ -1302,6 +1302,7 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
         .guest-addresses li { font-family: monospace; padding: 2px 0; }
         .guest-cost li { font-family: inherit; }
     </style>
+<script src="/js/panel-dialog.js?v=165" defer></script>
 </head>
 <body<?= $workspaceLite ? ' class="workspace"' : '' ?>>
     <?php if ($workspaceLite): ?>
@@ -1942,10 +1943,12 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
                                     <div class="vm-row-meta">
                                         <span class="vm-id">VMID: ${vm.vm_id}</span>
-                                        <small>${escapeHtml(vm.node_name || '')}</small>
+                                        <small>Сервер: ${escapeHtml(vm.node_name || '—')}</small>
+                                        <small>Дата создания: ${formatDate(vm.created_at)}</small>
                                     </div>
                                     <div class="vm-row-resources">${vm.cpu} vCPU · ${vm.ram / 1024} ГиБ RAM · ${vm.disk} ГиБ SSD</div>
                                     <small class="vm-row-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
+                                    <div class="vm-row-meta"><small>Тариф: ${guestTariff(vm)}</small> ${guestPrice(vm)}</div>
                                 </div>
                                 <div class="vm-row-network">
                                     <small>IP-адреса</small>
@@ -2164,10 +2167,12 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                                     <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
                                     <div class="vm-row-meta">
                                         <span class="vm-id">CTID: ${ct.vm_id}</span>
-                                        <small>${escapeHtml(ct.node_name || '')}</small>
+                                        <small>Сервер: ${escapeHtml(ct.node_name || '—')}</small>
+                                        <small>Дата создания: ${formatDate(ct.created_at)}</small>
                                     </div>
                                     <div class="vm-row-resources">${ct.cpu} vCPU · ${ct.ram / 1024} ГиБ RAM · ${ct.disk} ГиБ SSD</div>
                                     <small class="vm-row-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
+                                    <div class="vm-row-meta"><small>Тариф: ${guestTariff(ct)}</small> ${guestPrice(ct)}</div>
                                 </div>
                                 <div class="vm-row-network">
                                     <small>IP-адреса</small>
@@ -2423,7 +2428,12 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
         // Функция для открытия VNC консоли из оригинального файла
         function openVncConsole(nodeId, vmId) {
             const query = new URLSearchParams({node_id: nodeId, vm_id: vmId, redirect: '1'});
-            window.open('/templates/vnc_console.php?' + query, '_blank', 'noopener');
+            const url = '/templates/vnc_console.php?' + query;
+            if (window.openPanelDialog && HTMLDialogElement.prototype.showModal) {
+                window.openPanelDialog(url, 'Консоль VNC', true);
+            } else {
+                window.open(url, '_blank', 'noopener');
+            }
         }
 
         // Функция для открытия модального окна с метриками

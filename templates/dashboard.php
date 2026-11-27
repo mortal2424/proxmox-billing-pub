@@ -1050,6 +1050,7 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
             .dashboard-guest-addresses ul { position: static; max-width: 100%; }
         }
     </style>
+<script src="/js/panel-dialog.js?v=165" defer></script>
 </head>
 <body>
     <?php
@@ -1367,7 +1368,7 @@ $orderBlock = homevladLicenseBlockReason($db->getConnection(), ['vms_created'=>1
                                         </button>
                                     <?php endif; ?>
                                     <?php if ((int)$vm['node_id'] > 0 && (int)$vm['vm_id'] > 0 && !in_array($vm['status'], ['deleted', 'creating'], true)): ?>
-                                        <a class="vm-action-btn" target="_blank" rel="noopener"
+                                        <a class="vm-action-btn" target="_blank" rel="noopener" data-panel-dialog="Консоль VNC" data-panel-dialog-wide
                                            href="/templates/vnc_console.php?<?= htmlspecialchars(http_build_query([
                                                'node_id' => (int)$vm['node_id'],
                                                'vm_id' => (int)$vm['vm_id'],
