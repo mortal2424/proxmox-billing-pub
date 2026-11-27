@@ -87,6 +87,7 @@ function submitGuestOrder(int $user_id, array $input): array
                 set_time_limit(660);
             }
             $osType = $fromCloud ? ($cloud['os_type'] ?? 'linux') : ($input['os_type'] ?? 'linux');
+            $firmware = cloudGuestFirmware($input['cloud_firmware'] ?? 'ovmf', $fromCloud && $osType === 'linux');
             $osVersion = $fromCloud ? mb_substr($cloud['label'], 0, 20) : ($vmType === 'qemu' ? ($input['os_version'] ?? '') : 'linux');
 
             $custom_cpu = (int)($input['custom_cpu'] ?? 0);
@@ -226,7 +227,7 @@ function submitGuestOrder(int $user_id, array $input): array
             $media = $vmType === 'qemu' ? ($fromCloud ? '' : (string)($input['iso'] ?? '')) : (string)$template;
             [$creationResult, $node] = withGuestOperationLocks(['placement-zone:' . $zoneId], function () use (
                 $pdo, $zoneId, $vmType, $networkPool, $storagePool, $media, $total_cpu, $total_ram, $total_disk,
-                $osType, $hostname, $password, $generatedPassword, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey
+                $osType, $hostname, $password, $generatedPassword, $template, $osVersion, $user_id, $tariffId, $is_custom, $cloudKey, $firmware
             ) {
                 if (!zoneAllowsUser($pdo, $zoneId, $user_id)) {
                     throw new Exception('Зона доступности недоступна');
@@ -262,6 +263,7 @@ function submitGuestOrder(int $user_id, array $input): array
                 ];
 
                 if ($vmType === 'qemu') {
+                    $vmParams['cloud_firmware'] = $firmware;
                     $vmParams['cloud_image'] = $placement['cloud_image'];
                     $vmParams['iso'] = $media;
                     $vmParams['cdroms'] = $media !== '' ? [$media] : [];

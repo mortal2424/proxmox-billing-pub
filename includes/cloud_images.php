@@ -59,6 +59,15 @@ function cloudImportVolumeIdValid(mixed $volume): bool
         preg_match('~^[A-Za-z0-9_.-]{1,64}:import/[A-Za-z0-9][A-Za-z0-9._ -]{0,174}\.(?:qcow2|raw)$~iD', $volume) === 1;
 }
 
+function cloudGuestFirmware(mixed $firmware, bool $linuxCloud): string
+{
+    if (!$linuxCloud) return 'ovmf';
+    if (!in_array($firmware, ['ovmf', 'seabios'], true)) {
+        throw new InvalidArgumentException('Выберите UEFI или Legacy BIOS для cloud-образа');
+    }
+    return $firmware;
+}
+
 function validateCloudImageForGuest(array $image, bool $windows, bool $hasIso, int $diskSize): void
 {
     $user = $image['user'] ?? null;

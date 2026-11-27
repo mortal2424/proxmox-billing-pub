@@ -211,6 +211,7 @@ class ProxmoxAPI {
     $isWindows = ($params['os_type'] ?? 'linux') === 'windows';
     $image = $params['cloud_image'] ?? null;
     $hasIso = !empty($params['iso']) || $cdromsInput !== [];
+    $firmware = cloudGuestFirmware($params['cloud_firmware'] ?? 'ovmf', !empty($image) && !$isWindows);
     if (!empty($image)) {
         validateCloudImageForGuest($image, $isWindows, $hasIso, (int)$diskSize);
     }
@@ -238,11 +239,12 @@ class ProxmoxAPI {
 
         // 4. Создаем базовую VM
         $createCmd = sprintf(
-            "qm create %d --name %s --cores %d --memory %d --machine q35 --bios ovmf --agent 1 --onboot 1 --scsihw %s --description %s",
+            "qm create %d --name %s --cores %d --memory %d --machine q35 --bios %s --agent 1 --onboot 1 --scsihw %s --description %s",
             $vmid,
             escapeshellarg($params['hostname'] ?? 'vm-' . $vmid),
             $cpu,
             $ram,
+            $firmware,
             escapeshellarg($scsihw),
             escapeshellarg($marker)
         );
@@ -258,7 +260,6 @@ class ProxmoxAPI {
             $guestPath = $this->guestApi()->base($vmid, 'qemu');
             $cloudConfig = [
                 'scsi0' => "$storage:0,import-from=" . $image['volid'],
-                'efidisk0' => "$storage:0,efitype=4m,pre-enrolled-keys=0",
                 // VirtIO SCSI exposes the seed to cloud kernels that lack an AHCI driver.
                 'scsi1' => "$storage:cloudinit,media=cdrom",
                 'boot' => 'order=scsi0',
@@ -269,6 +270,9 @@ class ProxmoxAPI {
                 'cipassword' => $params['password'],
                 'serial0' => 'socket',
             ];
+            if ($firmware === 'ovmf') {
+                $cloudConfig['efidisk0'] = "$storage:0,efitype=4m,pre-enrolled-keys=0";
+            }
             if (!$isWindows && !empty($image['agent_snippet'])) {
                 $snippet = $image['agent_snippet'];
                 if (!preg_match('#^[A-Za-z0-9_.-]{1,64}:snippets/homevlad-qemu-agent\.yaml$#D', $snippet)) {

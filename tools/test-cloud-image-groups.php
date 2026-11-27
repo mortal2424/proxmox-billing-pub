@@ -62,3 +62,13 @@ echo "PASS SelectOS provisioning validation and invalid parameters\n";
 unset($inventory[$external]);
 if (cloudImportVolumes($api,'node3',$store,$db,11,$inventory)!==[]) exit(1);
 echo "PASS exact registered import volume and missing-source suppression\n";
+
+if (cloudGuestFirmware('seabios', true) !== 'seabios' ||
+    cloudGuestFirmware('ovmf', true) !== 'ovmf' ||
+    cloudGuestFirmware('seabios', false) !== 'ovmf') exit(1);
+try {
+    cloudGuestFirmware('invalid', true);
+    exit(1);
+} catch (InvalidArgumentException) {
+    echo "PASS firmware selection for Linux cloud images\n";
+}

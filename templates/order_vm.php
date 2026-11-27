@@ -1503,6 +1503,14 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                         </select>
                         <small class="text-muted" id="cloud-image-description" aria-live="polite">Панель настроит учётную запись и сеть через cloud-init. Сеть должна выдавать адрес по DHCP.</small>
                     </div>
+                    <div class="form-group" id="cloud-firmware-container" hidden>
+                        <label class="form-label" for="cloud-firmware">Режим загрузки образа</label>
+                        <select class="form-control" name="cloud_firmware" id="cloud-firmware" disabled>
+                            <option value="ovmf">UEFI (OVMF)</option>
+                            <option value="seabios" <?= ($_POST['cloud_firmware'] ?? '') === 'seabios' ? 'selected' : '' ?>>Legacy BIOS (SeaBIOS)</option>
+                        </select>
+                        <small class="text-muted">Для образа с загрузчиком Legacy BIOS выберите SeaBIOS.</small>
+                    </div>
                     <?php endif; ?>
                     <div class="form-group" id="iso-container" style="<?= $vmType === 'lxc' ? 'display: none;' : '' ?>">
                         <label class="form-label">ISO образ:</label>
@@ -2043,6 +2051,9 @@ $title = "Заказ виртуальной машины | HomeVlad Cloud";
                 document.getElementById('cloud-image-container').hidden = !cloud;
                 cloudImageSelect.disabled = !cloud;
                 cloudImageSelect.required = cloud;
+                const linuxCloud = cloud && cloudImageSelect.selectedOptions[0]?.dataset.os === 'linux';
+                document.getElementById('cloud-firmware-container').hidden = !linuxCloud;
+                document.getElementById('cloud-firmware').disabled = !linuxCloud;
                 for (const id of ['iso', 'os-type', 'os-version']) {
                     const container = document.getElementById(id + '-container');
                     const field = document.getElementById(id + '-select');
