@@ -2,6 +2,13 @@
   "format": 1,
   "releases": [
     {
+      "version": "2.5.1-rc1.6.5",
+      "display_version": "2.5.1-Pre-release1.6.5",
+      "commit": "40b8576ac747d834ad489201e293bbd9c6b17897",
+      "sha256": "72a6eb51c7ee1440f5b124c80cfae638b86c7ca8cee3e61def09e748e4963aab",
+      "summary": "Кнопки Google и Telegram на формах, окна настроек и VNC."
+    },
+    {
       "version": "2.5.1-rc1.6.4",
       "display_version": "2.5.1-Pre-release1.6.4",
       "commit": "4e458ad32fe85c66137ce51ac5e297ff73c64386",
