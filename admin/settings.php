@@ -391,6 +391,9 @@ $customResources = safeQuery($pdo, "
 $title = "Настройки сайта | HomeVlad Cloud";
 require 'admin_header.php';
 ?>
+<script src="/js/panel-dialog.js?v=165" defer></script>
+<?php
+?>
 
 <!-- Подключаем сайдбар -->
 <?php require 'admin_sidebar.php'; ?>
