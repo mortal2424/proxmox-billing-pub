@@ -1,0 +1,125 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.6.3",
+  "source_commit": "cb7c3d5512836c99b8f8d858ab8ebcc6cef9c3eb",
+  "changelog": "UEFI и Legacy BIOS для Linux Cloud-образов. Включает изменения 1.6.2. Для сохранения названия образа примените миграцию 20261127_guest_install_image.sql.",
+  "files": {
+    "admin/cloud_image_action.php": {
+      "before": "b69cb192f1e75e82b031eff10efefd4d188cd6a6c743f79a44a384e8124df1b1",
+      "sha256": "4efc43b77d84944ebdf34dedec3efa0d4432f833abd817d4bfb22ad13afc5a90"
+    },
+    "admin/get_node_vms.php": {
+      "before": "f7c44a9a3ad2f12fdebf9952ab7b1ea0bf8587bf980a1dae3c41dd63ea42d821",
+      "sha256": "46befaef58e32f7c30a545a66e711547814b0fd925ec8204bd5f07854720432d"
+    },
+    "admin/image.php": {
+      "before": "3dffcb4690dc757fcb157b68a9c0324ec8ddb3eb52aafffd46855bb75039079f",
+      "sha256": "a02c731310a9f7dea91022ec378a80e64c677ef1e444a8e60395e86dac970e80"
+    },
+    "admin/proxmox.php": {
+      "before": "8cc2000f9042575493fbb7b4390117116e10f25c431f48f941284c98f74cbaab",
+      "sha256": "9c59b3f93946426c4361ef7b28b197ae60cf5f070974a411dc9c8b456bc36b91"
+    },
+    "api/get_user_containers.php": {
+      "before": "ef108c37ca6c820c10a32f4f284e9247cad5d848583213b526f3a6e3df9b37e4",
+      "sha256": "acc4650d72900106c53cd39cc3b49a44cc7d70e0ce2fbbc9f8c821dd2ca26acc"
+    },
+    "api/get_user_vms.php": {
+      "before": "efb018601892381b88e7e19d30c2a8725f8c6b6a7aa28e403362570a954d4c4f",
+      "sha256": "b46d69190c8d010a74d8fc9524fc9ff3ceae2b41d5468ac20a151119c804ece5"
+    },
+    "api/mobile_auth.php": {
+      "before": "215f2890f6611ea0aaa0448c801c3a2dbc721655bdfab441afcebe90c29ff909",
+      "sha256": "b609e1ddf2f24a2d4edd23ae61ff48126dbbfee2d10abed3b3fc898ffc13f4d8"
+    },
+    "api/mobile_turnstile.php": {
+      "before": null,
+      "sha256": "604e3d5d34ee36fdb086a7fa8f6c89cc22cba1b4d10a65437b858e60a4be2dfa"
+    },
+    "cronjobs/create_cloud_image_settings.php": {
+      "before": "f0776a5c13584c3054a16dae075cb9c8e2a88b798d205b714defbb0764e38f45",
+      "sha256": "261df0c92b6297d12deb4434f79a1d20b975f48f078cd41e0dad5401e79386f6"
+    },
+    "cronjobs/process_cloud_image_imports.php": {
+      "before": "bc97d1f1119d8b17e45e50bed0479176e1504097b58766b4c541c267cdd1f8dd",
+      "sha256": "c476da38aa4f9a25a2f9dadb68d0d92a16ba486051ffe1c2235862d217826f44"
+    },
+    "includes/auth.php": {
+      "before": "cc541cbdaaccb0cc169269b12b686cee3c32914349b1b9d24d77c0cfb36fa27c",
+      "sha256": "6ea511909be200e444aed12018a16ce725ea5cf3c6c0b115b285dd913c50605a"
+    },
+    "includes/cloud_image_import.php": {
+      "before": "9afda6d0063b9ef66033ab9fa1a3755a3259ccc735eddb413ebd2d473a93537e",
+      "sha256": "9aed034a2e83886a5ec90a7cae28e865c403d10edceca85da728b580936a4219"
+    },
+    "includes/cloud_images.php": {
+      "before": "f5fd7c734a47453efb2f9957ad729b0f646188574c4a6544eb66f4ff9dab2356",
+      "sha256": "f6baf4690d33066ab72ef8cb97b5a01e691867676c49830b9f4c9a96e1156fc2"
+    },
+    "includes/guest_card_pricing.php": {
+      "before": "85a76c73fb2f7cef63722938378169ea69173644f7124e228c84481ac705cc68",
+      "sha256": "b7266b9b51f053cb656650ea047ae0bcb4e3717c1c3c73324487d926366c03b0"
+    },
+    "includes/guest_install_image.php": {
+      "before": null,
+      "sha256": "df3d7b82bd1e99dc99de90b1704388cf4c67aad48688cd2180fbe723412d4534"
+    },
+    "includes/guest_order.php": {
+      "before": "dcfd4bfe63fd4a2485bee5dcbba4839c95ea6a0a02759176d4f8b8bbdd227d4c",
+      "sha256": "0b6edbff39bf8e918e4b9dd3864ee132c2452ba1249f27aa7b40556b460489e2"
+    },
+    "includes/proxmox_functions.php": {
+      "before": "b98badfe797d6cb977c585118c859534ebd9422646001d568677d87b03bb47bb",
+      "sha256": "3bed2c17aded5835618e77d17800a97f8cc41a39bbe3581bea256fa8b7e8df14"
+    },
+    "includes/version.php": {
+      "before": "dd92ab469e9f2583619f7d299f8b58ee6dbccd44c719653312413544a0ee0da8",
+      "sha256": "00fb34e5707db67603ce767dac3a9f5509b5cc3aed089fa0640d27a5d1c0780b"
+    },
+    "includes/zone_placement.php": {
+      "before": "d4e2690ae3b7febb6833fe604ebb154e0fa3c715e75092b1d1086525fb95b00d",
+      "sha256": "abab46d8a02c1299d632e18ebd9e62fc47a2ae314bb8f2ca667ad2a96a9b96ea"
+    },
+    "migrations/20261126_existing_cloud_image_volumes.sql": {
+      "before": null,
+      "sha256": "205e271ec56d2f2de639fba56d08f933b12c865694c23e936e45db5ba3e78850"
+    },
+    "migrations/20261126_mounted_cloud_images.sql": {
+      "before": null,
+      "sha256": "250df3585ac9cd94ea5d6bc1ecfb8b221af5187c4386a6b05c3e71df363da34e"
+    },
+    "migrations/20261126_update_version_columns.sql": {
+      "before": null,
+      "sha256": "b7e2c8acfbc4ee94a381201379d60c08df29aa45c964689ae29aed46173c5d5d"
+    },
+    "migrations/20261127_guest_install_image.sql": {
+      "before": null,
+      "sha256": "c68df3fff6fbb98fce5fe9018382cb3942146373b09caf56e05b84c40ab1bb87"
+    },
+    "templates/ajax/get_vm_details.php": {
+      "before": "5c9edea3a818d349ee696bc08679871245b8153ccd1fb18a772a29874781cbf0",
+      "sha256": "5ea79ce30169324f75925a71e3db20084779ee2166009eedcfabbfded2ed5b2e"
+    },
+    "templates/dashboard.php": {
+      "before": "0ee79bed9873d2b90fe6b41bab976032c36afc8fc31483c4e55e0e99d4a41a67",
+      "sha256": "93a3f7970e6a003046882fd68ae82dbee25a9f25ad07a035dac1e6edf137f662"
+    },
+    "templates/get_zone_placement.php": {
+      "before": "06c714f1bc0ba5f5bfe3c1dbfac738c2e3b7b3a460adef1bb8d431cf825eddfa",
+      "sha256": "4e358b887a26e95f3620d0065e7f4eeb014a9765a3c4aadf84431d46392ad699"
+    },
+    "templates/my_vms.php": {
+      "before": "2bf2206feadf52064510b15423488b926402f40fc3318a772c2422f4c6f31ea5",
+      "sha256": "33e0c566cc94f8f374d5c742ead744497a15930a3f1fd8ac1ae3cb16904a3611"
+    },
+    "templates/order_vm.php": {
+      "before": "103700aeb93e75e624bc5940417d5480645001f1576323d1dbc30fab56c98388",
+      "sha256": "aa56f959aae3486368fa08d186c7f4d914d208baf461ecec60b2c9fd9e6a7fba"
+    },
+    "templates/vm_settings.php": {
+      "before": "a1150c150336398dcf19484deab7080792f28227fb2e97495641e71a60fe8da6",
+      "sha256": "5d820b7371dffc490beebfb015cc4e61993e0b96ebf1ce16c6f1010a6f0b7030"
+    }
+  },
+  "from": "2.5.1-Pre-release1.6.1"
+}
