@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "2.5.1-rc1.6.4",
+  "from": "2.5.1-Pre-release1.6.3",
+  "source_commit": "601507e230509cbb613ec45d04fc10148a8ff576",
+  "changelog": "- В «Моих ВМ» обновлён вид «Строки» для QEMU и LXC. Слева имя, ресурсы и образ, в средней колонке IP, справа статус, питание, консоль и меню дополнительных действий.\n- Мониторинг и публичная страница статуса получили светлую тему, сводку, раскрываемые группы, поиск и список отклонений по фактическим проверкам.\n",
+  "files": {
+    "css/service-overview.css": {
+      "before": null,
+      "sha256": "35e72b0a6719c60591c9dd1379f10fb7551287d5f21bc51040f48e79978d7210"
+    },
+    "includes/infrastructure_status.php": {
+      "before": "2b8ff121f979d33557c8967387f60a5a9292bc4605aafb972d9ab331fa4d8253",
+      "sha256": "53c774834c62950bc64d6ff668e33f892ed6cf002c6f5f9d1b2437bf2e3f3f7b"
+    },
+    "includes/version.php": {
+      "before": "00fb34e5707db67603ce767dac3a9f5509b5cc3aed089fa0640d27a5d1c0780b",
+      "sha256": "f11b4a78e4e6f52f9e063ef282ea8a9b3807a36c8f6e5cb59b6d750cad3a5c86"
+    },
+    "js/service-overview.js": {
+      "before": null,
+      "sha256": "7cdc189cf30ccc5a060004a624d2d7d8d967da70f9ea8cea0223fada068bee93"
+    },
+    "status/index.php": {
+      "before": "0561e56fb272d2c31ae29091e944afd3e7cf3eb025082f787a740ad1e12bb737",
+      "sha256": "0660f93243907a762ca5eaf179082382ae50cd971d0a39bb9c264ea6a642dc0b"
+    },
+    "templates/monitoring.php": {
+      "before": "5a29dc4e0db5ad93df11bfd45937d383b67a9dfb3404a1f1cd04b878ac60fb94",
+      "sha256": "5a0c6266c668bcfb4509f5606b318799daa2c5449dec3aed0110d24a57ec9f89"
+    },
+    "templates/my_vms.php": {
+      "before": "28de9243196a5b19dfba6745b31f49b13905a637d25a9f39b0504d4a462a1438",
+      "sha256": "6e56a3a1fb76596ba4602571359942e030336993ea8d03baa85cc16c819b5fd7"
+    }
+  }
+}
