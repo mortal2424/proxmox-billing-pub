@@ -2,6 +2,13 @@
   "format": 1,
   "releases": [
     {
+      "version": "2.5.1-rc1.6.4",
+      "display_version": "2.5.1-Pre-release1.6.4",
+      "commit": "4e458ad32fe85c66137ce51ac5e297ff73c64386",
+      "sha256": "b5f312dc3311e332295b2c3a03d422295fdf585c068ad3fe22124399ba9a0c9f",
+      "summary": "Новый строчный вид «Моих ВМ» и светлый мониторинг."
+    },
+    {
       "version": "2.5.1-rc1.6.3",
       "display_version": "2.5.1-Pre-release1.6.3",
       "commit": "155489d2e3a74de1f56a964e7c35fb2be3c83e13",
