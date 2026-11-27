@@ -27,6 +27,41 @@ foreach ($infrastructureNodes as &$infrastructureRow) {
 }
 unset($infrastructureRow, $zone);
 ?>
+<?php if (!empty($infrastructureOverview)): ?>
+<?php
+$nodeCount = count($infrastructureNodes);
+$onlineCount = array_sum(array_column($infrastructureZones, 'online'));
+$hasIssues = $nodeCount === 0 || $onlineCount !== $nodeCount;
+?>
+<div class="hv-state-banner <?= $hasIssues ? 'hv-warn' : 'hv-ok' ?>">
+    <strong class="hv-state"><?= $nodeCount === 0 ? 'Пока нет данных мониторинга' : ($hasIssues ? 'Есть узлы без подтверждённой доступности' : 'Все видимые узлы отвечают') ?></strong>
+    <?php if ($nodeCount): ?><div>API отвечает у <?= $onlineCount ?> из <?= $nodeCount ?> узлов.</div><?php endif ?>
+</div>
+<h2>Зоны доступности</h2>
+<label class="hv-status-search">Поиск
+    <input type="search" data-status-search placeholder="Название сервиса или узла">
+</label>
+<p data-status-empty hidden>Совпадений нет.</p>
+
+<?php foreach ($infrastructureZones as $zoneId => $zone): ?>
+<details class="hv-status-group" data-status-group <?= $zone['online'] !== $zone['total'] ? 'open' : '' ?>>
+    <summary><span><?= htmlspecialchars($zone['name'], ENT_QUOTES) ?></span>
+        <span class="hv-state <?= $zone['online'] === $zone['total'] ? 'hv-ok' : 'hv-warn' ?>"><?= $zone['online'] ?> / <?= $zone['total'] ?> отвечают</span></summary>
+    <?php foreach ($infrastructureNodes as $node): ?>
+        <?php if ((int)$node['zone_id'] !== (int)$zoneId) continue; ?>
+        <div class="hv-status-row" data-status-row>
+            <div><strong><?= htmlspecialchars($node['node_name'], ENT_QUOTES) ?></strong>
+            <small><?= htmlspecialchars($node['created_at'] ?? 'Замеров нет', ENT_QUOTES) ?></small></div>
+            <span class="hv-state <?= $node['health'] === 'online' ? 'hv-ok' : 'hv-warn' ?>"><?= match ($node['health']) {
+                'online' => 'Доступен', 'offline' => 'Нет ответа', default => 'Нет свежей проверки',
+            } ?></span>
+        </div>
+    <?php endforeach ?>
+</details>
+<?php endforeach ?>
+<details class="hv-status-group">
+    <summary><span>Метрики и проверка сети</span></summary>
+<?php endif ?>
 <section class="infrastructure-status">
 <h2>Состояние инфраструктуры</h2>
 <p>Доступность API, загрузка CPU и памяти, входящий и исходящий трафик. Сбор выполняется каждые 5 минут.</p>
@@ -82,3 +117,5 @@ unset($infrastructureRow, $zone);
 .infrastructure-status progress { display: block; width: 70px; accent-color: #287963; }
 .infrastructure-status p { line-height: 1.5; }
 </style>
+
+<?php if (!empty($infrastructureOverview)): ?></details><?php endif ?>

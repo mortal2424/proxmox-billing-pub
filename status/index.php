@@ -39,7 +39,7 @@ $services = [
     ['База данных', $databaseAvailable ? 'Доступна' : 'Недоступна', $databaseAvailable, 'Ответ на проверочный запрос.'],
     ['Прокси консоли', $consoleAvailable ? 'Принимает соединения' : 'Нет ответа', $consoleAvailable, 'Проверка локального сокета прокси.'],
     ['Мониторинг узлов', $freshNodes > 0 ? 'Есть свежие замеры' : 'Нет свежих замеров', $freshNodes > 0,
-        $monitoringAvailable ? "Узлов со свежими замерами: {$freshNodes} из " . count($nodes) . '.' : 'Данные мониторинга недоступны.'],
+        $monitoringAvailable && $nodes ? "Узлов со свежими замерами: {$freshNodes} из " . count($nodes) . '.' : 'Нет данных о публичных узлах.'],
 ];
 $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?>
@@ -51,50 +51,62 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
     <?php require __DIR__ . '/../includes/app_head.php'; ?>
     <title>Статус системы — HomeVlad Cloud</title>
     <link rel="stylesheet" href="/css/landing.css">
+    <link rel="stylesheet" href="/css/service-overview.css?v=<?= (int)filemtime(__DIR__ . '/../css/service-overview.css') ?>">
 </head>
-<body>
+<body class="hv-public-status">
 <header class="site-header">
     <div class="wrap header-row">
         <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">HV</span> HomeVlad Cloud</a>
         <a class="button button-outline" href="/templates/dashboard.php">Личный кабинет</a>
     </div>
 </header>
-<main class="wrap">
-    <section class="section" aria-labelledby="status-title">
-        <p class="eyebrow">HomeVlad Cloud</p>
-        <h1 id="status-title">Статус системы</h1>
-        <p class="section-intro">Проверка выполнена в <?= gmdate('H:i') ?> UTC.</p>
-        <a class="button button-outline" href="/status/">Обновить</a>
-        <div class="cards">
-            <?php foreach ($services as [$label, $state, $ok, $description]): ?>
-                <article class="panel">
-                    <h3><?= $escape($label) ?></h3>
-                    <p><?= $ok ? '🟢' : '🟡' ?> <?= $escape($state) ?></p>
-                    <p><?= $escape($description) ?></p>
-                </article>
-            <?php endforeach; ?>
-        </div>
-    </section>
-    <section class="section" aria-labelledby="nodes-title">
-        <h2 id="nodes-title">Гипервизоры</h2>
-        <p class="section-intro">Замер считается свежим в течение 15 минут. Отсутствие свежего замера означает, что текущее состояние неизвестно.</p>
-        <?php if (!$nodes): ?>
-            <p class="panel">Нет данных о доступных пользователям гипервизорах.</p>
-        <?php else: ?>
-            <div class="cards">
-                <?php foreach ($nodes as $node): ?>
-                    <article class="panel">
-                        <h3>Узел <?= (int) $node['id'] ?></h3>
-                        <p><?= recentMeasurement($node) ? '🟢 Свежий замер' : '🟡 Состояние неизвестно' ?></p>
-                        <p><?= $node['created_at'] ? 'Последний замер ' . max(0, (int) floor($node['age_seconds'] / 60)) . ' мин. назад' : 'Замеров пока нет' ?></p>
-                    </article>
-                <?php endforeach; ?>
+<main class="hv-status-main hv-overview">
+    <?php $allChecksOk = $databaseAvailable && $consoleAvailable && count($nodes) > 0 && $freshNodes === count($nodes); ?>
+    <div class="hv-status-head"><h1>Статус системы</h1><a href="/status/">Обновить</a></div>
+    <div class="hv-state-banner <?= $allChecksOk ? 'hv-ok' : 'hv-warn' ?>">
+        <strong class="hv-state"><?= $allChecksOk ? 'Все проверки пройдены' : 'Часть проверок требует внимания' ?></strong>
+        <div>Обновлено в <?= $escape((new DateTimeImmutable('now', new DateTimeZone('Asia/Vladivostok')))->format('H:i')) ?> по Владивостоку.</div>
+    </div>
+    <h2>Сервисы платформы</h2>
+    <label class="hv-status-search">Поиск
+    <input type="search" data-status-search placeholder="Название сервиса или узла">
+</label>
+<p data-status-empty hidden>Совпадений нет.</p>
+
+    <details class="hv-status-group" data-status-group open>
+        <summary><span>Проверки доступности</span><span class="hv-state <?= $allChecksOk ? 'hv-ok' : 'hv-warn' ?>"><?= $allChecksOk ? 'В норме' : 'Есть отклонения' ?></span></summary>
+        <?php foreach ($services as [$label, $state, $ok, $description]): ?>
+            <div class="hv-status-row" data-status-row>
+                <div><strong><?= $escape($label) ?></strong><small><?= $escape($description) ?></small></div>
+                <span class="hv-state <?= $ok ? 'hv-ok' : 'hv-warn' ?>"><?= $escape($state) ?></span>
             </div>
-        <?php endif; ?>
+        <?php endforeach ?>
+    </details>
+    <details class="hv-status-group" data-status-group>
+        <summary><span>Гипервизоры</span><span class="hv-state <?= $nodes && $freshNodes === count($nodes) ? 'hv-ok' : 'hv-warn' ?>"><?= $nodes ? "$freshNodes / " . count($nodes) . " со свежими замерами" : "Нет данных" ?></span></summary>
+        <?php foreach ($nodes as $node): ?>
+            <?php $fresh = recentMeasurement($node); ?>
+            <div class="hv-status-row" data-status-row>
+                <strong>Узел <?= (int) $node['id'] ?></strong>
+                <span class="hv-state <?= $fresh ? 'hv-ok' : 'hv-warn' ?>"><?= $fresh ? 'Свежий замер' : 'Состояние неизвестно' ?></span>
+            </div>
+        <?php endforeach ?>
+        <?php if (!$nodes): ?><div class="hv-status-row" data-status-row>Нет данных о публичных гипервизорах.</div><?php endif ?>
+    </details>
+    <section class="hv-observations">
+        <h2>Отклонения по текущим проверкам</h2>
+        <?php if ($allChecksOk): ?><p>Отклонений по последним проверкам нет.</p><?php endif ?>
+        <?php foreach ($services as [$label, $state, $ok, $description]): ?>
+            <?php if (!$ok): ?><article class="hv-observation"><strong class="hv-warn"><?= $escape($label) ?> · <?= $escape($state) ?></strong><div><?= $escape($description) ?></div></article><?php endif ?>
+        <?php endforeach ?>
+        <?php if ($nodes && $freshNodes !== count($nodes)): ?>
+            <article class="hv-observation"><strong class="hv-warn">Гипервизоры · нет свежих замеров</strong><div>Текущее состояние <?= count($nodes) - $freshNodes ?> узл. неизвестно.</div></article>
+        <?php endif ?>
     </section>
 </main>
 <footer class="site-footer">
     <div class="wrap footer-row"><span>HomeVlad Cloud</span><a href="/docs/docs.php">Документация</a></div>
 </footer>
+<script src="/js/service-overview.js?v=<?= (int)filemtime(__DIR__ . '/../js/service-overview.js') ?>" defer></script>
 </body>
 </html>

@@ -19,11 +19,12 @@ $user = $query->fetch(PDO::FETCH_ASSOC);
 <?php require __DIR__ . '/../includes/app_head.php'; ?>
 <link rel="stylesheet" href="/css/user-palette.css">
 <link rel="stylesheet" href="/css/themes.css">
+<link rel="stylesheet" href="/css/service-overview.css?v=<?= (int)filemtime(__DIR__ . '/../css/service-overview.css') ?>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <?php if ($workspaceLite): ?><link rel="stylesheet" href="/css/workspace.css?v=6"><?php endif; ?>
 <style>
-body { margin: 0; font-family: system-ui, sans-serif; background: #f3f8f5; }
-body.dark-theme { background: #14221e; color: #e6f3eb; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f1f6f8; }
+
 .customer-monitoring { margin-left: 280px; padding: 24px; }
 .workspace-layout .customer-monitoring { margin: 0; padding: 0; min-width: 0; }
 @media(max-width:992px) { .customer-monitoring { margin-left: 0; padding: 16px; } }
@@ -38,11 +39,12 @@ body.dark-theme { background: #14221e; color: #e6f3eb; }
 <?php require __DIR__ . '/headers/user_header.php'; ?>
 <?php require __DIR__ . '/headers/user_sidebar.php'; ?>
 <?php endif; ?>
-<main class="customer-monitoring">
-<h1>Мониторинг</h1>
-<?php require __DIR__ . '/../includes/infrastructure_status.php'; ?>
-<a href="/status/">Статус сервисов платформы</a>
+<main class="customer-monitoring hv-overview"><div class="hv-status-stream">
+<div class="hv-status-head"><h1>Мониторинг</h1><a href="/status/">Статус платформы</a></div>
+<?php $infrastructureOverview = true; require __DIR__ . '/../includes/infrastructure_status.php'; ?>
+</div>
 </main>
+<script src="/js/service-overview.js?v=<?= (int)filemtime(__DIR__ . '/../js/service-overview.js') ?>" defer></script>
 <?php if ($workspaceLite): ?></div><?php endif; ?>
 </body>
 </html>

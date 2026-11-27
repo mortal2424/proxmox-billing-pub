@@ -351,21 +351,125 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             border-color: rgba(14, 165, 233, 0.3);
         }
 
+        .vm-grid:has(.vm-card.compact) { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+        .vm-card.compact {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(7rem, 1fr) 16rem;
+            align-items: start;
+            gap: 10px 20px;
+            padding: 15px 17px;
+            border-inline-start: 3px solid #478a9f;
+            box-shadow: none;
+        }
+        .vm-card.compact:hover { transform: none; }
+        .vm-card.compact .vm-name { text-align: left; }
+        .vm-row-details { display: grid; gap: 4px; min-width: 0; }
+        .vm-row-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+        .vm-row-meta small, .vm-row-image { opacity: .78; overflow-wrap: anywhere; }
+        .vm-row-resources { font-size: .82rem; font-weight: 550; overflow-wrap: anywhere; }
+        .vm-row-network { align-self: start; min-width: 0; font-size: .86rem; overflow-wrap: anywhere; }
+        .vm-row-network > small { display: block; opacity: .78; margin-bottom: 3px; }
+        .vm-row-controls {
+            display: grid;
+            grid-template-columns: minmax(max-content, 1fr) 36px 32px 32px;
+            align-items: center;
+            gap: 5px;
+            min-width: 0;
+        }
+        .vm-row-controls > .status-badge { justify-self: end; white-space: nowrap; }
+        .vm-row-controls .vm-action-btn { width: 32px; height: 32px; }
+        .guest-power-switch {
+            position: relative;
+            width: 36px;
+            height: 21px;
+            border: 1px solid #849ba6;
+            border-radius: 12px;
+            background: #dbe6ea;
+            cursor: pointer;
+        }
+        .guest-power-switch::before {
+            content: '';
+            position: absolute;
+            inset-block-start: 3px;
+            inset-inline-start: 4px;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: #617986;
+        }
+        .guest-power-switch[aria-checked="true"] { background: #cbeedd; border-color: #569d7e; }
+        .guest-power-switch[aria-checked="true"]::before { inset-inline-start: 17px; background: #257d58; }
+        .guest-power-switch:disabled { opacity: .65; cursor: default; }
+        .guest-action-menu { position: relative; }
+        .guest-action-menu > summary { list-style: none; }
+        .guest-action-menu > summary::-webkit-details-marker { display: none; }
+        .guest-action-panel {
+            position: absolute;
+            z-index: 10;
+            inset-inline-end: 0;
+            top: calc(100% + 5px);
+            width: min(13rem, 70vw);
+            display: grid;
+            padding: 5px;
+            background: #fff;
+            border: 1px solid #cbdbe1;
+            border-radius: 8px;
+            box-shadow: 0 8px 22px #18364425;
+        }
+        body.dark-theme .guest-action-panel { background: #1c3036; border-color: #4a6069; }
+        .guest-action-panel > :is(button, a) {
+            display: flex; gap: 8px; align-items: center; padding: 7px 8px; background: transparent;
+            border: 0; border-radius: 4px; font: inherit; text-align: left;
+            text-decoration: none; color: inherit; cursor: pointer;
+        }
+        .guest-action-panel > :is(button, a):is(:hover, :focus-visible) { background: #478a9f24; }
+        .vm-card.compact:has(.guest-action-menu[open]) { position: relative; z-index: 2; }
+        .vm-card.compact .vm-actions { margin: 0; justify-content: flex-end; }
+        .vm-card.compact .status-badge { padding: 3px 8px; }
+        @media (max-width: 1050px) {
+            .vm-card.compact { grid-template-columns: minmax(0, 1fr) minmax(7rem, .75fr); }
+            .vm-row-controls { grid-column: 1 / -1; justify-self: end; max-width: 100%; }
+            .vm-card.compact .vm-actions { justify-content: flex-start; }
+        }
+        @media (max-width: 630px) {
+            .vm-card.compact { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+        }
+
         .vm-card-header {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .vm-card-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 4px 8px;
         }
 
-        .vm-identity { min-width: 0; }
-        .vm-image { display: block; overflow-wrap: anywhere; opacity: .8; }
+        .vm-identity {
+            display: grid;
+            grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+            align-items: start;
+            gap: 8px;
+        }
+
+        .vm-image {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            opacity: .8;
+        }
 
         .vm-name {
+            min-width: 0;
+            text-align: right;
+            margin: 0;
             font-size: 16px;
             font-weight: 600;
             color: #172438;
-            margin-bottom: 5px;
+            overflow-wrap: anywhere;
         }
 
         body.dark-theme .vm-name {
@@ -569,14 +673,17 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
         /* Действия с ВМ */
         .vm-actions {
             display: flex;
-            gap: 8px;
-            margin-top: 16px;
+            gap: 5px;
+            margin-top: 12px;
             flex-wrap: wrap;
         }
 
         .vm-action-btn {
-            flex: 1;
-            padding: 8px 12px;
+            flex: 0 0 34px;
+            box-sizing: border-box;
+            width: 34px;
+            height: 34px;
+            padding: 0;
             border-radius: 8px;
             border: none;
             background: rgba(14, 165, 233, 0.1);
@@ -591,6 +698,29 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             gap: 6px;
             text-decoration: none;
         }
+
+        .vm-actions [data-tooltip] { position: relative; }
+        .vm-actions [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            z-index: 5;
+            bottom: calc(100% + 5px);
+            left: 0;
+            width: max-content;
+            max-width: min(13rem, 60vw);
+            padding: 5px 8px;
+            border-radius: 6px;
+            background: #172438;
+            color: #fff;
+            font-size: 12px;
+            line-height: 1.25;
+            white-space: normal;
+            pointer-events: none;
+            visibility: hidden;
+        }
+        .vm-actions [data-tooltip]:is(:hover, :focus-visible)::after { visibility: visible; }
+        .vm-actions .vm-action-unavailable { display: inline-flex; }
+        .vm-actions .vm-action-btn:disabled { opacity: .55; cursor: default; }
 
         .vm-action-btn:hover {
             background: rgba(14, 165, 233, 0.2);
@@ -887,7 +1017,9 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
             }
 
             .vm-action-btn {
-                min-width: calc(50% - 4px);
+                flex-basis: 40px;
+                width: 40px;
+                height: 40px;
             }
         }
 
@@ -1679,15 +1811,15 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         const gridHtml = `
                             <div class="vm-card" data-status="${vm.status}" data-vmid="${vm.vm_id}" data-nodeid="${vm.node_id}" data-id="${vm.id}" data-vmtype="qemu">
                                 <div class="vm-card-header">
-                                    <div>
+                                    <div class="vm-card-meta">
+                                        <span class="vm-id">VMID: ${vm.vm_id}</span>
                                         <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
                                             ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
                                         </span>
-                                        <span class="vm-id">VMID: ${vm.vm_id}</span>
                                     </div>
                                     <div class="vm-identity">
-                                        <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
                                         <small class="vm-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
+                                        <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
                                     </div>
                                 </div>
 
@@ -1776,27 +1908,27 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 
                                 <div class="vm-actions">
                                     ${vm.status !== 'running' ? `
-                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+                                        <?php if ($startBlock): ?><span class="vm-action-unavailable" tabindex="0" data-tooltip="<?= htmlspecialchars($startBlock) ?>" aria-label="<?= htmlspecialchars($startBlock) ?>">
 <button class="vm-action-btn vm-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
-                                            <i class="fas fa-play"></i> Запустить
-                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
-<?php else: ?><button class="vm-action-btn vm-start" title="Запустить">
-                                            <i class="fas fa-play"></i> Запустить
+                                            <i class="fas fa-play"></i>
+                                        </button></span>
+<?php else: ?><button class="vm-action-btn vm-start" data-tooltip="Запустить" aria-label="Запустить">
+                                            <i class="fas fa-play"></i>
                                         </button><?php endif; ?>` : `
-                                        <button class="vm-action-btn warning vm-reboot" title="Перезагрузить">
-                                            <i class="fas fa-sync-alt"></i> Перезагрузить
+                                        <button class="vm-action-btn warning vm-reboot" data-tooltip="Перезагрузить" aria-label="Перезагрузить">
+                                            <i class="fas fa-sync-alt"></i>
                                         </button>
-                                        <button class="vm-action-btn danger vm-stop" title="Остановить">
-                                            <i class="fas fa-stop"></i> Остановить
+                                        <button class="vm-action-btn danger vm-stop" data-tooltip="Остановить" aria-label="Остановить">
+                                            <i class="fas fa-stop"></i>
                                         </button>`}
-                                    <button class="vm-action-btn info vm-console" title="Консоль">
-                                        <i class="fas fa-terminal"></i> Консоль
+                                    <button class="vm-action-btn info vm-console" data-tooltip="Консоль" aria-label="Консоль">
+                                        <i class="fas fa-terminal"></i>
                                     </button>
-                                    <button class="vm-action-btn secondary vm-metrics" title="Метрики">
-                                        <i class="fas fa-chart-line"></i> Метрики
+                                    <button class="vm-action-btn secondary vm-metrics" data-tooltip="Метрики" aria-label="Метрики">
+                                        <i class="fas fa-chart-line"></i>
                                     </button>
-                                    <a href="vm_settings.php?id=${vm.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
-                                    <a href="vm_settings.php?id=${vm.id}" class="vm-action-btn secondary" title="Настройки">
+                                    <a href="vm_settings.php?id=${vm.id}#guest-password" class="vm-action-btn secondary" data-tooltip="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
+                                    <a href="vm_settings.php?id=${vm.id}" class="vm-action-btn secondary" data-tooltip="Настройки" aria-label="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>
                                 </div>
@@ -1806,76 +1938,44 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         // Компактный вид
                         const compactHtml = `
                             <div class="vm-card compact" data-status="${vm.status}" data-vmid="${vm.vm_id}" data-nodeid="${vm.node_id}" data-id="${vm.id}" data-vmtype="qemu">
-                                <div class="vm-card-header">
-                                    <div class="vm-identity">
-                                        <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
-                                        <small class="vm-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
-                                    </div>
-                                    <div>
-                                        <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
-                                        </span>
+                                <div class="vm-row-details">
+                                    <h3 class="vm-name">${escapeHtml(vm.hostname)}</h3>
+                                    <div class="vm-row-meta">
                                         <span class="vm-id">VMID: ${vm.vm_id}</span>
+                                        <small>${escapeHtml(vm.node_name || '')}</small>
                                     </div>
+                                    <div class="vm-row-resources">${vm.cpu} vCPU · ${vm.ram / 1024} ГиБ RAM · ${vm.disk} ГиБ SSD</div>
+                                    <small class="vm-row-image">Образ: ${escapeHtml(vm.image_label || 'Образ не указан')}</small>
                                 </div>
-
-                                <div class="vm-specs compact">
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-microchip"></i>
-                                            <span>${vm.cpu} vCPU</span>
-                                            <span style="margin-left: auto;">${Math.round(metrics.cpu_usage)}%</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-memory"></i>
-                                            <span>${vm.ram / 1024} GB RAM</span>
-                                            <span style="margin-left: auto;">${ramUsagePercent}%</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-hdd"></i>
-                                            <span>${vm.disk} GB SSD</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-network-wired"></i>
-                                            <div>${guestAddresses(vm.ip_address)}</div>
-                                        </div>
-                                    </div>
+                                <div class="vm-row-network">
+                                    <small>IP-адреса</small>
+                                    ${guestAddresses(vm.ip_address)}
                                 </div>
-
-                                <div class="vm-actions">
-                                    ${vm.status !== 'running' ? `
-                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
-<button class="vm-action-btn vm-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
-                                            <i class="fas fa-play"></i>
-                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
-<?php else: ?><button class="vm-action-btn vm-start" title="Запустить">
-                                            <i class="fas fa-play"></i>
-                                        </button><?php endif; ?>` : `
-                                        <button class="vm-action-btn warning vm-reboot" title="Перезагрузить">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </button>
-                                        <button class="vm-action-btn danger vm-stop" title="Остановить">
-                                            <i class="fas fa-stop"></i>
-                                        </button>`}
-                                    <button class="vm-action-btn info vm-console" title="Консоль">
-                                        <i class="fas fa-terminal"></i>
+                                <div class="vm-row-controls">
+                                    <span class="status-badge ${vm.status === 'running' ? 'status-active' : 'status-inactive'}">
+                                    ${vm.status === 'running' ? 'Запущена' : (vm.status === 'suspended' ? 'Приостановлено' : 'Остановлена')}
+                                    </span>
+                                    ${vm.status === 'running' ? `
+                                        <button type="button" class="guest-power-switch vm-stop" role="switch" aria-checked="true" aria-label="Питание" title="Остановить" data-confirm-action="Остановить?"></button>` : `
+                                        <?php if ($startBlock): ?>
+                                        <button type="button" class="guest-power-switch" role="switch" aria-checked="false" disabled aria-label="<?= htmlspecialchars($startBlock, ENT_QUOTES) ?>" title="<?= htmlspecialchars($startBlock, ENT_QUOTES) ?>"></button>
+                                        <?php else: ?>
+                                        <button type="button" class="guest-power-switch vm-start" role="switch" aria-checked="false" aria-label="Питание" title="Запустить"></button>
+                                        <?php endif; ?>`}
+                                    <button type="button" class="vm-action-btn info vm-console" title="Консоль" aria-label="Консоль">
+                                        <i class="fas fa-terminal" aria-hidden="true"></i>
                                     </button>
-                                    <button class="vm-action-btn secondary vm-metrics" title="Метрики">
-                                        <i class="fas fa-chart-line"></i>
-                                    </button>
-                                    <a href="vm_settings.php?id=${vm.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
-                                    <a href="vm_settings.php?id=${vm.id}" class="vm-action-btn secondary" title="Настройки">
-                                        <i class="fas fa-cog"></i>
-                                    </a>
+                                    <details class="guest-action-menu">
+                                        <summary class="vm-action-btn secondary" title="Ещё действия" aria-label="Ещё действия">
+                                            <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+                                        </summary>
+                                        <div class="guest-action-panel">
+                                            ${vm.status === 'running' ? `<button type="button" class="vm-reboot" data-confirm-action="Перезагрузить?"><i class="fas fa-sync-alt" aria-hidden="true"></i> Перезагрузить</button>` : ''}
+                                            <button type="button" class="vm-metrics"><i class="fas fa-chart-line" aria-hidden="true"></i> Метрики</button>
+                                            <a href="vm_settings.php?id=${vm.id}#guest-password"><i class="fas fa-key" aria-hidden="true"></i> Пароль</a>
+                                            <a href="vm_settings.php?id=${vm.id}"><i class="fas fa-cog" aria-hidden="true"></i> Настройки</a>
+                                        </div>
+                                    </details>
                                 </div>
                             </div>
                         `;
@@ -1933,15 +2033,15 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         const gridHtml = `
                             <div class="vm-card" data-status="${ct.status}" data-vmid="${ct.vm_id}" data-nodeid="${ct.node_id}" data-id="${ct.id}" data-vmtype="lxc">
                                 <div class="vm-card-header">
-                                    <div>
+                                    <div class="vm-card-meta">
+                                        <span class="vm-id">CTID: ${ct.vm_id}</span>
                                         <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
                                             ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}
                                         </span>
-                                        <span class="vm-id">CTID: ${ct.vm_id}</span>
                                     </div>
                                     <div class="vm-identity">
-                                        <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
                                         <small class="vm-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
+                                        <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
                                     </div>
                                 </div>
 
@@ -2030,27 +2130,27 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
 
                                 <div class="vm-actions">
                                     ${ct.status !== 'running' ? `
-                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
+                                        <?php if ($startBlock): ?><span class="vm-action-unavailable" tabindex="0" data-tooltip="<?= htmlspecialchars($startBlock) ?>" aria-label="<?= htmlspecialchars($startBlock) ?>">
 <button class="vm-action-btn container-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
-                                            <i class="fas fa-play"></i> Запустить
-                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
-<?php else: ?><button class="vm-action-btn container-start" title="Запустить">
-                                            <i class="fas fa-play"></i> Запустить
+                                            <i class="fas fa-play"></i>
+                                        </button></span>
+<?php else: ?><button class="vm-action-btn container-start" data-tooltip="Запустить" aria-label="Запустить">
+                                            <i class="fas fa-play"></i>
                                         </button><?php endif; ?>` : `
-                                        <button class="vm-action-btn warning container-reboot" title="Перезагрузить">
-                                            <i class="fas fa-sync-alt"></i> Перезагрузить
+                                        <button class="vm-action-btn warning container-reboot" data-tooltip="Перезагрузить" aria-label="Перезагрузить">
+                                            <i class="fas fa-sync-alt"></i>
                                         </button>
-                                        <button class="vm-action-btn danger container-stop" title="Остановить">
-                                            <i class="fas fa-stop"></i> Остановить
+                                        <button class="vm-action-btn danger container-stop" data-tooltip="Остановить" aria-label="Остановить">
+                                            <i class="fas fa-stop"></i>
                                         </button>`}
-                                    <button class="vm-action-btn info container-console" title="Консоль">
-                                        <i class="fas fa-terminal"></i> Консоль
+                                    <button class="vm-action-btn info container-console" data-tooltip="Консоль" aria-label="Консоль">
+                                        <i class="fas fa-terminal"></i>
                                     </button>
-                                    <button class="vm-action-btn secondary container-metrics" title="Метрики">
-                                        <i class="fas fa-chart-line"></i> Метрики
+                                    <button class="vm-action-btn secondary container-metrics" data-tooltip="Метрики" aria-label="Метрики">
+                                        <i class="fas fa-chart-line"></i>
                                     </button>
-                                    <a href="vm_settings.php?id=${ct.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
-                                    <a href="vm_settings.php?id=${ct.id}" class="vm-action-btn secondary" title="Настройки">
+                                    <a href="vm_settings.php?id=${ct.id}#guest-password" class="vm-action-btn secondary" data-tooltip="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
+                                    <a href="vm_settings.php?id=${ct.id}" class="vm-action-btn secondary" data-tooltip="Настройки" aria-label="Настройки">
                                         <i class="fas fa-cog"></i>
                                     </a>
                                 </div>
@@ -2060,76 +2160,44 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                         // Компактный вид
                         const compactHtml = `
                             <div class="vm-card compact" data-status="${ct.status}" data-vmid="${ct.vm_id}" data-nodeid="${ct.node_id}" data-id="${ct.id}" data-vmtype="lxc">
-                                <div class="vm-card-header">
-                                    <div class="vm-identity">
-                                        <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
-                                        <small class="vm-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
-                                    </div>
-                                    <div>
-                                        <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
-                                            ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}
-                                        </span>
+                                <div class="vm-row-details">
+                                    <h3 class="vm-name">${escapeHtml(ct.hostname)}</h3>
+                                    <div class="vm-row-meta">
                                         <span class="vm-id">CTID: ${ct.vm_id}</span>
+                                        <small>${escapeHtml(ct.node_name || '')}</small>
                                     </div>
+                                    <div class="vm-row-resources">${ct.cpu} vCPU · ${ct.ram / 1024} ГиБ RAM · ${ct.disk} ГиБ SSD</div>
+                                    <small class="vm-row-image">Образ: ${escapeHtml(ct.image_label || 'Образ не указан')}</small>
                                 </div>
-
-                                <div class="vm-specs compact">
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-microchip"></i>
-                                            <span>${ct.cpu} vCPU</span>
-                                            <span style="margin-left: auto;">${Math.round(metrics.cpu_usage)}%</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-memory"></i>
-                                            <span>${ct.ram / 1024} GB RAM</span>
-                                            <span style="margin-left: auto;">${ramUsagePercent}%</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-hdd"></i>
-                                            <span>${ct.disk} GB SSD</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="vm-spec compact">
-                                        <div class="spec-info">
-                                            <i class="fas fa-network-wired"></i>
-                                            <div>${guestAddresses(ct.ip_address)}</div>
-                                        </div>
-                                    </div>
+                                <div class="vm-row-network">
+                                    <small>IP-адреса</small>
+                                    ${guestAddresses(ct.ip_address)}
                                 </div>
-
-                                <div class="vm-actions">
-                                    ${ct.status !== 'running' ? `
-                                        <?php if ($startBlock): ?><span tabindex="0" title="<?= htmlspecialchars($startBlock) ?>">
-<button class="vm-action-btn container-start" type="button" disabled aria-label="<?= htmlspecialchars($startBlock) ?>">
-                                            <i class="fas fa-play"></i>
-                                        </button></span><small role="status"><?= htmlspecialchars($startBlock) ?></small>
-<?php else: ?><button class="vm-action-btn container-start" title="Запустить">
-                                            <i class="fas fa-play"></i>
-                                        </button><?php endif; ?>` : `
-                                        <button class="vm-action-btn warning container-reboot" title="Перезагрузить">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </button>
-                                        <button class="vm-action-btn danger container-stop" title="Остановить">
-                                            <i class="fas fa-stop"></i>
-                                        </button>`}
-                                    <button class="vm-action-btn info container-console" title="Консоль">
-                                        <i class="fas fa-terminal"></i>
+                                <div class="vm-row-controls">
+                                    <span class="status-badge ${ct.status === 'running' ? 'status-active' : 'status-inactive'}">
+                                    ${ct.status === 'running' ? 'Запущен' : (ct.status === 'suspended' ? 'Приостановлено' : 'Остановлен')}
+                                    </span>
+                                    ${ct.status === 'running' ? `
+                                        <button type="button" class="guest-power-switch container-stop" role="switch" aria-checked="true" aria-label="Питание" title="Остановить" data-confirm-action="Остановить?"></button>` : `
+                                        <?php if ($startBlock): ?>
+                                        <button type="button" class="guest-power-switch" role="switch" aria-checked="false" disabled aria-label="<?= htmlspecialchars($startBlock, ENT_QUOTES) ?>" title="<?= htmlspecialchars($startBlock, ENT_QUOTES) ?>"></button>
+                                        <?php else: ?>
+                                        <button type="button" class="guest-power-switch container-start" role="switch" aria-checked="false" aria-label="Питание" title="Запустить"></button>
+                                        <?php endif; ?>`}
+                                    <button type="button" class="vm-action-btn info container-console" title="Консоль" aria-label="Консоль">
+                                        <i class="fas fa-terminal" aria-hidden="true"></i>
                                     </button>
-                                    <button class="vm-action-btn secondary container-metrics" title="Метрики">
-                                        <i class="fas fa-chart-line"></i>
-                                    </button>
-                                    <a href="vm_settings.php?id=${ct.id}#guest-password" class="vm-action-btn secondary" title="Пароль" aria-label="Пароль"><i class="fas fa-key"></i></a>
-                                    <a href="vm_settings.php?id=${ct.id}" class="vm-action-btn secondary" title="Настройки">
-                                        <i class="fas fa-cog"></i>
-                                    </a>
+                                    <details class="guest-action-menu">
+                                        <summary class="vm-action-btn secondary" title="Ещё действия" aria-label="Ещё действия">
+                                            <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+                                        </summary>
+                                        <div class="guest-action-panel">
+                                            ${ct.status === 'running' ? `<button type="button" class="container-reboot" data-confirm-action="Перезагрузить?"><i class="fas fa-sync-alt" aria-hidden="true"></i> Перезагрузить</button>` : ''}
+                                            <button type="button" class="container-metrics"><i class="fas fa-chart-line" aria-hidden="true"></i> Метрики</button>
+                                            <a href="vm_settings.php?id=${ct.id}#guest-password"><i class="fas fa-key" aria-hidden="true"></i> Пароль</a>
+                                            <a href="vm_settings.php?id=${ct.id}"><i class="fas fa-cog" aria-hidden="true"></i> Настройки</a>
+                                        </div>
+                                    </details>
                                 </div>
                             </div>
                         `;
@@ -2266,6 +2334,27 @@ $startBlock = homevladLicenseBlockReason($pdo, ['vms_running'=>1]);
                 });
             });
         }
+
+        document.addEventListener('click', event => {
+            const action = event.target.closest('[data-confirm-action]');
+            if (action && !window.confirm(action.dataset.confirmAction)) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }, true);
+        document.addEventListener('click', event => {
+            const activeMenu = event.target.closest('.guest-action-menu');
+            document.querySelectorAll('.guest-action-menu[open]').forEach(menu => {
+                if (menu !== activeMenu || event.target.closest('.guest-action-panel')) menu.open = false;
+            });
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            const menu = event.target.closest('.guest-action-menu[open]');
+            if (!menu) return;
+            menu.open = false;
+            menu.querySelector('summary').focus();
+        });
 
         // Функция для обработки действий с ВМ из оригинального файла
         function handleVmAction(action, nodeId, vm_id, card, vmType) {
