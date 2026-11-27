@@ -4,14 +4,20 @@
     background: #fff; color: #182d45; box-shadow: 0 16px 54px #0f263759;
 }
 .panel-dialog-wide { width: min(80rem, calc(100% - 24px)); height: min(54rem, 92dvh); }
-.panel-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+dialog.panel-dialog[open] { position: fixed; inset: 0; margin: auto; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .panel-dialog::backdrop { background: #0f2239a8; }
 .panel-dialog > header {
     display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .75rem;
     padding: .45rem .75rem; border-bottom: 1px solid #d7e1eb;
 }
 .panel-dialog > header h2 { margin: 0 auto 0 0; font: 650 1rem/1.3 system-ui; }
-.panel-dialog > header a { color: #2458ac; font: .8rem system-ui; text-decoration: underline; }
+dialog.panel-dialog > header > a {
+    display: inline-flex; align-items: center; min-height: 32px; padding: .3rem .65rem;
+    border: 1px solid #bdcfe0; border-radius: 7px; background: #eef5fc; color: #234f78;
+    font: 600 .8rem/1.2 system-ui; text-decoration: none;
+}
+dialog.panel-dialog > header > a:hover { background: #deecfa; }
+dialog.panel-dialog > header > a:focus-visible { outline: 2px solid #3c79b4; outline-offset: 2px; }
 .panel-dialog > header form { margin: 0; }
 .panel-dialog > header button {
     border: 0; border-radius: .35rem; padding: .2rem .5rem; cursor: pointer;

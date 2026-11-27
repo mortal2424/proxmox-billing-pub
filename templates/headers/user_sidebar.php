@@ -312,7 +312,14 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                 </li>
 
                 <li class="sidebar-menu-item">
-                    <a href="/templates/billing.php?view=usage" class="sidebar-menu-link" title="Потребление платформы" aria-label="Потребление платформы">
+                    <a class="sidebar-menu-link" href="/templates/monitoring.php" data-cabinet-dialog="Мониторинг" title="Мониторинг" aria-label="Мониторинг">
+                        <div class="menu-icon"><i class="fas fa-chart-area" aria-hidden="true"></i></div>
+                        <span class="menu-text">Мониторинг</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item">
+                    <a href="/templates/billing.php?view=usage" class="sidebar-menu-link" data-cabinet-dialog="Потребление ресурсов" title="Потребление платформы" aria-label="Потребление платформы">
                         <div class="menu-icon"><i class="fas fa-chart-line" aria-hidden="true"></i></div>
                         <span class="menu-text">Потребление платформы</span>
                     </a>
@@ -427,7 +434,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
                     <a href="/docs/docs.php" class="footer-link" title="Документация">
                         <i class="fas fa-book"></i>
                     </a>
-                    <a href="/status/" class="footer-link" title="Статус системы">
+                    <a href="/status/" class="footer-link" data-cabinet-dialog="Статус платформы" title="Статус системы">
                         <i class="fas fa-heartbeat"></i>
                     </a>
                 </div>
@@ -439,6 +446,7 @@ $vms_percent = $quota['max_vms'] > 0 ? round(($usage['vm_count'] / $quota['max_v
         </div>
     </div>
 </aside>
+<script src="/js/cabinet-dialogs.js?v=2" defer></script>
 
 <style>
 /* ========== ИНФОРМАТИВНЫЙ САЙДБАР (СКРОЛЛИТСЯ С КОНТЕНТОМ) ========== */

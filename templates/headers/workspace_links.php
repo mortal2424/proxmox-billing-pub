@@ -9,8 +9,13 @@ $workspaceOrderBlock = isset($pdo) && $pdo instanceof PDO
             <?= homevladLicenseAction($url, 'workspace-link', '<i class="fas fa-plus" aria-hidden="true"></i><span>Заказ</span>', $workspaceOrderBlock) ?>
             <?php continue; ?>
         <?php endif; ?>
-        <a href="<?= $url ?>"<?= $page === $workspaceCurrent ? ' aria-current="page"' : '' ?>>
+        <a href="<?= $url ?>"<?= match ($page) {
+            'platform-usage' => ' data-cabinet-dialog="Потребление ресурсов"',
+            'monitoring.php' => ' data-cabinet-dialog="Мониторинг"',
+            default => '',
+        } ?><?= $page === $workspaceCurrent ? ' aria-current="page"' : '' ?>>
             <i class="fas <?= $icon ?>" aria-hidden="true"></i><span><?= $label ?></span>
         </a>
     <?php endforeach; ?>
 </nav>
+<script src="/js/cabinet-dialogs.js?v=2" defer></script>

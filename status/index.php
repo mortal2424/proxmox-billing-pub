@@ -2,6 +2,11 @@
 require_once __DIR__ . '/../includes/db.php';
 
 header('Cache-Control: no-store');
+$embedded = ($_GET['embed'] ?? '') === '1';
+if ($embedded) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header("Content-Security-Policy: frame-ancestors 'self'");
+}
 
 $databaseAvailable = false;
 $monitoringAvailable = false;
@@ -54,15 +59,17 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
     <link rel="stylesheet" href="/css/service-overview.css?v=<?= (int)filemtime(__DIR__ . '/../css/service-overview.css') ?>">
 </head>
 <body class="hv-public-status">
+<?php if (!$embedded): ?>
 <header class="site-header">
     <div class="wrap header-row">
         <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">HV</span> HomeVlad Cloud</a>
         <a class="button button-outline" href="/templates/dashboard.php">Личный кабинет</a>
     </div>
 </header>
+<?php endif ?>
 <main class="hv-status-main hv-overview">
     <?php $allChecksOk = $databaseAvailable && $consoleAvailable && count($nodes) > 0 && $freshNodes === count($nodes); ?>
-    <div class="hv-status-head"><h1>Статус системы</h1><a href="/status/">Обновить</a></div>
+    <div class="hv-status-head"><h1>Статус системы</h1><a href="/status/<?= $embedded ? '?embed=1' : '' ?>">Обновить</a></div>
     <div class="hv-state-banner <?= $allChecksOk ? 'hv-ok' : 'hv-warn' ?>">
         <strong class="hv-state"><?= $allChecksOk ? 'Все проверки пройдены' : 'Часть проверок требует внимания' ?></strong>
         <div>Обновлено в <?= $escape((new DateTimeImmutable('now', new DateTimeZone('Asia/Vladivostok')))->format('H:i')) ?> по Владивостоку.</div>
@@ -104,9 +111,11 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
         <?php endif ?>
     </section>
 </main>
+<?php if (!$embedded): ?>
 <footer class="site-footer">
     <div class="wrap footer-row"><span>HomeVlad Cloud</span><a href="/docs/docs.php">Документация</a></div>
 </footer>
+<?php endif ?>
 <script src="/js/service-overview.js?v=<?= (int)filemtime(__DIR__ . '/../js/service-overview.js') ?>" defer></script>
 </body>
 </html>

@@ -17,7 +17,7 @@
             <div class="header-center">
                 <!-- Быстрые действия -->
                 <div class="quick-actions">
-                    <a href="/templates/monitoring.php" class="quick-action" aria-label="Мониторинг инфраструктуры" data-tooltip="Мониторинг">
+                    <a href="/templates/monitoring.php" data-cabinet-dialog="Мониторинг" class="quick-action" aria-label="Мониторинг инфраструктуры" data-tooltip="Мониторинг">
                         <i class="fas fa-chart-area" aria-hidden="true"></i>
                     </a>
                     <a href="/templates/dashboard.php" class="quick-action" data-tooltip="Дашборд">
@@ -1396,3 +1396,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 60000); // Проверяем каждую минуту
 });
 </script>
+
+<script src="/js/cabinet-dialogs.js?v=2" defer></script>

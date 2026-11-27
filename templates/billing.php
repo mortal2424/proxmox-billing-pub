@@ -18,6 +18,11 @@ $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
+if (($_GET['view'] ?? '') === 'usage') {
+    require __DIR__ . '/resource_usage.php';
+    return;
+}
+
 // Параметры фильтрации для истории платежей
 $payments_timeframe = $_GET['payments_timeframe'] ?? 'month';
 $payments_per_page = $_GET['payments_per_page'] ?? 20;
@@ -2483,7 +2488,7 @@ $title = "Биллинг | HomeVlad Cloud";
                 document.querySelector('.sidebar-menu-link[href="/templates/billing.php?view=usage"], .workspace-nav a[href="/templates/billing.php?view=usage"]')?.focus();
             }
 
-            if (billingUrl.searchParams.get('view') === 'usage') {
+            if (billingUrl.searchParams.get('view') === 'history') {
                 graphModal.classList.add('show');
                 document.body.style.overflow = 'hidden';
                 closeGraphModal.focus();
